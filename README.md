@@ -32,9 +32,9 @@ payload: # a json template to be filled with variables extracted from the CSV
         "city": "{{.city}}"
       }
     }
-csv: # The fields you want to use from the CSV
+csv: # The column names you want to use from the CSV
   - id
-  - street_number
+  - street_name
   - house_number
   - city
 ```
