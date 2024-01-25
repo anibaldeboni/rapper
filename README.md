@@ -2,6 +2,18 @@
 
 Rapper is a configurable cli tool to perform multiple HTTP requests based on a CSV file containing data.
 
+## Installing
+
+We provide provide pre-compiled binaries for Linux and MacOS (amd64 and arm64). The latest release could be found [here](https://github.com/anibaldeboni/rapper/releases/latest)
+After downloading the apropriate binary to your system and architecture follow the commands:
+
+```
+chmod +x rapper-linux-amd64
+mv ./rapper-linux-amd64 ~/.local/bin
+```
+
+The instructions above move the binary to `~./local/bin` if you have another folder mapped in `$PATH` move the app to the proper location.
+
 ## Configuration
 
 Prior to running `rapper` you must set a `config.yml` file inside the directory containing the CSV files you want to send data. The `config.yml` structure is as follow:
