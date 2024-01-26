@@ -1,6 +1,7 @@
 package spinner
 
 import (
+	"fmt"
 	"rapper/ui"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -76,26 +77,26 @@ func New() *tea.Program {
 }
 
 func (m model) View() string {
-	var s string
+	var help string
+	var spinner string
+	var errors string
+	var label = string(m.label) + "\n\n"
 	if !m.quitting {
-		s += m.spinner.View() + " "
+		spinner = m.spinner.View() + " "
+		help = helpStyle.Render(
+			fmt.Sprintf("Press %s or %s to exit", ui.Bold("q"), ui.Bold("ctrl+c")),
+		)
 	}
-	s += string(m.label)
 
 	if len(m.errors) > 0 {
-		s += "\n\n"
 		for _, e := range m.errors {
-			s += string(e) + "\n"
+			errors += string(e) + "\n"
 		}
 	}
 
-	if !m.quitting {
-		s += helpStyle.Render("Press q or ctrl+c key to exit")
-	}
-
 	if m.quitting {
-		s += "\n"
+		errors += "\n"
 	}
 
-	return appStyle.Render(s)
+	return appStyle.Render(spinner + label + errors + help)
 }
