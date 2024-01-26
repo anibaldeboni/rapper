@@ -48,6 +48,11 @@ func ChooseFile(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	if len(files) == 0 {
+		return "", fmt.Errorf("No CSV files found in %s", ui.Bold(path))
+	}
+
 	p := tea.NewProgram(list.BuildList(files, ui.Bold("Choose a CSV to process")))
 
 	m, err := p.Run()
@@ -83,6 +88,9 @@ func contains[T comparable](slice []T, element T) bool {
 }
 
 func FilterCSV(csv CSV, fields []string) CSV {
+	if len(fields) == 0 {
+		return csv
+	}
 	var filteredCSV CSV
 	for _, line := range csv {
 		element := CSVLine{}
