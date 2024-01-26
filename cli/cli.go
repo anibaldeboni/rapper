@@ -26,7 +26,7 @@ func Run(records files.CSV, hg web.HttpGateway) (err error) {
 
 	s := spinner.New()
 
-	go listenUpdates(errorsCh, updatesCh, s)
+	go broadcastUpdates(errorsCh, updatesCh, s)
 	go execRequests(hg, records, errorsCh, updatesCh)
 
 	if _, err := s.Run(); err != nil {
@@ -36,7 +36,7 @@ func Run(records files.CSV, hg web.HttpGateway) (err error) {
 	return nil
 }
 
-func listenUpdates(errorsCh <-chan error, updatesCh <-chan UpdateMsg, s *tea.Program) {
+func broadcastUpdates(errorsCh <-chan error, updatesCh <-chan UpdateMsg, s *tea.Program) {
 	errors := 0
 	for {
 		select {
@@ -60,9 +60,8 @@ func execRequests(hg web.HttpGateway, records files.CSV, errorsCh chan<- error, 
 	for _, record := range records {
 		response, err := hg.Exec(record)
 		if err != nil {
-			errorsCh <- err
-		}
-		if response.Status != http.StatusOK {
+			errorsCh <- fmt.Errorf("[%s] %s", ui.Bold("Connection error"), err.Error())
+		} else if response.Status != http.StatusOK {
 			errorsCh <- fmt.Errorf(formatErrorMsg(record, response.Status))
 		}
 		progress++
