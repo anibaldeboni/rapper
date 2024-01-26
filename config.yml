@@ -1,20 +1,20 @@
-token: "JWT of your application"
+token: JWT of your application
 path:
-  method: PUT # HTTP method you wish to be used in requests (currently supports PUT and POST)
-  template: https://api.myapp.io/users/{{.id}} # the variables are replaced by the corresponding csv values
-payload: # a json template to be filled with variables extracted from the CSV
+  method: PUT
+  template: https://api.myapp.io/users/{{.id}}
+payload:
   template: |
     {
       "address": {
-        "street": "{{.street_name}}", # the variables are replaced by the corresponding csv values
+        "street": "{{.street_name}}",
         "number": "{{.house_number}}",
         "city": "{{.city}}"
       }
     }
 csv:
-  fields: # The fields you want to use from the CSV
+  fields:
     - id
     - street_number
     - house_number
     - city
-  separator: "," # the separator used in the CSV, if not specified will use comma
+  separator: ','

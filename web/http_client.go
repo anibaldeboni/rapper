@@ -15,6 +15,7 @@ type RequestFunc func(string, io.Reader, map[string]string) (Response, error)
 type HttpClient interface {
 	Put(url string, body io.Reader, headers map[string]string) (Response, error)
 	Post(url string, body io.Reader, headers map[string]string) (Response, error)
+	Get(url string, headers map[string]string) (Response, error)
 }
 
 type httpClientImpl struct{}
@@ -32,6 +33,10 @@ func (h *httpClientImpl) Put(url string, body io.Reader, headers map[string]stri
 func (h *httpClientImpl) Post(url string, body io.Reader, headers map[string]string) (Response, error) {
 	headers = mergeMaps(jsonContentTypeHeader, headers)
 	return request(http.MethodPost, url, headers, body)
+}
+
+func (h *httpClientImpl) Get(url string, headers map[string]string) (Response, error) {
+	return request(http.MethodGet, url, headers, nil)
 }
 
 func addHeaders(headers map[string]string, request *http.Request) {

@@ -73,10 +73,10 @@ func formatDoneMessage(recordsCount int, errorsCount int) string {
 	var icon string
 	var errMsg string
 	if errorsCount > 0 {
-		icon = "🧨"
+		icon = ui.IconFireCracker
 		errMsg = fmt.Sprintf("%s errors occurred.", ui.Bold(errorsCount))
 	} else {
-		icon = "🏆"
+		icon = ui.IconTrophy
 		errMsg = fmt.Sprintf("%s.\n", ui.Bold("No errors"))
 	}
 
@@ -84,7 +84,7 @@ func formatDoneMessage(recordsCount int, errorsCount int) string {
 }
 
 func formatErrorMsg(record map[string]string, status int) string {
-	result := "⚠️  "
+	result := ui.IconWarning + "  "
 	keys := make([]string, 0, len(record))
 	for k := range record {
 		keys = append(keys, k)

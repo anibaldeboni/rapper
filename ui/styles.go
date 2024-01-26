@@ -16,5 +16,9 @@ var (
 	SelectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("47"))
 	PaginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
 	HelpStyle         = list.DefaultStyles().HelpStyle.PaddingBottom(1).Foreground(lipgloss.Color("241"))
-	QuitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 0, 2)
+	QuitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 1, 2)
+	IconFireCracker   = "🧨"
+	IconTrophy        = "🏆"
+	IconInformation   = "ℹ️"
+	IconWarning       = "⚠️"
 )

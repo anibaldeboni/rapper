@@ -6,10 +6,11 @@ import (
 	"rapper/cli"
 	"rapper/files"
 	"rapper/ui"
+	"rapper/versions"
 	"rapper/web"
 )
 
-var AppVersion = "local"
+var AppVersion = "2.0.0"
 var AppName = "rapper"
 
 func main() {
@@ -17,25 +18,38 @@ func main() {
 
 	config, err := files.Config(path)
 	if err != nil {
-		cli.Exit(err)
+		handleExit(err)
 	}
 
 	csvPath, err := files.ChooseFile(path)
 	if err != nil {
-		cli.Exit(err)
+		handleExit(err)
 	}
 
 	csv, err := files.MapCSV(csvPath, config.CSV.Separator)
 	if err != nil {
-		cli.Exit(err)
+		handleExit(err)
 	}
 
 	filteredCSV := files.FilterCSV(csv, config.CSV.Fields)
 	hg := web.NewHttpGateway(config.Token, config.Path.Method, config.Path.Template, config.Payload.Template)
 
 	if err := cli.Run(filteredCSV, hg); err != nil {
-		cli.Exit(err)
+		handleExit(err)
 	}
+
+	handleExit(nil)
+}
+
+func handleExit(err error) {
+	update := versions.CheckForUpdate(web.NewHttpClient(), AppVersion)
+	if err == nil {
+		cli.Exit(update)
+	}
+	if update != versions.NoUpdates {
+		update = "\n\n" + update
+	}
+	cli.Exit(err.Error() + update)
 }
 
 func handleArgs() string {
