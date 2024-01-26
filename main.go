@@ -25,12 +25,12 @@ func main() {
 		cli.Exit(err)
 	}
 
-	csv, err := files.MapCSV(csvPath)
+	csv, err := files.MapCSV(csvPath, config.CSV.Separator)
 	if err != nil {
 		cli.Exit(err)
 	}
 
-	filteredCSV := files.FilterCSV(csv, config.CSV)
+	filteredCSV := files.FilterCSV(csv, config.CSV.Fields)
 	hg := web.NewHttpGateway(config.Token, config.Path.Method, config.Path.Template, config.Payload.Template)
 
 	if err := cli.Run(filteredCSV, hg); err != nil {

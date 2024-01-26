@@ -26,7 +26,10 @@ type AppConfig struct {
 	Payload struct {
 		Template string `yaml:"template"`
 	} `yaml:"payload"`
-	CSV []string `yaml:"csv"`
+	CSV struct {
+		Fields    []string `yaml:"fields"`
+		Separator string   `yaml:"separator"`
+	} `yaml:"csv"`
 }
 
 type CSVLine map[string]string
@@ -104,7 +107,13 @@ func FilterCSV(csv CSV, fields []string) CSV {
 	return filteredCSV
 }
 
-func MapCSV(filePath string) (CSV, error) {
+func MapCSV(filePath string, separator string) (CSV, error) {
+	if len(separator) > 1 {
+		return nil, fmt.Errorf("Invalid separator: %s", ui.Bold(separator))
+	}
+	if separator == "" {
+		separator = ","
+	}
 	csvfile, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -112,6 +121,7 @@ func MapCSV(filePath string) (CSV, error) {
 	defer csvfile.Close()
 
 	reader := csv.NewReader(csvfile)
+	reader.Comma = []rune(separator)[0]
 	rawCSV, err := reader.ReadAll()
 	if err != nil {
 		return nil, err

@@ -32,11 +32,13 @@ payload: # a json template to be filled with variables extracted from the CSV
         "city": "{{.city}}"
       }
     }
-csv: # The column names you want to use from the CSV
-  - id
-  - street_name
-  - house_number
-  - city
+csv:
+  fields: # The fields you want to use from the CSV
+    - id
+    - street_number
+    - house_number
+    - city
+  separator: "," # the separator used in the CSV, if not specified will use comma
 ```
 
 Have in mind that when a request fails all variables selected in `csv` field will be used to form the error message, so select all variables you need to form the url and payload and any other that is relevant to identify problems when an error occur
