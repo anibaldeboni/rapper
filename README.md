@@ -38,7 +38,9 @@ csv: # The column names you want to use from the CSV
   - house_number
   - city
 ```
+
 Have in mind that when a request fails all variables selected in `csv` field will be used to form the error message, so select all variables you need to form the url and payload and any other that is relevant to identify problems when an error occur
+
 ## Usage
 
 ```
@@ -47,6 +49,7 @@ rapper
 ```
 
 Then you may follow the instructions in your screen.
+![rapper intial screen](./assets/rapper.png)
 
 ## Building
 
