@@ -60,7 +60,7 @@ func execRequests(hg web.HttpGateway, records files.CSV, errorsCh chan<- error, 
 	for _, record := range records {
 		response, err := hg.Exec(record)
 		if err != nil {
-			errorsCh <- fmt.Errorf("[%s] %s", ui.Bold("Connection error"), err.Error())
+			errorsCh <- fmt.Errorf("%s [%s] %s", ui.IconSkull, ui.Bold("Connection error"), err.Error())
 		} else if response.Status != http.StatusOK {
 			errorsCh <- fmt.Errorf(formatErrorMsg(record, response.Status))
 		}

@@ -21,4 +21,5 @@ var (
 	IconTrophy        = "🏆"
 	IconInformation   = "ℹ️"
 	IconWarning       = "⚠️"
+	IconSkull         = "💀"
 )
