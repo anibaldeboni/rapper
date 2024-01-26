@@ -129,6 +129,19 @@ func MapCSV(filePath string) (CSV, error) {
 	return mappedCSV, nil
 }
 
+func IsDir(path string) bool {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	if fileInfo.IsDir() {
+		return true
+	}
+
+	return false
+}
+
 func findCsvFiles(path string) ([]string, error) {
 	pattern := "*.csv"
 	files, err := filepath.Glob(path + "/" + pattern)

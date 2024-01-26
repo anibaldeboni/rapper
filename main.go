@@ -9,18 +9,11 @@ import (
 	"rapper/web"
 )
 
-var AppVersion = "0.0.1"
+var AppVersion = "local"
 var AppName = "rapper"
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "help" {
-		usage()
-		os.Exit(0)
-	}
-	path, err := os.Getwd()
-	if err != nil {
-		cli.ExitOnError(err.Error())
-	}
+	path := handleArgs()
 
 	config, err := files.Config(path)
 	if err != nil {
@@ -45,6 +38,40 @@ func main() {
 	}
 }
 
+func handleArgs() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		cli.ExitOnError(err.Error())
+	}
+	if len(os.Args) > 1 {
+		arg := os.Args[1]
+		switch arg {
+		case "help":
+			usage()
+			os.Exit(0)
+		case "version":
+			fmt.Println(AppVersion)
+			os.Exit(0)
+		}
+		if files.IsDir(arg) {
+			return arg
+		} else {
+			cli.ExitOnError("%s is not a directory", ui.Bold(arg))
+		}
+	}
+
+	return cwd
+}
+
 func usage() {
-	fmt.Printf("%s (%s)\nUsage: %s (in a folder containing a config.yml file)\n", ui.Bold(AppName), AppVersion, AppName)
+	fmt.Printf(
+		"%s (%s)\n\n"+
+			"You must always have a %s file in the folder you will run the app.\n"+
+			"If you don't point to a specific directory the current one will be used.\n\n"+
+			"Usage: %s\n",
+		ui.Bold(AppName),
+		AppVersion,
+		ui.Italic("config.yml"),
+		ui.Bold(AppName+" [<folder-with-csv>]\n"),
+	)
 }
