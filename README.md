@@ -9,7 +9,7 @@ After downloading the apropriate binary to your system and architecture follow t
 
 ```
 chmod +x rapper-linux-amd64
-mv ./rapper-linux-amd64 ~/.local/bin
+mv ./rapper-linux-amd64 ~/.local/bin/rapper
 ```
 
 The instructions above move the binary to `~./local/bin` if you have another folder mapped in `$PATH` move the app to the proper location.
