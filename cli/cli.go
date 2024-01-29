@@ -18,16 +18,16 @@ type UpdateMsg struct {
 	Total   int
 }
 
-func Run(records files.CSV, hg web.HttpGateway) (err error) {
-	errorsCh := make(chan error, len(records))
+func Run(csvFile files.CSV, hg web.HttpGateway) (err error) {
+	errorsCh := make(chan error, len(csvFile.Lines))
 	defer close(errorsCh)
-	updatesCh := make(chan UpdateMsg, len(records))
+	updatesCh := make(chan UpdateMsg, len(csvFile.Lines))
 	defer close(updatesCh)
 
 	s := spinner.New()
 
 	go broadcastUpdates(errorsCh, updatesCh, s)
-	go execRequests(hg, records, errorsCh, updatesCh)
+	go execRequests(hg, csvFile, errorsCh, updatesCh)
 
 	if _, err := s.Run(); err != nil {
 		return err
@@ -53,11 +53,11 @@ func broadcastUpdates(errorsCh <-chan error, updatesCh <-chan UpdateMsg, s *tea.
 	}
 }
 
-func execRequests(hg web.HttpGateway, records files.CSV, errorsCh chan<- error, updatesCh chan<- UpdateMsg) {
-	total := len(records)
+func execRequests(hg web.HttpGateway, csvFile files.CSV, errorsCh chan<- error, updatesCh chan<- UpdateMsg) {
+	total := len(csvFile.Lines)
 	progress := 0
 
-	for _, record := range records {
+	for _, record := range csvFile.Lines {
 		response, err := hg.Exec(record)
 		if err != nil {
 			errorsCh <- fmt.Errorf("%s [%s] %s", ui.IconSkull, ui.Bold("Connection error"), err.Error())
@@ -65,7 +65,8 @@ func execRequests(hg web.HttpGateway, records files.CSV, errorsCh chan<- error, 
 			errorsCh <- fmt.Errorf(formatErrorMsg(record, response.Status))
 		}
 		progress++
-		updatesCh <- UpdateMsg{Message: "Processing records", Current: progress, Total: total}
+		msg := fmt.Sprintf("Processing %s records", ui.Bold(csvFile.Name))
+		updatesCh <- UpdateMsg{Message: msg, Current: progress, Total: total}
 	}
 }
 

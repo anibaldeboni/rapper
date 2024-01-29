@@ -33,7 +33,10 @@ type AppConfig struct {
 }
 
 type CSVLine map[string]string
-type CSV []CSVLine
+type CSV struct {
+	Name  string
+	Lines []CSVLine
+}
 
 func Config(path string) (AppConfig, error) {
 	file, err := os.ReadFile(path + "/config.yml")
@@ -90,61 +93,52 @@ func contains[T comparable](slice []T, element T) bool {
 	return false
 }
 
-func FilterCSV(csv CSV, fields []string) CSV {
-	if len(fields) == 0 {
-		return csv
-	}
-	var filteredCSV CSV
-	for _, line := range csv {
-		element := CSVLine{}
-		for key, value := range line {
-			if contains(fields, key) {
-				element[key] = value
-			}
-		}
-		filteredCSV = append(filteredCSV, element)
-	}
-	return filteredCSV
-}
-
-func MapCSV(filePath string, separator string) (CSV, error) {
+func MapCSV(filePath string, separator string, fields []string) (CSV, error) {
 	if len(separator) > 1 {
-		return nil, fmt.Errorf("Invalid separator: %s", ui.Bold(separator))
+		return CSV{}, fmt.Errorf("Invalid separator: %s", ui.Bold(separator))
 	}
 	if separator == "" {
 		separator = ","
 	}
 	csvfile, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return CSV{}, err
 	}
 	defer csvfile.Close()
-
+	fileName := filepath.Base(filePath)
 	reader := csv.NewReader(csvfile)
 	reader.Comma = []rune(separator)[0]
 	rawCSV, err := reader.ReadAll()
 	if err != nil {
-		return nil, err
+		return CSV{}, err
 	}
 
 	var header []string
-	var mappedCSV CSV
+	var csvLines []CSVLine
+	var fieldsPosition []int
 	for lineNum, record := range rawCSV {
 		if lineNum == 0 {
-			header = record
-			// for i := 0; i < len(record); i++ {
-			// 	header = append(header, strings.TrimSpace(record[i]))
-			// }
+			for i := 0; i < len(record); i++ {
+				if contains(fields, record[i]) {
+					fieldsPosition = append(fieldsPosition, i)
+				}
+				header = append(header, strings.TrimSpace(record[i]))
+			}
 		} else {
 			line := CSVLine{}
 			for i := 0; i < len(record); i++ {
-				line[header[i]] = record[i]
+				if contains(fieldsPosition, i) {
+					line[header[i]] = record[i]
+				}
 			}
-			mappedCSV = append(mappedCSV, line)
+			csvLines = append(csvLines, line)
 		}
 	}
 
-	return mappedCSV, nil
+	return CSV{
+		Name:  fileName,
+		Lines: csvLines,
+	}, nil
 }
 
 func IsDir(path string) bool {
