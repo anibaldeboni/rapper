@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"rapper/files"
 	"rapper/ui"
+	"rapper/ui/list"
 	"rapper/ui/spinner"
 	"rapper/web"
 	"sort"
@@ -34,6 +35,13 @@ func Run(csvFile files.CSV, hg web.HttpGateway) (err error) {
 	}
 
 	return nil
+}
+
+func AskProcessAnotherFile() bool {
+	if list.Ask([]string{"Yes", "No"}, ui.Bold("Do you want to process another file?")) == "Yes" {
+		return true
+	}
+	return false
 }
 
 func broadcastUpdates(errorsCh <-chan error, updatesCh <-chan UpdateMsg, s *tea.Program) {

@@ -21,6 +21,24 @@ func main() {
 		handleExit(err)
 	}
 
+	hg := web.NewHttpGateway(config.Token, config.Path.Method, config.Path.Template, config.Payload.Template)
+
+	for {
+		run(csvFile(path, config), hg)
+		if cli.AskProcessAnotherFile() {
+			continue
+		}
+		handleExit(nil)
+	}
+}
+
+func run(csv files.CSV, hg web.HttpGateway) {
+	if err := cli.Run(csv, hg); err != nil {
+		handleExit(err)
+	}
+}
+
+func csvFile(path string, config files.AppConfig) files.CSV {
 	csvPath, err := files.ChooseFile(path)
 	if err != nil {
 		handleExit(err)
@@ -31,13 +49,7 @@ func main() {
 		handleExit(err)
 	}
 
-	hg := web.NewHttpGateway(config.Token, config.Path.Method, config.Path.Template, config.Payload.Template)
-
-	if err := cli.Run(csv, hg); err != nil {
-		handleExit(err)
-	}
-
-	handleExit(nil)
+	return csv
 }
 
 func handleExit(err error) {
