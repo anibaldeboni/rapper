@@ -7,15 +7,15 @@ import (
 )
 
 func Exit(message any, arg ...any) {
-	switch message.(type) {
+	switch message := message.(type) {
 	case string:
-		if len(message.(string)) == 0 {
+		if len(message) == 0 {
 			os.Exit(0)
 		}
-		fmt.Println(ui.QuitTextStyle.Render(fmt.Sprintf(message.(string), arg...)))
+		fmt.Println(ui.QuitTextStyle.Render(fmt.Sprintf(message, arg...)))
 		os.Exit(0)
 	case error:
-		fmt.Println(ui.QuitTextStyle.Render(fmt.Sprintf(message.(error).Error()+"\n", arg...)))
+		fmt.Println(ui.QuitTextStyle.Render(fmt.Sprintf(message.Error()+"\n", arg...)))
 		os.Exit(1)
 	case nil:
 		os.Exit(0)

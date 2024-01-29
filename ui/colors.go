@@ -11,9 +11,12 @@ func toString(s any) string {
 	switch s.(type) {
 	case int:
 		str = fmt.Sprintf("%d", s)
-		break
 	default:
-		return s.(string)
+		str, ok := s.(string)
+		if !ok {
+			return ""
+		}
+		return str
 	}
 	return str
 }

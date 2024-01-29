@@ -16,7 +16,6 @@ var (
 	selectedItemStyle = ui.SelectedItemStyle
 	paginationStyle   = ui.PaginationStyle
 	helpStyle         = ui.HelpStyle
-	quitTextStyle     = ui.QuitTextStyle
 )
 
 type Option[T comparable] struct {
@@ -99,7 +98,11 @@ func Ask[T comparable](options []Option[T], title string) (T, error) {
 	if err != nil {
 		return *new(T), err
 	}
-	return m.(model[T]).choice, nil
+	model, ok := m.(model[T])
+	if !ok {
+		return *new(T), fmt.Errorf("could not cast model to list model")
+	}
+	return model.choice, nil
 }
 
 func build[T comparable](options []Option[T], title string) model[T] {

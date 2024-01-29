@@ -5,7 +5,7 @@ import (
 	"rapper/ui"
 	"rapper/web"
 
-	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/go-version"
 )
 
 const (
@@ -30,6 +30,9 @@ func CheckForUpdate(hc web.HttpClient, currentVersion string) string {
 	}
 
 	current, err := version.NewVersion(currentVersion)
+	if err != nil {
+		return NoUpdates
+	}
 	latest, err := version.NewVersion(releases[0].TagName)
 	if err != nil {
 		return NoUpdates

@@ -86,7 +86,7 @@ func NewTemplate(name string, templ string) *template.Template {
 func RenderTemplate[T map[string]string](t *template.Template, variables T) *bytes.Buffer {
 	var result string
 	buf := bytes.NewBufferString(result)
-	t.Execute(buf, variables)
+	_ = t.Execute(buf, variables)
 
 	return buf
 }

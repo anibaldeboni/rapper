@@ -11,7 +11,6 @@ import (
 var (
 	spinnerStyle = ui.SpinnerStyle
 	helpStyle    = ui.SpinnerHelpStyle
-	dotStyle     = ui.DotStyle
 	appStyle     = ui.AppStyle
 )
 
@@ -80,7 +79,7 @@ func (m model) View() string {
 	var help string
 	var spinner string
 	var errors string
-	var label = string(m.label) + "\n\n"
+	var label = m.label + "\n\n"
 	if !m.quitting {
 		spinner = m.spinner.View() + " "
 		help = helpStyle.Render(
