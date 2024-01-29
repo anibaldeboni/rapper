@@ -12,7 +12,6 @@ import (
 	"strings"
 	"text/template"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"gopkg.in/yaml.v3"
 )
 
@@ -59,16 +58,10 @@ func ChooseFile(path string) (string, error) {
 		return "", fmt.Errorf("No CSV files found in %s", ui.Bold(path))
 	}
 
-	p := tea.NewProgram(list.BuildList(files, ui.Bold("Choose a CSV to process")))
-
-	m, err := p.Run()
-	if err != nil {
-		return "", fmt.Errorf("Oh no: %s", ui.Red(err.Error()))
+	if file := list.Ask(files, ui.Bold("Choose a CSV to process")); file != "" {
+		return strings.TrimSpace(file), nil
 	}
 
-	if m, ok := m.(list.Model); ok && m.Choice != "" {
-		return strings.TrimSpace(m.Choice), nil
-	}
 	return "", errors.New("No file selected")
 }
 

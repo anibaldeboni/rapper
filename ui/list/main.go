@@ -52,17 +52,17 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, fn(str))
 }
 
-type Model struct {
+type model struct {
 	list     list.Model
 	Choice   string
 	quitting bool
 }
 
-func (m Model) Init() tea.Cmd {
+func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
@@ -88,18 +88,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) View() string {
+func (m model) View() string {
 	if m.Choice != "" {
 		return m.Choice
 	}
 	if m.quitting {
-		// return quitTextStyle.Render("Bye.")
 		return ""
 	}
 	return "\n" + m.list.View()
 }
 
-func BuildList(items []string, title string) Model {
+func Ask(items []string, title string) string {
+	p := tea.NewProgram(build(items, title))
+	m, err := p.Run()
+	if err != nil {
+		return ""
+	}
+	return m.(model).Choice
+}
+
+func build(items []string, title string) model {
 	listItems := make([]list.Item, 0)
 	for _, arg := range items {
 		fileName := filepath.Base(arg)
@@ -116,5 +124,5 @@ func BuildList(items []string, title string) Model {
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.HelpStyle = helpStyle
 
-	return Model{list: l}
+	return model{list: l}
 }
