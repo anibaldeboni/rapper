@@ -53,17 +53,26 @@ func ChooseFile(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	if len(filePaths) == 0 {
 		return "", fmt.Errorf("No CSV files found in %s", ui.Bold(path))
 	}
-	listOptions := make([]list.Option, 0)
+
+	listOptions := make([]list.Option[string], 0)
 	for _, filePath := range filePaths {
-		fileName := filepath.Base(filePath)
-		listOptions = append(listOptions, list.Option{Title: fileName, Value: filePath})
+		listOptions = append(
+			listOptions,
+			list.Option[string]{
+				Title: filepath.Base(filePath),
+				Value: filePath,
+			},
+		)
 	}
 
-	if file := list.Ask(listOptions, ui.Bold("Choose a CSV to process")); file != "" {
+	file, err := list.Ask(listOptions, ui.Bold("Choose a CSV to process"))
+	if err != nil {
+		return "", err
+	}
+	if file != "" {
 		return strings.TrimSpace(file), nil
 	}
 

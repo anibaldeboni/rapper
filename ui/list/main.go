@@ -10,8 +10,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const listHeight = 14
-
 var (
 	titleStyle        = ui.TitleStyle
 	itemStyle         = ui.ItemStyle
@@ -21,20 +19,20 @@ var (
 	quitTextStyle     = ui.QuitTextStyle
 )
 
-type Option struct {
+type Option[T comparable] struct {
 	Title string
-	Value string
+	Value T
 }
 
-func (i Option) FilterValue() string { return "" }
+func (i Option[T]) FilterValue() string { return "" }
 
-type itemDelegate struct{}
+type itemDelegate[T comparable] struct{}
 
-func (d itemDelegate) Height() int                             { return 1 }
-func (d itemDelegate) Spacing() int                            { return 0 }
-func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	i, ok := listItem.(Option)
+func (d itemDelegate[T]) Height() int                             { return 1 }
+func (d itemDelegate[T]) Spacing() int                            { return 0 }
+func (d itemDelegate[T]) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d itemDelegate[T]) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(Option[T])
 	if !ok {
 		return
 	}
@@ -51,17 +49,17 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, fn(str))
 }
 
-type model struct {
+type model[T comparable] struct {
 	list     list.Model
-	Choice   string
+	choice   T
 	quitting bool
 }
 
-func (m model) Init() tea.Cmd {
+func (m model[T]) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
@@ -74,9 +72,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "enter":
-			i, ok := m.list.SelectedItem().(Option)
+			i, ok := m.list.SelectedItem().(Option[T])
 			if ok {
-				m.Choice = i.Value
+				m.quitting = true
+				m.choice = i.Value
 			}
 			return m, tea.Quit
 		}
@@ -87,35 +86,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) View() string {
-	if m.Choice != "" {
-		return m.Choice
-	}
+func (m model[T]) View() string {
 	if m.quitting {
 		return ""
 	}
 	return "\n" + m.list.View()
 }
 
-func Ask(options []Option, title string) string {
-	p := tea.NewProgram(build(options, title))
+func Ask[T comparable](options []Option[T], title string) (T, error) {
+	p := tea.NewProgram(build[T](options, title))
 	m, err := p.Run()
 	if err != nil {
-		return ""
+		return *new(T), err
 	}
-	return m.(model).Choice
+	return m.(model[T]).choice, nil
 }
 
-func build(options []Option, title string) model {
+func build[T comparable](options []Option[T], title string) model[T] {
 	listItems := make([]list.Item, 0)
 
 	for _, option := range options {
 		listItems = append(listItems, option)
 	}
 
-	const defaultWidth = 20
+	defaultWidth := 20
+	listHeight := len(options) + 6
 
-	l := list.New(listItems, itemDelegate{}, defaultWidth, listHeight)
+	l := list.New(listItems, itemDelegate[T]{}, defaultWidth, listHeight)
 	l.Title = title
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
@@ -123,5 +120,5 @@ func build(options []Option, title string) model {
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.HelpStyle = helpStyle
 
-	return model{list: l}
+	return model[T]{list: l}
 }
