@@ -38,7 +38,17 @@ func Run(csvFile files.CSV, hg web.HttpGateway) (err error) {
 }
 
 func AskProcessAnotherFile() bool {
-	if list.Ask([]string{"Yes", "No"}, ui.Bold("Do you want to process another file?")) == "Yes" {
+	options := []list.Option{
+		{
+			Title: "Yes",
+			Value: "yes",
+		},
+		{
+			Title: "No",
+			Value: "no",
+		},
+	}
+	if list.Ask(options, ui.Bold("Do you want to process another file?")) == "yes" {
 		return true
 	}
 	return false

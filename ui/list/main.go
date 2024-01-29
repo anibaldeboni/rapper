@@ -3,7 +3,6 @@ package list
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"rapper/ui"
 	"strings"
 
@@ -22,12 +21,12 @@ var (
 	quitTextStyle     = ui.QuitTextStyle
 )
 
-type item struct {
-	title string
-	path  string
+type Option struct {
+	Title string
+	Value string
 }
 
-func (i item) FilterValue() string { return "" }
+func (i Option) FilterValue() string { return "" }
 
 type itemDelegate struct{}
 
@@ -35,12 +34,12 @@ func (d itemDelegate) Height() int                             { return 1 }
 func (d itemDelegate) Spacing() int                            { return 0 }
 func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	i, ok := listItem.(item)
+	i, ok := listItem.(Option)
 	if !ok {
 		return
 	}
 
-	str := fmt.Sprintf("%d. %s", index+1, i.title)
+	str := fmt.Sprintf("%d. %s", index+1, i.Title)
 
 	fn := itemStyle.Render
 	if index == m.Index() {
@@ -75,9 +74,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "enter":
-			i, ok := m.list.SelectedItem().(item)
+			i, ok := m.list.SelectedItem().(Option)
 			if ok {
-				m.Choice = i.path
+				m.Choice = i.Value
 			}
 			return m, tea.Quit
 		}
@@ -98,8 +97,8 @@ func (m model) View() string {
 	return "\n" + m.list.View()
 }
 
-func Ask(items []string, title string) string {
-	p := tea.NewProgram(build(items, title))
+func Ask(options []Option, title string) string {
+	p := tea.NewProgram(build(options, title))
 	m, err := p.Run()
 	if err != nil {
 		return ""
@@ -107,11 +106,11 @@ func Ask(items []string, title string) string {
 	return m.(model).Choice
 }
 
-func build(items []string, title string) model {
+func build(options []Option, title string) model {
 	listItems := make([]list.Item, 0)
-	for _, arg := range items {
-		fileName := filepath.Base(arg)
-		listItems = append(listItems, item{title: fileName, path: arg})
+
+	for _, option := range options {
+		listItems = append(listItems, option)
 	}
 
 	const defaultWidth = 20

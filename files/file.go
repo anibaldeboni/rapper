@@ -49,16 +49,21 @@ func Config(path string) (AppConfig, error) {
 }
 
 func ChooseFile(path string) (string, error) {
-	files, err := findCsvFiles(path)
+	filePaths, err := findCsvFiles(path)
 	if err != nil {
 		return "", err
 	}
 
-	if len(files) == 0 {
+	if len(filePaths) == 0 {
 		return "", fmt.Errorf("No CSV files found in %s", ui.Bold(path))
 	}
+	listOptions := make([]list.Option, 0)
+	for _, filePath := range filePaths {
+		fileName := filepath.Base(filePath)
+		listOptions = append(listOptions, list.Option{Title: fileName, Value: filePath})
+	}
 
-	if file := list.Ask(files, ui.Bold("Choose a CSV to process")); file != "" {
+	if file := list.Ask(listOptions, ui.Bold("Choose a CSV to process")); file != "" {
 		return strings.TrimSpace(file), nil
 	}
 
