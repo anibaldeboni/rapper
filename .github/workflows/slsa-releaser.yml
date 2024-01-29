@@ -14,7 +14,10 @@
 name: SLSA Go releaser
 on: workflow_call
 
-permissions: read-all
+permissions:
+  actions: read
+  contents: write
+  id-token: write
 
 jobs:
   args:
