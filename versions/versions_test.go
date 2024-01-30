@@ -1,30 +1,22 @@
 package versions
 
 import (
-	"io"
 	"rapper/web"
+	"rapper/web/mocks"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-type httpClientMock struct{}
-
-func (httpClientMock) Put(url string, body io.Reader, headers map[string]string) (web.Response, error) {
-	return web.Response{}, nil
-}
-
-func (httpClientMock) Post(url string, body io.Reader, headers map[string]string) (web.Response, error) {
-	return web.Response{}, nil
-}
-
-func (httpClientMock) Get(url string, headers map[string]string) (web.Response, error) {
-	return web.Response{
+func TestCheckForUpdate(t *testing.T) {
+	client := mocks.NewHttpClient(t)
+	response := web.Response{
 		Status:  200,
 		Body:    []byte(`[{"tag_name": "v2.0.0", "html_url": "release_url"}]`),
 		Headers: *new(map[string][]string),
-	}, nil
-}
-func TestCheckForUpdate(t *testing.T) {
-	client := httpClientMock{}
+	}
+	client.On("Get", mock.Anything, mock.Anything).Return(response, nil)
 
 	tests := []struct {
 		name    string
@@ -45,9 +37,7 @@ func TestCheckForUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := CheckForUpdate(client, tt.version)
-			if got != tt.want {
-				t.Errorf("CheckForUpdate() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
