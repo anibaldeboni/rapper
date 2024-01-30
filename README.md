@@ -55,10 +55,10 @@ Then you may follow the instructions in your screen.
 
 ## Building
 
-In the project root directory you will find a `build.sh` script, just run in your terminal:
+In the project root directory you will find a `Makefile` with all available commands, just run in your terminal:
 
 ```
-./build.sh
+make build
 ```
 
 After that, just copy the binary to a location mapped in the `$PATH` environment variable
