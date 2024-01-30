@@ -14,10 +14,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+    secrets: inherit
   lint:
     uses: ./.github/workflows/lint.yml
     secrets: inherit
   build-release:
     uses: ./.github/workflows/slsa-releaser.yml
     secrets: inherit
-    needs: [lint]
+    needs: [tests, lint]
