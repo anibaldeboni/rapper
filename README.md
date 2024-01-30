@@ -45,20 +45,46 @@ Have in mind that when a request fails all variables selected in `csv` field wil
 
 ## Usage
 
+You may run `rapper` directly in a directory containing a `config.yml` and CSV files to process
+
 ```
 cd ~/folder-with-csv
 rapper
 ```
 
+Or poiting the app to the proper directory
+
+```
+rapper ~/some-folder
+```
+
 Then you may follow the instructions in your screen.
 ![rapper intial screen](./assets/rapper.png)
 
-## Building
+# Development
 
-In the project root directory you will find a `Makefile` with all available commands, just run in your terminal:
+In the project root directory you will find a `Makefile` with all available commands.
+
+### Building
 
 ```
 make build
 ```
 
 After that, just copy the binary to a location mapped in the `$PATH` environment variable
+
+### Lint
+
+Make sure you have `golangci-lint` installed. More instruction on how to install could be found [here](https://golangci-lint.run/usage/install/)
+
+```
+make lint
+```
+
+### Tsting
+
+For test assertions we use [testify](https://github.com/stretchr/testify) and [vektra/mockery](https://github.com/vektra/mockery) for test mocks generation.
+
+```
+make test
+```
