@@ -1,6 +1,8 @@
 package web
 
 import (
+	"io"
+	"net/http"
 	"rapper/files"
 	"text/template"
 )
@@ -8,43 +10,42 @@ import (
 type HttpGateway interface {
 	Exec(variables map[string]string) (Response, error)
 }
-type requestFuncMap map[string]RequestFunc
 
-type httpGatewayImpl struct {
-	token     string
-	method    string
-	client    HttpClient
-	templates struct {
-		url  *template.Template
-		body *template.Template
+type HttpGatewayImpl struct {
+	Token     string
+	Method    string
+	Client    HttpClient
+	Templates struct {
+		Url  *template.Template
+		Body *template.Template
 	}
 }
 
 func NewHttpGateway(token, method, urlTemplate, bodyTemplate string) HttpGateway {
-	return &httpGatewayImpl{
-		token:  token,
-		method: method,
-		client: NewHttpClient(),
-		templates: struct {
-			url  *template.Template
-			body *template.Template
+	return &HttpGatewayImpl{
+		Token:  token,
+		Method: method,
+		Client: NewHttpClient(),
+		Templates: struct {
+			Url  *template.Template
+			Body *template.Template
 		}{
 			files.NewTemplate("url", urlTemplate),
 			files.NewTemplate("body", bodyTemplate),
 		},
 	}
 }
-func (hg *httpGatewayImpl) httpFunc(method string) RequestFunc {
-	return requestFuncMap{
-		"PUT":  hg.client.Put,
-		"POST": hg.client.Post,
-	}[method]
+func (hg *HttpGatewayImpl) req(url string, body io.Reader, headers map[string]string) (Response, error) {
+	if hg.Method == http.MethodPost {
+		return hg.Client.Post(url, body, headers)
+	} else {
+		return hg.Client.Put(url, body, headers)
+	}
 }
+func (hg *HttpGatewayImpl) Exec(variables map[string]string) (Response, error) {
+	header := map[string]string{"Authorization": "Bearer " + hg.Token}
+	uri := files.RenderTemplate(hg.Templates.Url, variables).String()
+	body := files.RenderTemplate(hg.Templates.Body, variables)
 
-func (hg *httpGatewayImpl) Exec(variables map[string]string) (Response, error) {
-	header := map[string]string{"Authorization": "Bearer " + hg.token}
-	uri := files.RenderTemplate(hg.templates.url, variables).String()
-	body := files.RenderTemplate(hg.templates.body, variables)
-
-	return hg.httpFunc(hg.method)(uri, body, header)
+	return hg.req(uri, body, header)
 }

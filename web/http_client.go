@@ -10,7 +10,6 @@ type Response struct {
 	Headers http.Header
 	Body    []byte
 }
-type RequestFunc func(string, io.Reader, map[string]string) (Response, error)
 
 type HttpClient interface {
 	Put(url string, body io.Reader, headers map[string]string) (Response, error)
@@ -25,17 +24,18 @@ var jsonContentTypeHeader = map[string]string{"Content-Type": "application/json;
 func NewHttpClient() HttpClient {
 	return &httpClientImpl{}
 }
-func (h *httpClientImpl) Put(url string, body io.Reader, headers map[string]string) (Response, error) {
+
+func (httpClientImpl) Put(url string, body io.Reader, headers map[string]string) (Response, error) {
 	headers = mergeMaps(jsonContentTypeHeader, headers)
 	return request(http.MethodPut, url, headers, body)
 }
 
-func (h *httpClientImpl) Post(url string, body io.Reader, headers map[string]string) (Response, error) {
+func (httpClientImpl) Post(url string, body io.Reader, headers map[string]string) (Response, error) {
 	headers = mergeMaps(jsonContentTypeHeader, headers)
 	return request(http.MethodPost, url, headers, body)
 }
 
-func (h *httpClientImpl) Get(url string, headers map[string]string) (Response, error) {
+func (httpClientImpl) Get(url string, headers map[string]string) (Response, error) {
 	return request(http.MethodGet, url, headers, nil)
 }
 
