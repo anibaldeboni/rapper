@@ -5,7 +5,7 @@ import (
 	"rapper/ui"
 	"rapper/web"
 
-	"github.com/hashicorp/go-version"
+	version "github.com/hashicorp/go-version"
 )
 
 const (
