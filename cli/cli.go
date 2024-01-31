@@ -9,27 +9,30 @@ import (
 	"rapper/ui/spinner"
 	"rapper/web"
 	"sort"
+	"sync"
 )
 
 type UpdateMsg struct {
+	Type    string
 	Message string
 	Current int
 	Total   int
 }
 
 func Run(csvFile files.CSV, hg web.HttpGateway, s spinner.Spinner) (err error) {
-	errorsCh := make(chan error, len(csvFile.Lines))
-	defer close(errorsCh)
-	updatesCh := make(chan UpdateMsg, len(csvFile.Lines))
-	defer close(updatesCh)
+	ch := make(chan spinner.UpdateUI, len(csvFile.Lines))
+	defer close(ch)
 
-	go broadcastUpdates(errorsCh, updatesCh, s)
-	go execRequests(hg, csvFile, errorsCh, updatesCh)
+	var wg = &sync.WaitGroup{}
+	wg.Add(2)
+	go broadcastUpdates(ch, s, wg)
+	go execRequests(hg, csvFile, ch, wg)
 
 	if _, err := s.Run(); err != nil {
 		return err
 	}
 
+	wg.Wait()
 	return nil
 }
 
@@ -51,41 +54,50 @@ func AskProcessAnotherFile() bool {
 	return false
 }
 
-func broadcastUpdates(errorsCh <-chan error, updatesCh <-chan UpdateMsg, s spinner.Spinner) {
+func broadcastUpdates(ch <-chan spinner.UpdateUI, s spinner.Spinner, wg *sync.WaitGroup) {
 	errors := 0
-	for {
-		select {
-		case e := <-errorsCh:
+
+	for u := range ch {
+		if u.Type == spinner.Error {
 			errors++
-			s.Error(e.Error())
-		case u := <-updatesCh:
-			if u.Current == u.Total {
-				s.Done(formatDoneMessage(u.Current, errors))
-				return
-			}
-			s.Update(fmt.Sprintf("%s %d/%d.", u.Message, u.Current, u.Total))
+		}
+		s.Update(u)
+		if u.Type == spinner.Done {
+			wg.Done()
 		}
 	}
 }
 
-func execRequests(hg web.HttpGateway, csvFile files.CSV, errorsCh chan<- error, updatesCh chan<- UpdateMsg) {
+func execRequests(hg web.HttpGateway, csvFile files.CSV, ch chan<- spinner.UpdateUI, wg *sync.WaitGroup) {
 	total := len(csvFile.Lines)
-	progress := 0
+	errs := 0
 
-	for _, record := range csvFile.Lines {
+	defer wg.Done()
+
+	for i, record := range csvFile.Lines {
 		response, err := hg.Exec(record)
 		if err != nil {
-			errorsCh <- fmt.Errorf("%s [%s] %s", ui.IconSkull, ui.Bold("Connection error"), err.Error())
+			errs++
+			ch <- spinner.UpdateUI{
+				Type:    spinner.Error,
+				Message: fmt.Sprintf("[%s] %s", ui.Bold("Connection error"), err.Error()),
+			}
 		} else if response.Status != http.StatusOK {
-			errorsCh <- fmt.Errorf(formatErrorMsg(record, response.Status))
+			errs++
+			ch <- spinner.UpdateUI{
+				Type:    spinner.Error,
+				Message: formatErrorMsg(record, response.Status),
+			}
 		}
-		progress++
-		msg := fmt.Sprintf("Processing %s records", ui.Bold(csvFile.Name))
-		updatesCh <- UpdateMsg{Message: msg, Current: progress, Total: total}
+		ch <- spinner.UpdateUI{
+			Type:    spinner.Update,
+			Message: fmt.Sprintf("Processing %s records %d/%d", ui.Bold(csvFile.Name), i+1, total),
+		}
 	}
+	ch <- spinner.UpdateUI{Type: spinner.Done, Message: formatDoneMessage(csvFile.Name, total, errs)}
 }
 
-func formatDoneMessage(recordsCount int, errorsCount int) string {
+func formatDoneMessage(fileName string, recordsCount int, errorsCount int) string {
 	var icon string
 	var errMsg string
 	if errorsCount > 0 {
@@ -96,7 +108,7 @@ func formatDoneMessage(recordsCount int, errorsCount int) string {
 		errMsg = fmt.Sprintf("%s.\n", ui.Bold("No errors"))
 	}
 
-	return fmt.Sprintf("%s Done! %s records processed. %s", icon, ui.Bold(recordsCount), errMsg)
+	return fmt.Sprintf("%s Done! %s %s records processed. %s", icon, ui.Bold(recordsCount), ui.Green(fileName), errMsg)
 }
 
 func formatErrorMsg(record map[string]string, status int) string {

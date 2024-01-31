@@ -12,6 +12,7 @@ import (
 
 const noHeader = "/no-header"
 const withHeader = "/with-header"
+const invalidRoute = "invalid"
 
 func TestPut(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +65,7 @@ func TestPut(t *testing.T) {
 		},
 		{
 			name:    "When URL is malformed",
-			route:   server.URL + "invalid",
+			route:   server.URL + invalidRoute,
 			wantErr: true,
 		},
 	}
@@ -129,7 +130,7 @@ func TestPost(t *testing.T) {
 		},
 		{
 			name:    "When URL is malformed",
-			route:   server.URL + "invalid",
+			route:   server.URL + invalidRoute,
 			wantErr: true,
 		},
 	}
@@ -197,7 +198,7 @@ func TestGet(t *testing.T) {
 		},
 		{
 			name:    "When URL is malformed",
-			route:   server.URL + "invalid",
+			route:   server.URL + invalidRoute,
 			wantErr: true,
 		},
 	}
