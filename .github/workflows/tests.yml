@@ -7,7 +7,10 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
@@ -15,5 +18,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+
+      - name: Download dependencies
+        run: go mod download -x
+
       - name: Run tests
-        run: go test -v ./...
+        run: go run gotest.tools/gotestsum --format pkgname -- -v -cover ./...
