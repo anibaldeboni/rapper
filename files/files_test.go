@@ -1,6 +1,11 @@
-package files
+package files_test
 
-import "testing"
+import (
+	"rapper/files"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestMapCSV(t *testing.T) {
 
@@ -32,16 +37,63 @@ func TestMapCSV(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := MapCSV(tt.path, ",", tt.fields)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("MapCSV() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			got, err := files.MapCSV(tt.path, ",", tt.fields)
+
+			assert.Equal(t, tt.wantErr, err != nil)
+
 			if got.Lines != nil && len(got.Lines) > 0 {
-				for k := range got.Lines[0] {
-					if !contains(tt.fields, k) {
-						t.Errorf("MapCSV() got = %v, want %v", k, tt.fields)
-					}
-				}
+				assert.Equal(t, len(tt.fields), len(got.Lines[0]))
+			}
+		})
+	}
+}
+
+func TestConfig(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		path    string
+		wantErr bool
+	}{
+		{
+			name:    "When the file exists",
+			path:    "..",
+			wantErr: false,
+		},
+		{
+			name:    "When the file doesn't exist",
+			path:    "./no-file.yaml",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := files.Config(tt.path)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Config() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestChooseFile(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{
+			name:    "When the contain no csv",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := files.ChooseFile("../cli")
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ChooseFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
