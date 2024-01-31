@@ -14,15 +14,22 @@ var (
 	appStyle     = ui.AppStyle
 )
 
-type updateLabel string
-type errorMsg string
-type doneMsg string
+const (
+	Error  string = "error"
+	Done   string = "done"
+	Update string = "update"
+)
+
+type UpdateUI struct {
+	Type    string
+	Message string
+}
 
 type model struct {
 	spinner  spinner.Model
 	label    string
 	quitting bool
-	errors   []errorMsg
+	errors   []string
 }
 
 func newModel() model {
@@ -47,23 +54,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		}
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
-	case updateLabel:
-		m.label = string(msg)
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
-	case errorMsg:
-		m.errors = append(m.errors, msg)
-		return m, nil
+
+	case UpdateUI:
+		return m.handleUIUpdate(msg)
+
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
-	case doneMsg:
-		m.label = string(msg)
+
+	default:
+		return m, nil
+	}
+
+	return m, nil
+}
+
+func (m model) handleUIUpdate(msg UpdateUI) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case Error:
+		m.errors = append(m.errors, msg.Message)
+		return m, nil
+	case Update:
+		m.label = msg.Message
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+	case Done:
+		m.label = msg.Message
 		m.quitting = true
 		return m, tea.Quit
 	default:
@@ -73,9 +91,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 type Spinner interface {
 	Run() (tea.Model, error)
-	Update(string)
-	Error(string)
-	Done(string)
+	Update(UpdateUI)
 }
 type SpinnerImpl struct {
 	program *tea.Program
@@ -89,14 +105,8 @@ func New() Spinner {
 func (s *SpinnerImpl) Run() (tea.Model, error) {
 	return s.program.Run()
 }
-func (s *SpinnerImpl) Update(label string) {
-	s.program.Send(updateLabel(label))
-}
-func (s *SpinnerImpl) Error(err string) {
-	s.program.Send(errorMsg(err))
-}
-func (s *SpinnerImpl) Done(done string) {
-	s.program.Send(doneMsg(done))
+func (s *SpinnerImpl) Update(u UpdateUI) {
+	s.program.Send(u)
 }
 
 func (m model) View() string {
@@ -113,7 +123,7 @@ func (m model) View() string {
 
 	if len(m.errors) > 0 {
 		for _, e := range m.errors {
-			errors += string(e) + "\n"
+			errors += e + "\n"
 		}
 	}
 
