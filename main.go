@@ -6,6 +6,7 @@ import (
 	"rapper/cli"
 	"rapper/files"
 	"rapper/ui"
+	"rapper/ui/spinner"
 	"rapper/versions"
 	"rapper/web"
 )
@@ -33,7 +34,7 @@ func main() {
 }
 
 func run(csv files.CSV, hg web.HttpGateway) {
-	if err := cli.Run(csv, hg); err != nil {
+	if err := cli.Run(csv, hg, spinner.New()); err != nil {
 		handleExit(err)
 	}
 }

@@ -9,8 +9,6 @@ import (
 	"rapper/ui/spinner"
 	"rapper/web"
 	"sort"
-
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 type UpdateMsg struct {
@@ -19,13 +17,11 @@ type UpdateMsg struct {
 	Total   int
 }
 
-func Run(csvFile files.CSV, hg web.HttpGateway) (err error) {
+func Run(csvFile files.CSV, hg web.HttpGateway, s spinner.Spinner) (err error) {
 	errorsCh := make(chan error, len(csvFile.Lines))
 	defer close(errorsCh)
 	updatesCh := make(chan UpdateMsg, len(csvFile.Lines))
 	defer close(updatesCh)
-
-	s := spinner.New()
 
 	go broadcastUpdates(errorsCh, updatesCh, s)
 	go execRequests(hg, csvFile, errorsCh, updatesCh)
@@ -55,19 +51,19 @@ func AskProcessAnotherFile() bool {
 	return false
 }
 
-func broadcastUpdates(errorsCh <-chan error, updatesCh <-chan UpdateMsg, s *tea.Program) {
+func broadcastUpdates(errorsCh <-chan error, updatesCh <-chan UpdateMsg, s spinner.Spinner) {
 	errors := 0
 	for {
 		select {
 		case e := <-errorsCh:
 			errors++
-			s.Send(spinner.Error(e.Error()))
+			s.Error(e.Error())
 		case u := <-updatesCh:
 			if u.Current == u.Total {
-				s.Send(spinner.Done(formatDoneMessage(u.Current, errors)))
+				s.Done(formatDoneMessage(u.Current, errors))
 				return
 			}
-			s.Send(spinner.UpdateLabel(fmt.Sprintf("%s %d/%d.", u.Message, u.Current, u.Total)))
+			s.Update(fmt.Sprintf("%s %d/%d.", u.Message, u.Current, u.Total))
 		}
 	}
 }

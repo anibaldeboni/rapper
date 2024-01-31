@@ -14,15 +14,15 @@ var (
 	appStyle     = ui.AppStyle
 )
 
-type UpdateLabel string
-type Error string
-type Done string
+type updateLabel string
+type errorMsg string
+type doneMsg string
 
 type model struct {
 	spinner  spinner.Model
 	label    string
 	quitting bool
-	errors   []Error
+	errors   []errorMsg
 }
 
 func newModel() model {
@@ -50,19 +50,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
-	case UpdateLabel:
+	case updateLabel:
 		m.label = string(msg)
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
-	case Error:
+	case errorMsg:
 		m.errors = append(m.errors, msg)
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
-	case Done:
+	case doneMsg:
 		m.label = string(msg)
 		m.quitting = true
 		return m, tea.Quit
@@ -71,8 +71,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func New() *tea.Program {
-	return tea.NewProgram(newModel())
+type Spinner interface {
+	Run() (tea.Model, error)
+	Update(string)
+	Error(string)
+	Done(string)
+}
+type SpinnerImpl struct {
+	program *tea.Program
+}
+
+func New() Spinner {
+	return &SpinnerImpl{
+		program: tea.NewProgram(newModel()),
+	}
+}
+func (s *SpinnerImpl) Run() (tea.Model, error) {
+	return s.program.Run()
+}
+func (s *SpinnerImpl) Update(label string) {
+	s.program.Send(updateLabel(label))
+}
+func (s *SpinnerImpl) Error(err string) {
+	s.program.Send(errorMsg(err))
+}
+func (s *SpinnerImpl) Done(done string) {
+	s.program.Send(doneMsg(done))
 }
 
 func (m model) View() string {
