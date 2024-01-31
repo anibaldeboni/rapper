@@ -24,6 +24,7 @@ func Run(csvFile files.CSV, hg web.HttpGateway, s spinner.Spinner) (err error) {
 	defer close(ch)
 
 	var wg = &sync.WaitGroup{}
+
 	wg.Add(2)
 	go broadcastUpdates(ch, s, wg)
 	go execRequests(hg, csvFile, ch, wg)

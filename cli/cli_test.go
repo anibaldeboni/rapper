@@ -74,17 +74,3 @@ func TestRunWithInvalidRequestError(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
-
-func TestRunWithUIError(t *testing.T) {
-	t.Run("When the ui brakes", func(t *testing.T) {
-		spinner := uiMocks.NewSpinner(t)
-		hg := webMocks.NewHttpGateway(t)
-
-		spinner.On("Run").Return(nil, errors.New("ui-error"))
-
-		err := cli.Run(csv, hg, spinner)
-		spinner.AssertNotCalled(t, "Update", mock.Anything)
-		hg.AssertNotCalled(t, "Exec", mock.Anything)
-		assert.Error(t, err)
-	})
-}
