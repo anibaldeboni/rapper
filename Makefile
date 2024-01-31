@@ -8,7 +8,7 @@ lint:
 	@golangci-lint run -v
 
 test: install_deps
-	@go run gotest.tools/gotestsum --format pkgname -- -v -cover ./...
+	@go run gotest.tools/gotestsum@latest --format pkgname -- -v -cover ./...
 
 build:
 	@scripts/build.sh
