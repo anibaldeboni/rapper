@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"rapper/files"
@@ -38,9 +39,11 @@ func NewHttpGateway(token, method, urlTemplate, bodyTemplate string) HttpGateway
 func (hg *HttpGatewayImpl) req(url string, body io.Reader, headers map[string]string) (Response, error) {
 	if hg.Method == http.MethodPost {
 		return hg.Client.Post(url, body, headers)
-	} else {
+	}
+	if hg.Method == http.MethodPut {
 		return hg.Client.Put(url, body, headers)
 	}
+	return Response{}, errors.New("method not supported")
 }
 func (hg *HttpGatewayImpl) Exec(variables map[string]string) (Response, error) {
 	header := map[string]string{"Authorization": "Bearer " + hg.Token}
