@@ -32,6 +32,26 @@ type model struct {
 	errors   []string
 }
 
+type Spinner interface {
+	Run() (tea.Model, error)
+	Update(UpdateUI)
+}
+type SpinnerImpl struct {
+	program *tea.Program
+}
+
+func New() Spinner {
+	return &SpinnerImpl{
+		program: tea.NewProgram(newModel()),
+	}
+}
+func (s *SpinnerImpl) Run() (tea.Model, error) {
+	return s.program.Run()
+}
+func (s *SpinnerImpl) Update(u UpdateUI) {
+	s.program.Send(u)
+}
+
 func newModel() model {
 	s := spinner.New()
 	s.Style = spinnerStyle
@@ -87,26 +107,6 @@ func (m model) handleUIUpdate(msg UpdateUI) (tea.Model, tea.Cmd) {
 	default:
 		return m, nil
 	}
-}
-
-type Spinner interface {
-	Run() (tea.Model, error)
-	Update(UpdateUI)
-}
-type SpinnerImpl struct {
-	program *tea.Program
-}
-
-func New() Spinner {
-	return &SpinnerImpl{
-		program: tea.NewProgram(newModel()),
-	}
-}
-func (s *SpinnerImpl) Run() (tea.Model, error) {
-	return s.program.Run()
-}
-func (s *SpinnerImpl) Update(u UpdateUI) {
-	s.program.Send(u)
 }
 
 func (m model) View() string {
