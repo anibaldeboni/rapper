@@ -38,7 +38,12 @@ type CSV struct {
 }
 
 func Config(path string) (AppConfig, error) {
-	file, err := os.ReadFile(path + "/config.yml")
+	f, errs := FindFiles(path, "config.yml", "config.yaml")
+	if len(errs) > 0 || len(f) == 0 {
+		return AppConfig{}, fmt.Errorf("Could not find config.yml or config.yaml in %s", ui.Bold(path))
+	}
+
+	file, err := os.ReadFile(f[0])
 	if err != nil {
 		return AppConfig{}, err
 	}
@@ -49,9 +54,9 @@ func Config(path string) (AppConfig, error) {
 }
 
 func ChooseFile(path string) (string, error) {
-	filePaths, err := findCsvFiles(path)
-	if err != nil {
-		return "", err
+	filePaths, err := FindFiles(path, "*.csv")
+	if len(err) > 0 {
+		return "", fmt.Errorf("Could not execute file scan in %s", ui.Bold(path))
 	}
 	if len(filePaths) == 0 {
 		return "", fmt.Errorf("No CSV files found in %s", ui.Bold(path))
@@ -68,9 +73,9 @@ func ChooseFile(path string) (string, error) {
 		)
 	}
 
-	file, err := list.Ask(listOptions, ui.Bold("Choose a CSV to process"))
-	if err != nil {
-		return "", err
+	file, e := list.Ask(listOptions, ui.Bold("Choose a CSV to process"))
+	if e != nil {
+		return "", e
 	}
 	if file != "" {
 		return strings.TrimSpace(file), nil
@@ -161,11 +166,17 @@ func IsDir(path string) bool {
 	return false
 }
 
-func findCsvFiles(path string) ([]string, error) {
-	pattern := "*.csv"
-	files, err := filepath.Glob(path + "/" + pattern)
-	if err != nil {
-		return nil, err
+// FindFiles returns a list of files that match the given pattern in the given directory.
+func FindFiles(dir string, f ...string) ([]string, []error) {
+	files := []string{}
+	errs := []error{}
+	for _, file := range f {
+		found, err := filepath.Glob(dir + "/" + file)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		files = append(files, found...)
 	}
-	return files, nil
+
+	return files, errs
 }
