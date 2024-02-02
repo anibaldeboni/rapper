@@ -19,19 +19,20 @@ type UpdateMsg struct {
 	Total   int
 }
 
-func Run(csvFile files.CSV, hg web.HttpGateway, s spinner.Spinner) (err error) {
+func Run(csvFile files.CSV, hg web.HttpGateway, s spinner.Spinner) error {
 	ch := make(chan spinner.UpdateUI, len(csvFile.Lines))
-	defer close(ch)
-
 	var wg = &sync.WaitGroup{}
 
 	wg.Add(2)
 	go broadcastUpdates(ch, s, wg)
 	go execRequests(hg, csvFile, ch, wg)
 
-	if _, err := s.Run(); err != nil {
-		return err
-	}
+	go func(ch chan<- spinner.UpdateUI, s spinner.Spinner) {
+		if _, err := s.Run(); err != nil {
+			close(ch)
+			Exit(err)
+		}
+	}(ch, s)
 
 	wg.Wait()
 	return nil
@@ -56,24 +57,18 @@ func AskProcessAnotherFile() bool {
 }
 
 func broadcastUpdates(ch <-chan spinner.UpdateUI, s spinner.Spinner, wg *sync.WaitGroup) {
-	errors := 0
-
+	defer wg.Done()
 	for u := range ch {
-		if u.Type == spinner.Error {
-			errors++
-		}
 		s.Update(u)
-		if u.Type == spinner.Done {
-			wg.Done()
-		}
 	}
 }
 
 func execRequests(hg web.HttpGateway, csvFile files.CSV, ch chan<- spinner.UpdateUI, wg *sync.WaitGroup) {
+	defer close(ch)
+	defer wg.Done()
+
 	total := len(csvFile.Lines)
 	errs := 0
-
-	defer wg.Done()
 
 	for i, record := range csvFile.Lines {
 		response, err := hg.Exec(record)
