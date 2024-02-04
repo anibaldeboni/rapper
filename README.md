@@ -59,7 +59,7 @@ rapper ~/some-folder
 ```
 
 Then you may follow the instructions in your screen.
-![rapper intial screen](./assets/rapper.png)
+![rapper usage recording](./assets/rapper.gif)
 
 # Development
 
