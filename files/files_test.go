@@ -17,13 +17,13 @@ func TestMapCSV(t *testing.T) {
 	}{
 		{
 			name:    "When the file exists",
-			path:    "../testdata/example.csv",
+			path:    "../tests/example.csv",
 			fields:  []string{"id", "street_number"},
 			wantErr: false,
 		},
 		{
 			name:    "When no field is specified",
-			path:    "../testdata/example.csv",
+			path:    "../tests/example.csv",
 			fields:  []string{},
 			wantErr: false,
 		},
@@ -72,28 +72,6 @@ func TestConfig(t *testing.T) {
 			_, err := files.Config(tt.path)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Config() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestChooseFile(t *testing.T) {
-
-	tests := []struct {
-		name    string
-		wantErr bool
-	}{
-		{
-			name:    "When the contain no csv",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := files.ChooseFile("../cli")
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ChooseFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

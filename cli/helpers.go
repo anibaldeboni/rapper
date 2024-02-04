@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
-	"rapper/ui"
+	"rapper/cli/ui"
 )
 
 func Exit(message any, arg ...any) {
@@ -12,15 +12,15 @@ func Exit(message any, arg ...any) {
 		if len(message) == 0 {
 			os.Exit(0)
 		}
-		fmt.Println(ui.QuitTextStyle.Render(fmt.Sprintf(message, arg...)))
+		fmt.Println(ui.QuitTextStyle(fmt.Sprintf(message, arg...)))
 		os.Exit(0)
 	case error:
-		fmt.Println(ui.QuitTextStyle.Render(fmt.Sprintf(message.Error()+"\n", arg...)))
+		fmt.Println(ui.QuitTextStyle(fmt.Sprintf(message.Error()+"\n", arg...)))
 		os.Exit(1)
 	case nil:
 		os.Exit(0)
 	default:
-		fmt.Println(ui.QuitTextStyle.Render(fmt.Sprintf("%v\n", message)))
+		fmt.Println(ui.QuitTextStyle(fmt.Sprintf("%v\n", message)))
 		os.Exit(1)
 	}
 }

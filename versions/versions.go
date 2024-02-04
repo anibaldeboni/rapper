@@ -2,7 +2,7 @@ package versions
 
 import (
 	"encoding/json"
-	"rapper/ui"
+	"rapper/cli/ui"
 	"rapper/web"
 
 	version "github.com/hashicorp/go-version"

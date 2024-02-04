@@ -3,12 +3,10 @@ package files
 import (
 	"bytes"
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"rapper/ui"
-	"rapper/ui/list"
+	"rapper/cli/ui"
 	"strings"
 	"text/template"
 
@@ -51,37 +49,6 @@ func Config(path string) (AppConfig, error) {
 	err = yaml.Unmarshal(file, &config)
 
 	return config, err
-}
-
-func ChooseFile(path string) (string, error) {
-	filePaths, err := FindFiles(path, "*.csv")
-	if len(err) > 0 {
-		return "", fmt.Errorf("Could not execute file scan in %s", ui.Bold(path))
-	}
-	if len(filePaths) == 0 {
-		return "", fmt.Errorf("No CSV files found in %s", ui.Bold(path))
-	}
-
-	listOptions := make([]list.Option[string], 0)
-	for _, filePath := range filePaths {
-		listOptions = append(
-			listOptions,
-			list.Option[string]{
-				Title: filepath.Base(filePath),
-				Value: filePath,
-			},
-		)
-	}
-
-	file, e := list.Ask(listOptions, ui.Bold("Choose a CSV to process"))
-	if e != nil {
-		return "", e
-	}
-	if file != "" {
-		return strings.TrimSpace(file), nil
-	}
-
-	return "", errors.New("No file selected")
 }
 
 func NewTemplate(name string, templ string) *template.Template {

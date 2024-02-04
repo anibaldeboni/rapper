@@ -1,76 +1,31 @@
 package cli_test
 
 import (
-	"errors"
-	"net/http"
 	"rapper/cli"
 	"rapper/files"
-	uiMocks "rapper/ui/spinner/mocks"
-	"rapper/web"
 	webMocks "rapper/web/mocks"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
-var records = []files.CSVLine{
-	{
-		"id":   "1",
-		"name": "John Doe",
-	},
-}
-var csv = files.CSV{
-	Name:  "test.csv",
-	Lines: records,
-}
+func TestNew(t *testing.T) {
+	t.Run("When the path contains CSV files", func(t *testing.T) {
+		config := files.AppConfig{}
+		path := "../tests"
 
-func TestRun(t *testing.T) {
-	t.Run("When the request succeed", func(t *testing.T) {
-		spinner := uiMocks.NewSpinner(t)
-		hg := webMocks.NewHttpGateway(t)
+		c, err := cli.New(config, path, webMocks.NewHttpGateway(t), "appName", "appVersion")
 
-		spinner.On("Run").Return(nil, nil)
-		spinner.On("Update", mock.Anything).Return(nil)
-		hg.On("Exec", mock.Anything).Return(web.Response{
-			Status:  200,
-			Body:    []byte(""),
-			Headers: http.Header{},
-		}, nil)
-
-		err := cli.Run(csv, hg, spinner)
 		assert.NoError(t, err)
+		assert.NotNil(t, c)
 	})
-}
 
-func TestRunWithInvalidRequestStatus(t *testing.T) {
-	t.Run("When the request is status is not 200", func(t *testing.T) {
-		spinner := uiMocks.NewSpinner(t)
-		hg := webMocks.NewHttpGateway(t)
+	t.Run("When the path does not contain CSV files", func(t *testing.T) {
+		config := files.AppConfig{}
+		path := "../tests/empty"
 
-		spinner.On("Run").Return(nil, nil)
-		spinner.On("Update", mock.Anything).Return(nil)
-		hg.On("Exec", mock.Anything).Return(web.Response{
-			Status:  401,
-			Body:    []byte(""),
-			Headers: http.Header{},
-		}, nil)
+		_, err := cli.New(config, path, webMocks.NewHttpGateway(t), "appName", "appVersion")
 
-		err := cli.Run(csv, hg, spinner)
-		assert.NoError(t, err)
-	})
-}
-
-func TestRunWithInvalidRequestError(t *testing.T) {
-	t.Run("When the request connection fails", func(t *testing.T) {
-		spinner := uiMocks.NewSpinner(t)
-		hg := webMocks.NewHttpGateway(t)
-
-		spinner.On("Run").Return(nil, nil)
-		spinner.On("Update", mock.Anything).Return(nil)
-		hg.On("Exec", mock.Anything).Return(web.Response{}, errors.New("request-error"))
-
-		err := cli.Run(csv, hg, spinner)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	})
 }
