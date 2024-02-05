@@ -1,13 +1,11 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"net/http"
-	"path/filepath"
-	"rapper/cli/ui"
 	"rapper/files"
 	"rapper/web"
-	"sort"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
@@ -20,17 +18,27 @@ var (
 	version string
 )
 
+type csvOption struct {
+	sep    string
+	fields []string
+}
+
 type Cli struct {
-	config       files.AppConfig
+	csv      csvOption
+	ctx      context.Context
+	cancelFn context.CancelFunc
+
+	showProgress bool
 	progressBar  progress.Model
 	completed    float64
-	filesList    list.Model
-	help         help.Model
-	keys         keyMap
 	errs         []string
-	file         string
-	showProgress bool
-	gateway      web.HttpGateway
+
+	filesList list.Model
+	file      string
+	help      help.Model
+	keys      keyMap
+
+	gateway web.HttpGateway
 }
 
 func (c *Cli) Start() error {
@@ -49,12 +57,15 @@ func New(config files.AppConfig, path string, gateway web.HttpGateway, appName s
 	version = appVersion
 
 	return &Cli{
-		config:      config,
-		gateway:     gateway,
+		csv: csvOption{
+			sep:    config.CSV.Separator,
+			fields: config.CSV.Fields,
+		},
 		filesList:   createList(opts),
 		progressBar: progress.New(progress.WithDefaultGradient()),
 		help:        createHelp(),
 		keys:        keys,
+		gateway:     gateway,
 	}, nil
 }
 
@@ -62,68 +73,67 @@ func (c *Cli) Init() tea.Cmd {
 	return tea.Batch(tea.EnterAltScreen, tickCmd())
 }
 
-func (c *Cli) execRequests(filePath string) {
-	csv, err := files.MapCSV(filePath, c.config.CSV.Separator, c.config.CSV.Fields)
+func (c *Cli) execRequests(ctx context.Context, filePath string) {
+	csv, err := files.MapCSV(filePath, c.csv.sep, c.csv.fields)
 	if err != nil {
 		c.errs = append(c.errs, formatError("CSV error", err.Error()))
 		c.completed = 1
+		c.cancel()
+		return
 	}
 	total := len(csv.Lines)
+	current := 0
 
 	if total == 0 {
 		c.errs = append(c.errs, formatError("CSV error", "No records found in the file"))
 		c.completed = 1
+		c.cancel()
+		return
 	}
 
 	for i, record := range csv.Lines {
-		response, err := c.gateway.Exec(record)
-		if err != nil {
-			c.errs = append(c.errs, formatError("Request error", err.Error()))
-		} else if response.Status != http.StatusOK {
-			c.errs = append(c.errs, formatStatusError(record, response.Status))
+		select {
+		case <-ctx.Done():
+			completed := fmt.Sprintf("Processed %d of %d", current, total)
+			c.errs = []string{formatError("Operation canceled", completed)}
+			break
+		default:
+			current = 1 + i
+			c.completed = float64(current) / float64(total)
+			response, err := c.gateway.Exec(record)
+			if err != nil {
+				c.errs = append(c.errs, formatError("Request error", err.Error()))
+			} else if response.Status != http.StatusOK {
+				c.errs = append(c.errs, formatStatusError(record, response.Status))
+			}
 		}
-		c.completed = float64(i+1) / float64(total)
 	}
 }
 
-func formatError(name string, err string) string {
-	return fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold(name), err)
+func (c *Cli) cancel() {
+	c.cancelFn()
+	c.ctx = nil
+	c.cancelFn = nil
 }
 
-func formatStatusError(record map[string]string, status int) string {
-	result := ui.IconWarning + "  "
-	keys := make([]string, 0, len(record))
-	for k := range record {
-		keys = append(keys, k)
+func (c *Cli) selectItem(item Option[string]) {
+	if c.ctx != nil {
+		c.cancel()
+	} else {
+		c.resetProgress()
+		c.file = item.Title
+		c.ctx, c.cancelFn = context.WithCancel(context.Background())
+		go c.execRequests(c.ctx, item.Value)
 	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		result += fmt.Sprintf("%s: %s ", ui.Bold(key), record[key])
-	}
-	result += fmt.Sprintf("status: %s", ui.Pink(fmt.Sprint(status)))
-
-	return result
 }
 
-func findCsv(path string) ([]Option[string], error) {
-	filePaths, err := files.FindFiles(path, "*.csv")
-	if len(err) > 0 {
-		return nil, fmt.Errorf("Could not execute file scan in %s", ui.Bold(path))
-	}
-	if len(filePaths) == 0 {
-		return nil, fmt.Errorf("No CSV files found in %s", ui.Bold(path))
-	}
+func (c *Cli) resizeElements(width int) {
+	listWidth := int(float64(width) * 0.4)
+	progressWidth := width - listWidth + 4
+	c.filesList.SetWidth(listWidth)
+	c.progressBar.Width = progressWidth
+}
 
-	opts := make([]Option[string], 0)
-	for _, filePath := range filePaths {
-		opts = append(
-			opts,
-			Option[string]{
-				Title: filepath.Base(filePath),
-				Value: filePath,
-			},
-		)
-	}
-
-	return opts, nil
+func (c *Cli) isProcessing() bool {
+	return c.progressBar.Percent() < 1.0
 }

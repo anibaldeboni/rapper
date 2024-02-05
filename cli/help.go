@@ -13,6 +13,7 @@ type keyMap struct {
 	Help   key.Binding
 	Quit   key.Binding
 	Select key.Binding
+	Cancel key.Binding
 }
 
 func createHelp() help.Model {
@@ -22,13 +23,13 @@ func createHelp() help.Model {
 	return help
 }
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Select, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Select, k.Cancel, k.Help, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Select}, // first column
-		{k.Help, k.Quit},         // second column
+		{k.Up, k.Down, k.Select, k.Cancel}, // first column
+		{k.Help, k.Quit},                   // second column
 	}
 }
 
@@ -44,6 +45,10 @@ var keys = keyMap{
 	Select: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "select file"),
+	),
+	Cancel: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "cancel operation"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),

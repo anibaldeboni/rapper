@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"math"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -11,19 +10,19 @@ import (
 
 type tickMsg time.Time
 
-func (c *Cli) toggleProgress() {
+func (c *Cli) resetProgress() {
 	c.showProgress = true
 	c.completed = 0
+	c.progressBar.SetPercent(0)
 	c.errs = nil
 }
 
 func tickCmd() tea.Cmd {
-	return tea.Tick(10*time.Millisecond, func(t time.Time) tea.Msg {
+	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
 
-// nolint: funlen
 func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -33,23 +32,24 @@ func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, c.keys.Select):
 			item, ok := c.filesList.SelectedItem().(Option[string])
 			if ok {
-				c.file = item.Title
-				c.toggleProgress()
-				go c.execRequests(item.Value)
+				c.selectItem(item)
+			}
+			return c, nil
+
+		case key.Matches(msg, c.keys.Cancel):
+			if c.ctx != nil {
+				c.cancel()
 			}
 			return c, nil
 		}
 
 	case tea.WindowSizeMsg:
-		lw := int(math.Round(float64(msg.Width) * 0.4))
-		pq := msg.Width - lw + 4
-		c.filesList.SetWidth(lw)
-		c.progressBar.Width = pq
+		c.resizeElements(msg.Width)
 		return c, nil
 
 	case tickMsg:
 		cmd := c.progressBar.SetPercent(c.completed)
-		return c, tea.Batch(tickCmd(), cmd)
+		return c, tea.Batch(cmd, tickCmd())
 
 	case progress.FrameMsg:
 		progressModel, cmd := c.progressBar.Update(msg)

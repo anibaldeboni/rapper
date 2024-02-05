@@ -22,10 +22,12 @@ func (c *Cli) View() string {
 	errs := strings.Join(c.errs, "\n")
 
 	var status string
-	if c.progressBar.Percent() >= 1.0 {
-		status = fmt.Sprintf("\n%s %s done!", icon(c.errs), ui.Pink(c.file))
-	} else {
+	if c.isProcessing() {
 		status = fmt.Sprintf("\n%s Processing %s", ui.IconWomanDancing, ui.Green(c.file))
+	} else {
+		status = fmt.Sprintf("\n%s %s done!", icon(c.errs), ui.Pink(c.file))
+		c.ctx = nil
+		c.cancelFn = nil
 	}
 
 	var progress string
