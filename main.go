@@ -10,7 +10,7 @@ import (
 	"rapper/web"
 )
 
-var AppVersion = "2.3.0"
+var AppVersion = "2.4.0"
 var AppName = "rapper"
 
 func main() {
