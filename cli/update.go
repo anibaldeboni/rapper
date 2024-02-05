@@ -2,23 +2,29 @@ package cli
 
 import (
 	"math"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type progressMsg float64
-type errorMsg string
+type tickMsg time.Time
 
 func (c *Cli) toggleProgress() {
 	c.showProgress = true
-	c.progressBar.SetPercent(0)
+	c.completed = 0
 	c.errs = nil
 }
 
+func tickCmd() tea.Cmd {
+	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
 // nolint: funlen
-func (c Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -41,13 +47,9 @@ func (c Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		c.progressBar.Width = pq
 		return c, nil
 
-	case errorMsg:
-		c.errs = append(c.errs, string(msg))
-		return c, nil
-
-	case progressMsg:
-		c.showProgress = true
-		return c, c.progressBar.SetPercent(float64(msg))
+	case tickMsg:
+		cmd := c.progressBar.SetPercent(c.completed)
+		return c, tea.Batch(tickCmd(), cmd)
 
 	case progress.FrameMsg:
 		progressModel, cmd := c.progressBar.Update(msg)

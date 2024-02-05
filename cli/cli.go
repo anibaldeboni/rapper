@@ -16,14 +16,14 @@ import (
 )
 
 var (
-	teaProgram *tea.Program
-	name       string
-	version    string
+	name    string
+	version string
 )
 
 type Cli struct {
 	config       files.AppConfig
 	progressBar  progress.Model
+	completed    float64
 	filesList    list.Model
 	help         help.Model
 	keys         keyMap
@@ -33,23 +33,22 @@ type Cli struct {
 	gateway      web.HttpGateway
 }
 
-func (c Cli) Start() error {
-	teaProgram = tea.NewProgram(c)
-	if _, err := teaProgram.Run(); err != nil {
+func (c *Cli) Start() error {
+	if _, err := tea.NewProgram(c).Run(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func New(config files.AppConfig, path string, gateway web.HttpGateway, appName string, appVersion string) (Cli, error) {
+func New(config files.AppConfig, path string, gateway web.HttpGateway, appName string, appVersion string) (*Cli, error) {
 	opts, err := findCsv(path)
 	if err != nil {
-		return Cli{}, err
+		return &Cli{}, err
 	}
 	name = appName
 	version = appVersion
 
-	return Cli{
+	return &Cli{
 		config:      config,
 		gateway:     gateway,
 		filesList:   createList(opts),
@@ -59,34 +58,39 @@ func New(config files.AppConfig, path string, gateway web.HttpGateway, appName s
 	}, nil
 }
 
-func (c Cli) Init() tea.Cmd {
-	return tea.EnterAltScreen
+func (c *Cli) Init() tea.Cmd {
+	return tea.Batch(tea.EnterAltScreen, tickCmd())
 }
 
 func (c *Cli) execRequests(filePath string) {
 	csv, err := files.MapCSV(filePath, c.config.CSV.Separator, c.config.CSV.Fields)
 	if err != nil {
-		teaProgram.Send(errorMsg(fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("CSV error"), err.Error())))
+		c.errs = append(c.errs, formatError("CSV error", err.Error()))
+		c.completed = 1
 	}
 	total := len(csv.Lines)
 
 	if total == 0 {
-		teaProgram.Send(errorMsg(fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("CSV error"), "No lines found")))
-		teaProgram.Send(progressMsg(1.0))
+		c.errs = append(c.errs, formatError("CSV error", "No records found in the file"))
+		c.completed = 1
 	}
 
 	for i, record := range csv.Lines {
 		response, err := c.gateway.Exec(record)
 		if err != nil {
-			teaProgram.Send(errorMsg(fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("Connection error"), err.Error())))
+			c.errs = append(c.errs, formatError("Request error", err.Error()))
 		} else if response.Status != http.StatusOK {
-			teaProgram.Send(errorMsg(formatErrorMsg(record, response.Status)))
+			c.errs = append(c.errs, formatStatusError(record, response.Status))
 		}
-		teaProgram.Send(progressMsg(float64(i+1) / float64(total)))
+		c.completed = float64(i+1) / float64(total)
 	}
 }
 
-func formatErrorMsg(record map[string]string, status int) string {
+func formatError(name string, err string) string {
+	return fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold(name), err)
+}
+
+func formatStatusError(record map[string]string, status int) string {
 	result := ui.IconWarning + "  "
 	keys := make([]string, 0, len(record))
 	for k := range record {

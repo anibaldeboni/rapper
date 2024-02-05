@@ -18,7 +18,7 @@ func icon(errs []string) string {
 	return icon
 }
 
-func (c Cli) View() string {
+func (c *Cli) View() string {
 	errs := strings.Join(c.errs, "\n")
 
 	var status string
