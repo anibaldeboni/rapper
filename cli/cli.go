@@ -92,12 +92,13 @@ func (c *Cli) execRequests(ctx context.Context, filePath string) {
 		return
 	}
 
+Processing:
 	for i, record := range csv.Lines {
 		select {
 		case <-ctx.Done():
 			completed := fmt.Sprintf("Processed %d of %d", current, total)
 			c.errs = []string{formatError("Operation canceled", completed)}
-			break
+			break Processing
 		default:
 			current = 1 + i
 			c.completed = float64(current) / float64(total)
