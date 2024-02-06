@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	releaseUrl = "https://api.github.com/repos/anibaldeboni/rapper/releases"
+	releaseUrl = "https://api.github.com/repos/anibaldeboni/rapper/releases?per_page=1?page=1"
 	NoUpdates  = ""
 )
 
@@ -19,7 +19,12 @@ type release struct {
 }
 
 func CheckForUpdate(hc web.HttpClient, currentVersion string) string {
-	res, err := hc.Get(releaseUrl, nil)
+	headers := map[string]string{
+		"Accept":               "application/vnd.github+json",
+		"User-Agent":           "rapper",
+		"X-GitHub-Api-Version": "2022-11-28",
+	}
+	res, err := hc.Get(releaseUrl, headers)
 	if err != nil {
 		return NoUpdates
 	}
