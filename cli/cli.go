@@ -31,6 +31,7 @@ type Cli struct {
 	showProgress bool
 	progressBar  progress.Model
 	completed    float64
+	alert        string
 	errs         []string
 
 	filesList list.Model
@@ -112,13 +113,26 @@ func (c *Cli) execRequests(ctx context.Context, filePath string) {
 
 func (c *Cli) cancel() {
 	c.cancelFn()
+	c.done()
+}
+
+func (c *Cli) done() {
 	c.ctx = nil
 	c.cancelFn = nil
+	c.alert = ""
+}
+
+func (c *Cli) resetProgress() {
+	c.showProgress = true
+	c.completed = 0
+	c.progressBar.SetPercent(0)
+	c.errs = nil
+	c.alert = ""
 }
 
 func (c *Cli) selectItem(item Option[string]) {
 	if c.ctx != nil {
-		c.cancel()
+		c.alert = "Please wait until the current operation is finished"
 	} else {
 		c.resetProgress()
 		c.file = item.Title

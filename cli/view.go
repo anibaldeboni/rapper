@@ -19,25 +19,27 @@ func icon(errs []string) string {
 }
 
 func (c *Cli) View() string {
-	errs := strings.Join(c.errs, "\n")
-
-	var status string
-	if c.isProcessing() {
-		status = fmt.Sprintf("\n%s Processing %s", ui.IconWomanDancing, ui.Green(c.file))
-	} else {
-		status = fmt.Sprintf("\n%s %s done!", icon(c.errs), ui.Pink(c.file))
-		c.ctx = nil
-		c.cancelFn = nil
-	}
-
 	var progress string
 	if c.showProgress {
-		progress = lipgloss.JoinVertical(
-			lipgloss.Top,
+		el := []string{
 			ui.TitleStyle.Render("Status"),
 			c.progressBar.View(),
-			status,
-			ui.ErrStyle(errs),
+		}
+		if c.isProcessing() {
+			el = append(el, fmt.Sprintf("\n%s Processing %s", ui.IconWomanDancing, ui.Green(c.file)))
+		} else {
+			el = append(el, fmt.Sprintf("\n%s %s done!", icon(c.errs), ui.Pink(c.file)))
+			c.done()
+		}
+		if len(c.errs) > 0 {
+			el = append(el, "\n"+strings.Join(c.errs, "\n")+"\n")
+		}
+		if c.alert != "" {
+			el = append(el, fmt.Sprintf("\n%s  %s\n", ui.IconInformation, c.alert))
+		}
+		progress = lipgloss.JoinVertical(
+			lipgloss.Top,
+			el...,
 		)
 	}
 

@@ -10,13 +10,6 @@ import (
 
 type tickMsg time.Time
 
-func (c *Cli) resetProgress() {
-	c.showProgress = true
-	c.completed = 0
-	c.progressBar.SetPercent(0)
-	c.errs = nil
-}
-
 func tickCmd() tea.Cmd {
 	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
 		return tickMsg(t)
