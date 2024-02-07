@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"rapper/cli/ui"
+	"github.com/anibaldeboni/rapper/cli/ui"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"

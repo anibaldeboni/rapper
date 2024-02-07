@@ -2,7 +2,7 @@ package cli
 
 import (
 	"fmt"
-	"rapper/cli/ui"
+	"github.com/anibaldeboni/rapper/cli/ui"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"

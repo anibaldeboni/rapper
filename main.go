@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/anibaldeboni/rapper/cli"
+	"github.com/anibaldeboni/rapper/cli/ui"
+	"github.com/anibaldeboni/rapper/files"
+	"github.com/anibaldeboni/rapper/versions"
+	"github.com/anibaldeboni/rapper/web"
 	"os"
-	"rapper/cli"
-	"rapper/cli/ui"
-	"rapper/files"
-	"rapper/versions"
-	"rapper/web"
 )
 
 var AppVersion = "2.4.0"

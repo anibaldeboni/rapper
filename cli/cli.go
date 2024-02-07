@@ -3,9 +3,9 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/anibaldeboni/rapper/files"
+	"github.com/anibaldeboni/rapper/web"
 	"net/http"
-	"rapper/files"
-	"rapper/web"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"

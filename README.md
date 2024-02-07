@@ -4,7 +4,7 @@ Rapper is a configurable cli tool to perform multiple HTTP requests based on a C
 
 ## Installing
 
-We provide pre-compiled binaries for Linux and MacOS (amd64 and arm64). The latest release could be found [here](https://github.com/anibaldeboni/rapper/releases/latest)
+We provide pre-compiled binaries for Linux and MacOS (amd64 and arm64). The latest release could be found [here](https://github.com/anibaldeboni/github.com/anibaldeboni/rapper/releases/latest)
 After downloading the suitable binary to your system and architecture follow the commands:
 
 ```

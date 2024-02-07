@@ -2,9 +2,9 @@ package web
 
 import (
 	"errors"
+	"github.com/anibaldeboni/rapper/files"
 	"io"
 	"net/http"
-	"rapper/files"
 	"text/template"
 )
 

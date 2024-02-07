@@ -2,9 +2,9 @@ package web_test
 
 import (
 	"bytes"
+	"github.com/anibaldeboni/rapper/web"
 	"net/http"
 	"net/http/httptest"
-	"rapper/web"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

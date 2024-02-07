@@ -3,11 +3,11 @@ package cli_test
 import (
 	"bytes"
 	"errors"
+	"github.com/anibaldeboni/rapper/cli"
+	"github.com/anibaldeboni/rapper/files"
+	"github.com/anibaldeboni/rapper/web"
+	webMocks "github.com/anibaldeboni/rapper/web/mocks"
 	"net/http"
-	"rapper/cli"
-	"rapper/files"
-	"rapper/web"
-	webMocks "rapper/web/mocks"
 	"testing"
 	"time"
 

@@ -2,9 +2,9 @@ package versions_test
 
 import (
 	"errors"
-	"rapper/versions"
-	"rapper/web"
-	"rapper/web/mocks"
+	"github.com/anibaldeboni/rapper/versions"
+	"github.com/anibaldeboni/rapper/web"
+	"github.com/anibaldeboni/rapper/web/mocks"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

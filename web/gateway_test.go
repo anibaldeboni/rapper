@@ -3,10 +3,10 @@ package web_test
 import (
 	"bytes"
 	"errors"
+	"github.com/anibaldeboni/rapper/files"
+	"github.com/anibaldeboni/rapper/web"
+	"github.com/anibaldeboni/rapper/web/mocks"
 	"net/http"
-	"rapper/files"
-	"rapper/web"
-	"rapper/web/mocks"
 	"strings"
 	"testing"
 	"text/template"

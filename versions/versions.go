@@ -2,14 +2,14 @@ package versions
 
 import (
 	"encoding/json"
-	"rapper/cli/ui"
-	"rapper/web"
+	"github.com/anibaldeboni/rapper/cli/ui"
+	"github.com/anibaldeboni/rapper/web"
 
 	version "github.com/hashicorp/go-version"
 )
 
 const (
-	releaseUrl = "https://api.github.com/repos/anibaldeboni/rapper/releases?per_page=1?page=1"
+	releaseUrl = "https://api.github.com/repos/anibaldeboni/github.com/anibaldeboni/rapper/releases?per_page=1?page=1"
 	NoUpdates  = ""
 )
 

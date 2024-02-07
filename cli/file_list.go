@@ -2,8 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"github.com/anibaldeboni/rapper/cli/ui"
 	"io"
-	"rapper/cli/ui"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"

@@ -1,7 +1,7 @@
 package files_test
 
 import (
-	"rapper/files"
+	"github.com/anibaldeboni/rapper/files"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

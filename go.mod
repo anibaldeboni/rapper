@@ -1,4 +1,4 @@
-module rapper
+module github.com/anibaldeboni/rapper
 
 go 1.21.4
 

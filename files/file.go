@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"github.com/anibaldeboni/rapper/cli/ui"
 	"os"
 	"path/filepath"
-	"rapper/cli/ui"
 	"strings"
 	"text/template"
 
