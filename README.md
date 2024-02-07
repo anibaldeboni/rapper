@@ -1,13 +1,13 @@
 # rapper
 
   <p align="left">
-  <img alt="GitHub License" src="https://img.shields.io/github/license/anibaldeboni/rapper">
+  <img alt="GitHub License" src="https://img.shields.io/github/license/anibaldeboni/rapper?logo=gnu">
   <a href="https://github.com/anibaldeboni/rapper/actions/workflows/master.yml" rel="nofollow">
     <img src="https://img.shields.io/github/actions/workflow/status/anibaldeboni/rapper/master.yml?branch=master&logo=Github" alt="Build" />
   </a>
-  <img alt="GitHub language count" src="https://img.shields.io/github/languages/count/anibaldeboni/rapper">
+  <img alt="GitHub language count" src="https://img.shields.io/github/languages/count/anibaldeboni/rapper?logo=go">
   <img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/anibaldeboni/rapper">
-  <img alt="GitHub Release" src="https://img.shields.io/github/v/release/anibaldeboni/rapper">
+  <img alt="GitHub Release" src="https://img.shields.io/github/v/release/anibaldeboni/rapper?logo=semanticrelease">
   </p>
 
 Rapper is a configurable cli tool to perform multiple HTTP requests based on a CSV file containing data.
