@@ -77,8 +77,7 @@ func (c *Cli) Init() tea.Cmd {
 func (c *Cli) execRequests(ctx context.Context, filePath string) {
 	csv, err := files.MapCSV(filePath, c.csv.sep, c.csv.fields)
 	if err != nil {
-		c.errs = append(c.errs, formatError("CSV error", err.Error()))
-		c.completed = 1
+		c.addError(formatError("CSV error", err.Error()))
 		c.cancel()
 		return
 	}
@@ -86,8 +85,7 @@ func (c *Cli) execRequests(ctx context.Context, filePath string) {
 	current := 0
 
 	if total == 0 {
-		c.errs = append(c.errs, formatError("CSV error", "No records found in the file"))
-		c.completed = 1
+		c.addError(formatError("CSV error", "No records found in the file"))
 		c.cancel()
 		return
 	}
@@ -97,19 +95,24 @@ Processing:
 		select {
 		case <-ctx.Done():
 			completed := fmt.Sprintf("Processed %d of %d", current, total)
-			c.errs = []string{formatError("Operation canceled", completed)}
+			c.addError(formatError("Operation canceled", completed))
 			break Processing
 		default:
 			current = 1 + i
 			c.completed = float64(current) / float64(total)
 			response, err := c.gateway.Exec(record)
 			if err != nil {
-				c.errs = append(c.errs, formatError("Request error", err.Error()))
+				c.addError(formatError("Request error", err.Error()))
 			} else if response.Status != http.StatusOK {
-				c.errs = append(c.errs, formatStatusError(record, response.Status))
+				c.addError(formatStatusError(record, response.Status))
 			}
 		}
 	}
+	c.done()
+}
+
+func (c *Cli) addError(err string) {
+	c.errs = append(c.errs, err)
 }
 
 func (c *Cli) cancel() {
@@ -150,5 +153,5 @@ func (c *Cli) resizeElements(width int) {
 }
 
 func (c *Cli) isProcessing() bool {
-	return c.progressBar.Percent() < 1.0
+	return c.ctx != nil
 }
