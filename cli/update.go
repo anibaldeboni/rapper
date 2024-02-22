@@ -26,27 +26,27 @@ func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, c.keys.Quit):
+		case key.Matches(msg, c.keyMap.Quit):
 			return c, tea.Quit
 
-		case key.Matches(msg, c.keys.Select):
+		case key.Matches(msg, c.keyMap.Select):
 			item, ok := c.filesList.SelectedItem().(Option[string])
 			if ok {
 				c.selectItem(item)
 			}
 			return c, nil
 
-		case key.Matches(msg, c.keys.Cancel):
+		case key.Matches(msg, c.keyMap.Cancel):
 			if c.ctx != nil {
 				c.cancel()
 			}
 			return c, nil
 
-		case key.Matches(msg, c.keys.LogUp):
+		case key.Matches(msg, c.keyMap.LogUp):
 			c.viewport.LineUp(1)
 			return c, nil
 
-		case key.Matches(msg, c.keys.LogDown):
+		case key.Matches(msg, c.keyMap.LogDown):
 			c.viewport.LineDown(1)
 			return c, nil
 		}
@@ -67,10 +67,6 @@ func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			c.progressBar = p
 		}
 		return c, cmd
-	}
-
-	if c.ctx != nil {
-		c.viewport.GotoBottom()
 	}
 
 	c.filesList, cmd = c.filesList.Update(msg)

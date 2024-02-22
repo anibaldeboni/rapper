@@ -45,7 +45,7 @@ type Cli struct {
 	filesList list.Model
 	file      string
 	help      help.Model
-	keys      keyMap
+	keyMap    keyMap
 
 	gateway web.HttpGateway
 }
@@ -74,12 +74,12 @@ func New(config files.AppConfig, path string, gateway web.HttpGateway, appName s
 		progressBar: progress.New(progress.WithDefaultGradient()),
 		help:        createHelp(),
 		viewport:    viewport.New(20, 60),
-		keys:        keys,
+		keyMap:      keys,
 		gateway:     gateway,
 	}, nil
 }
 
-func (c *Cli) Init() tea.Cmd {
+func (c Cli) Init() tea.Cmd {
 	return tea.Batch(tea.EnterAltScreen, tickCmd())
 }
 
@@ -136,7 +136,6 @@ func (c *Cli) done() {
 	c.ctx = nil
 	c.cancelFn = nil
 	c.errs = 0
-	c.viewport.GotoBottom()
 }
 
 func (c *Cli) resetProgress() {
