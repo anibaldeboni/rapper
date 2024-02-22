@@ -3,19 +3,25 @@ package cli
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/anibaldeboni/rapper/cli/ui"
 	"github.com/anibaldeboni/rapper/files"
 	"github.com/anibaldeboni/rapper/web"
-	"net/http"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 var (
-	name    string
-	version string
+	name          string
+	version       string
+	viewPortTitle = ui.Bold("Execution logs\n")
 )
 
 type csvOption struct {
@@ -31,8 +37,10 @@ type Cli struct {
 	showProgress bool
 	progressBar  progress.Model
 	completed    float64
-	alert        string
-	errs         []string
+	errs         int
+
+	viewport viewport.Model
+	logs     []string
 
 	filesList list.Model
 	file      string
@@ -65,6 +73,7 @@ func New(config files.AppConfig, path string, gateway web.HttpGateway, appName s
 		filesList:   createList(opts),
 		progressBar: progress.New(progress.WithDefaultGradient()),
 		help:        createHelp(),
+		viewport:    viewport.New(20, 60),
 		keys:        keys,
 		gateway:     gateway,
 	}, nil
@@ -75,9 +84,10 @@ func (c *Cli) Init() tea.Cmd {
 }
 
 func (c *Cli) execRequests(ctx context.Context, filePath string) {
+	defer c.done()
 	csv, err := files.MapCSV(filePath, c.csv.sep, c.csv.fields)
 	if err != nil {
-		c.addError(formatError("CSV error", err.Error()))
+		c.addLog(fmtError(CSV, err.Error()))
 		c.cancel()
 		return
 	}
@@ -85,34 +95,36 @@ func (c *Cli) execRequests(ctx context.Context, filePath string) {
 	current := 0
 
 	if total == 0 {
-		c.addError(formatError("CSV error", "No records found in the file"))
+		c.addLog(fmtError(CSV, "No records found in the file\n"))
 		c.cancel()
 		return
 	}
+	c.addLog(fmt.Sprintf("%s Processing %s", ui.IconWomanDancing, ui.Green(c.file)))
 
 Processing:
 	for i, record := range csv.Lines {
 		select {
 		case <-ctx.Done():
-			completed := fmt.Sprintf("Processed %d of %d", current, total)
-			c.addError(formatError("Operation canceled", completed))
+			c.addLog(fmtError(Cancelation, fmt.Sprintf("Processed %d of %d", current, total)))
 			break Processing
 		default:
 			current = 1 + i
 			c.completed = float64(current) / float64(total)
 			response, err := c.gateway.Exec(record)
 			if err != nil {
-				c.addError(formatError("Request error", err.Error()))
+				c.addLog(fmtError(Request, err.Error()))
+				c.errs++
 			} else if response.Status != http.StatusOK {
-				c.addError(formatStatusError(record, response.Status))
+				c.addLog(fmtError(Status, fmtStatusError(record, response.Status)))
+				c.errs++
 			}
 		}
 	}
-	c.done()
+	c.addLog(formatDoneMessage(c.errs))
 }
 
-func (c *Cli) addError(err string) {
-	c.errs = append(c.errs, err)
+func (c *Cli) addLog(err string) {
+	c.logs = append(c.logs, err)
 }
 
 func (c *Cli) cancel() {
@@ -123,20 +135,19 @@ func (c *Cli) cancel() {
 func (c *Cli) done() {
 	c.ctx = nil
 	c.cancelFn = nil
-	c.alert = ""
+	c.errs = 0
+	c.viewport.GotoBottom()
 }
 
 func (c *Cli) resetProgress() {
 	c.showProgress = true
 	c.completed = 0
 	c.progressBar.SetPercent(0)
-	c.errs = nil
-	c.alert = ""
 }
 
 func (c *Cli) selectItem(item Option[string]) {
 	if c.ctx != nil {
-		c.alert = "Please wait until the current operation is finished"
+		c.addLog(fmt.Sprintf("\n%s  %s\n", ui.IconInformation, "Please wait until the current operation is finished"))
 	} else {
 		c.resetProgress()
 		c.file = item.Title
@@ -145,13 +156,20 @@ func (c *Cli) selectItem(item Option[string]) {
 	}
 }
 
-func (c *Cli) resizeElements(width int) {
+func (c *Cli) resizeElements(width int, height int) {
 	listWidth := int(float64(width) * 0.4)
 	progressWidth := width - listWidth + 4
 	c.filesList.SetWidth(listWidth)
 	c.progressBar.Width = progressWidth
+
+	headerHeight := lipgloss.Height(viewPortTitle)
+
+	c.viewport = viewport.New(width, (height-headerHeight)/2)
+	c.viewport.YPosition = headerHeight
+	c.viewport.SetContent(strings.Join(c.logs, "\n"))
+	c.viewport.GotoBottom()
 }
 
-func (c *Cli) isProcessing() bool {
-	return c.ctx != nil
+func (c *Cli) logView() string {
+	return fmt.Sprintf("%s\n%s\n\n", viewPortTitle, c.viewport.View())
 }

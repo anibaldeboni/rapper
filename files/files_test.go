@@ -1,8 +1,9 @@
 package files_test
 
 import (
-	"github.com/anibaldeboni/rapper/files"
 	"testing"
+
+	"github.com/anibaldeboni/rapper/files"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -38,6 +39,7 @@ func TestMapCSV(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := files.MapCSV(tt.path, ",", tt.fields)
+			t.Error()
 
 			assert.Equal(t, tt.wantErr, err != nil)
 

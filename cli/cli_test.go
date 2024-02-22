@@ -3,13 +3,14 @@ package cli_test
 import (
 	"bytes"
 	"errors"
+	"net/http"
+	"testing"
+	"time"
+
 	"github.com/anibaldeboni/rapper/cli"
 	"github.com/anibaldeboni/rapper/files"
 	"github.com/anibaldeboni/rapper/web"
 	webMocks "github.com/anibaldeboni/rapper/web/mocks"
-	"net/http"
-	"testing"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
@@ -99,7 +100,7 @@ func TestUI(t *testing.T) {
 		teatest.WaitFor(
 			t, tm.Output(),
 			func(bts []byte) bool {
-				return bytes.Contains(bts, []byte("done!"))
+				return bytes.Contains(bts, []byte("Processing finished"))
 			},
 			teatest.WithCheckInterval(time.Millisecond*100),
 			teatest.WithDuration(time.Second*3),

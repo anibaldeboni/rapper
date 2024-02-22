@@ -2,9 +2,10 @@ package cli
 
 import (
 	"fmt"
-	"github.com/anibaldeboni/rapper/cli/ui"
 	"io"
 	"strings"
+
+	"github.com/anibaldeboni/rapper/cli/ui"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"

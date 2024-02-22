@@ -14,7 +14,7 @@ var (
 	QuitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 1, 2).Render
 	AppStyle          = lipgloss.NewStyle().Margin(1, 1, 1, 2).Render
 	ListStyle         = lipgloss.NewStyle().Margin(0).Render
-	ProgressStyle     = lipgloss.NewStyle().Padding(0, 2, 0, 3).Render
+	ProgressStyle     = lipgloss.NewStyle().Padding(0, 2, 1, 3).Render
 	HelpStyle         = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("245"))
 	ErrStyle          = lipgloss.NewStyle().Padding(1, 0, 1, 0).Render
 
