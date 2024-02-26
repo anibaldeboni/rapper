@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/anibaldeboni/rapper/cli/ui"
@@ -49,7 +50,8 @@ func createList[T comparable](options []Option[T]) list.Model {
 	}
 
 	defaultWidth := 20
-	listHeight := len(options) + 4
+	maxHeight := 20
+	listHeight := min(len(listItems), maxHeight) + 4
 
 	l := list.New(listItems, itemDelegate[T]{}, defaultWidth, listHeight)
 	l.Title = "Choose a file to process"
@@ -63,4 +65,8 @@ func createList[T comparable](options []Option[T]) list.Model {
 	l.Styles.TitleBar = ui.TitleBarStyle
 
 	return l
+}
+
+func min(v ...int) int {
+	return slices.Min(v)
 }
