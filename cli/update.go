@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -56,7 +55,6 @@ func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return c, nil
 
 	case tickMsg:
-		c.viewport.SetContent(strings.Join(c.logs, "\n"))
 		cmd = c.progressBar.SetPercent(c.completed)
 		return c, tea.Batch(cmd, tickCmd())
 

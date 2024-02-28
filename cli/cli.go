@@ -125,6 +125,8 @@ Processing:
 
 func (c *Cli) addLog(err string) {
 	c.logs = append(c.logs, err)
+	c.viewport.SetContent(strings.Join(c.logs, "\n"))
+	c.viewport.GotoBottom()
 }
 
 func (c *Cli) cancel() {
