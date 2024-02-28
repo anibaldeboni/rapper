@@ -25,32 +25,34 @@ func createHelp() help.Model {
 	return help
 }
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.ListUp, k.ListDown, k.LogUp, k.LogDown, k.Select, k.Cancel, k.Help, k.Quit}
+	return []key.Binding{k.Select, k.Cancel, k.Help, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.ListUp, k.ListDown, k.LogUp, k.LogDown, k.Select, k.Cancel}, // first column
-		{k.Help, k.Quit}, // second column
+		{k.ListUp, k.ListDown},
+		{k.LogUp, k.LogDown},
+		{k.Select, k.Cancel},
+		{k.Help, k.Quit},
 	}
 }
 
 var keys = keyMap{
 	ListUp: key.NewBinding(
 		key.WithKeys("up"),
-		key.WithHelp("↑", "move up"),
+		key.WithHelp("↑", "move file selection up"),
 	),
 	ListDown: key.NewBinding(
 		key.WithKeys("down"),
-		key.WithHelp("↓", "move down"),
+		key.WithHelp("↓", "move file selection down"),
 	),
 	Select: key.NewBinding(
 		key.WithKeys("enter"),
-		key.WithHelp("enter", "select file"),
+		key.WithHelp("enter", "run"),
 	),
 	Cancel: key.NewBinding(
 		key.WithKeys("esc"),
-		key.WithHelp("esc", "cancel operation"),
+		key.WithHelp("esc", "cancel"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
@@ -61,11 +63,11 @@ var keys = keyMap{
 		key.WithHelp("q", "quit"),
 	),
 	LogUp: key.NewBinding(
-		key.WithKeys("w"),
-		key.WithHelp("w", "log up"),
+		key.WithKeys("shift+up"),
+		key.WithHelp("shift + ↑", "move log up"),
 	),
 	LogDown: key.NewBinding(
-		key.WithKeys("s"),
-		key.WithHelp("s", "log down"),
+		key.WithKeys("shift+down"),
+		key.WithHelp("shift + ↓", "move log down"),
 	),
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/anibaldeboni/rapper/cli/ui"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -60,6 +61,8 @@ func createList[T comparable](options []Option[T]) list.Model {
 	l.SetShowHelp(false)
 	l.SetFilteringEnabled(false)
 	l.DisableQuitKeybindings()
+	l.KeyMap.CursorUp = key.NewBinding(key.WithKeys("up"))
+	l.KeyMap.CursorDown = key.NewBinding(key.WithKeys("down"))
 	l.Styles.Title = ui.TitleStyle
 	l.Styles.PaginationStyle = ui.PaginationStyle
 	l.Styles.TitleBar = ui.TitleBarStyle

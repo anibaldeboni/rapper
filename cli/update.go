@@ -33,21 +33,20 @@ func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if ok {
 				c.selectItem(item)
 			}
-			return c, nil
 
 		case key.Matches(msg, c.keyMap.Cancel):
 			if c.ctx != nil {
 				c.cancel()
 			}
-			return c, nil
 
 		case key.Matches(msg, c.keyMap.LogUp):
 			c.viewport.LineUp(1)
-			return c, nil
 
 		case key.Matches(msg, c.keyMap.LogDown):
 			c.viewport.LineDown(1)
-			return c, nil
+
+		case key.Matches(msg, c.keyMap.Help):
+			c.help.ShowAll = !c.help.ShowAll
 		}
 
 	case tea.WindowSizeMsg:
