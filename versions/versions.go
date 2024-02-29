@@ -2,6 +2,7 @@ package versions
 
 import (
 	"encoding/json"
+
 	"github.com/anibaldeboni/rapper/cli/ui"
 	"github.com/anibaldeboni/rapper/web"
 
@@ -9,7 +10,7 @@ import (
 )
 
 const (
-	releaseUrl = "https://api.github.com/repos/anibaldeboni/github.com/anibaldeboni/rapper/releases?per_page=1?page=1"
+	releaseUrl = "https://api.github.com/repos/anibaldeboni/rapper/releases?per_page=1?page=1"
 	NoUpdates  = ""
 )
 
