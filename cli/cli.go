@@ -43,7 +43,6 @@ type Cli struct {
 	logs     []string
 
 	filesList list.Model
-	file      string
 	help      help.Model
 	keyMap    keyMap
 
@@ -83,9 +82,9 @@ func (c Cli) Init() tea.Cmd {
 	return tea.Batch(tea.EnterAltScreen, tickCmd())
 }
 
-func (c *Cli) execRequests(ctx context.Context, filePath string) {
+func (c *Cli) execRequests(ctx context.Context, file Option[string]) {
 	defer c.done()
-	csv, err := files.MapCSV(filePath, c.csv.sep, c.csv.fields)
+	csv, err := files.MapCSV(file.Value, c.csv.sep, c.csv.fields)
 	if err != nil {
 		c.addLog(fmtError(CSV, err.Error()))
 		c.cancel()
@@ -99,7 +98,7 @@ func (c *Cli) execRequests(ctx context.Context, filePath string) {
 		c.cancel()
 		return
 	}
-	c.addLog(fmt.Sprintf("%s Processing %s", ui.IconWomanDancing, ui.Green(c.file)))
+	c.addLog(fmt.Sprintf("%s Processing file #%d: %s", ui.IconWomanDancing, c.filesList.Index()+1, ui.Green(file.Title)))
 
 Processing:
 	for i, record := range csv.Lines {
@@ -151,9 +150,8 @@ func (c *Cli) selectItem(item Option[string]) {
 		c.addLog(fmt.Sprintf("\n%s  %s\n", ui.IconInformation, "Please wait until the current operation is finished"))
 	} else {
 		c.resetProgress()
-		c.file = item.Title
 		c.ctx, c.cancelFn = context.WithCancel(context.Background())
-		go c.execRequests(c.ctx, item.Value)
+		go c.execRequests(c.ctx, item)
 	}
 }
 

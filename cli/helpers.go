@@ -51,10 +51,17 @@ func fmtStatusError(record map[string]string, status int) string {
 }
 
 func formatDoneMessage(errs int) string {
+	var errMsg string
+	var icon string
 	if errs > 0 {
-		return fmt.Sprintf("%s Processing finished with %s errors\n", ui.IconError, ui.Pink(fmt.Sprint(errs)))
+		errMsg = fmt.Sprintf("%s errors", ui.Pink(fmt.Sprint(errs)))
+		icon = ui.IconError
+	} else {
+		errMsg = ui.Green("no errors")
+		icon = ui.IconTrophy
 	}
-	return fmt.Sprintf("%s Processing finished with %s\n", ui.IconTrophy, ui.Green("no errors"))
+
+	return fmt.Sprintf("%s Finished with %s\n", icon, errMsg)
 }
 
 func findCsv(path string) ([]Option[string], error) {

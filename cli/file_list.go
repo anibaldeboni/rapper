@@ -44,7 +44,7 @@ func (d itemDelegate[T]) Render(w io.Writer, m list.Model, index int, listItem l
 }
 
 func createList[T comparable](options []Option[T]) list.Model {
-	listItems := make([]list.Item, 0)
+	listItems := make([]list.Item, 0, len(options))
 
 	for _, option := range options {
 		listItems = append(listItems, option)
