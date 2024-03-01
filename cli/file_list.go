@@ -43,29 +43,22 @@ func (d itemDelegate[T]) Render(w io.Writer, m list.Model, index int, listItem l
 	fmt.Fprint(w, fn(str))
 }
 
-func largestOptionTitleLength[T comparable](options []Option[T]) int {
-	var max int
-	for _, option := range options {
-		if len(option.Title) > max {
-			max = len(option.Title)
-		}
-	}
-	return max
-}
-
-func createList[T comparable](options []Option[T]) list.Model {
+func createList[T comparable](options []Option[T], title string) list.Model {
 	listItems := make([]list.Item, 0, len(options))
-
+	var maxItemTitleLength int
 	for _, option := range options {
 		listItems = append(listItems, option)
+		if len(option.Title) > maxItemTitleLength {
+			maxItemTitleLength = len(option.Title)
+		}
 	}
 
-	defaultWidth := largestOptionTitleLength(options) + 3
+	defaultWidth := max(maxItemTitleLength, len(title)) + 2
 	maxHeight := 20
 	listHeight := min(len(listItems), maxHeight) + 4
 
 	l := list.New(listItems, itemDelegate[T]{}, defaultWidth, listHeight)
-	l.Title = "Choose a file to process"
+	l.Title = title
 	l.InfiniteScrolling = true
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
@@ -79,6 +72,10 @@ func createList[T comparable](options []Option[T]) list.Model {
 	l.Styles.TitleBar = ui.TitleBarStyle
 
 	return l
+}
+
+func max(v ...int) int {
+	return slices.Max(v)
 }
 
 func min(v ...int) int {
