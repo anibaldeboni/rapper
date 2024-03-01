@@ -6,6 +6,7 @@ import (
 )
 
 type Response struct {
+	URL     string
 	Status  int
 	Headers http.Header
 	Body    []byte
@@ -69,7 +70,9 @@ func buildResponse(response *http.Response, err error) (Response, error) {
 	}
 	defer response.Body.Close()
 	body, _ := io.ReadAll(response.Body)
+
 	return Response{
+		URL:     response.Request.URL.String(),
 		Status:  response.StatusCode,
 		Headers: response.Header,
 		Body:    body,

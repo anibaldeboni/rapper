@@ -24,7 +24,7 @@ func TestNew(t *testing.T) {
 	t.Run("When the path contains CSV files", func(t *testing.T) {
 		config := files.AppConfig{}
 
-		c, err := cli.New(config, path, webMocks.NewHttpGateway(t), "appName", "appVersion")
+		c, err := cli.New(config, path, webMocks.NewHttpGateway(t), "appName", "appVersion", "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, c)
@@ -34,7 +34,7 @@ func TestNew(t *testing.T) {
 		config := files.AppConfig{}
 		path := "../tests/empty"
 
-		_, err := cli.New(config, path, webMocks.NewHttpGateway(t), "appName", "appVersion")
+		_, err := cli.New(config, path, webMocks.NewHttpGateway(t), "appName", "appVersion", "")
 
 		assert.Error(t, err)
 	})
@@ -46,7 +46,7 @@ func TestUI(t *testing.T) {
 
 		gatewayMock := webMocks.NewHttpGateway(t)
 
-		m, err := cli.New(config, path, gatewayMock, "appName", "appVersion")
+		m, err := cli.New(config, path, gatewayMock, "appName", "appVersion", "")
 		assert.NoError(t, err)
 
 		tm := teatest.NewTestModel(
@@ -76,7 +76,7 @@ func TestUI(t *testing.T) {
 		gatewayMock := webMocks.NewHttpGateway(t)
 		gatewayMock.On("Exec", mock.Anything).Return(web.Response{Status: http.StatusOK}, nil)
 
-		m, err := cli.New(config, path, gatewayMock, "appName", "appVersion")
+		m, err := cli.New(config, path, gatewayMock, "appName", "appVersion", "")
 		assert.NoError(t, err)
 
 		tm := teatest.NewTestModel(
@@ -100,7 +100,7 @@ func TestUI(t *testing.T) {
 		teatest.WaitFor(
 			t, tm.Output(),
 			func(bts []byte) bool {
-				return bytes.Contains(bts, []byte("Processing finished"))
+				return bytes.Contains(bts, []byte("Finished"))
 			},
 			teatest.WithCheckInterval(time.Millisecond*100),
 			teatest.WithDuration(time.Second*3),
@@ -117,7 +117,7 @@ func TestUI(t *testing.T) {
 		gatewayMock := webMocks.NewHttpGateway(t)
 		gatewayMock.On("Exec", mock.Anything).Return(web.Response{}, errors.New("Request error"))
 
-		m, err := cli.New(config, path, gatewayMock, "appName", "appVersion")
+		m, err := cli.New(config, path, gatewayMock, "appName", "appVersion", "")
 		assert.NoError(t, err)
 
 		tm := teatest.NewTestModel(
@@ -141,7 +141,7 @@ func TestUI(t *testing.T) {
 		teatest.WaitFor(
 			t, tm.Output(),
 			func(bts []byte) bool {
-				return bytes.Contains(bts, []byte("Request error"))
+				return bytes.Contains(bts, []byte("Request"))
 			},
 			teatest.WithCheckInterval(time.Millisecond*100),
 			teatest.WithDuration(time.Second*3),

@@ -18,6 +18,7 @@ const (
 	Status
 	CSV
 	Cancelation
+	OutputFile
 )
 
 func fmtError(kind Error, err string) string {
@@ -33,6 +34,8 @@ func fmtError(kind Error, err string) string {
 		return f("CSV", err)
 	case Cancelation:
 		return f("Cancelation", err)
+	case OutputFile:
+		return f("OutputFile", err)
 	default:
 		return f("Unknown", err)
 	}
@@ -78,13 +81,21 @@ func findCsv(path string) ([]Option[string], error) {
 		opts = append(
 			opts,
 			Option[string]{
-				Title: filepath.Base(filePath),
+				Title: trimFilename(filePath),
 				Value: filePath,
 			},
 		)
 	}
 
 	return opts, nil
+}
+func trimFilename(filename string) string {
+	f := filepath.Base(filename)
+	if len(f) < 15 {
+		return f
+	}
+	return f[:15] + "..."
+
 }
 
 func Exit(message any, arg ...any) {
