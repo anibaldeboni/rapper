@@ -51,7 +51,6 @@ func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		c.resizeElements(msg.Width, msg.Height)
-		return c, nil
 
 	case tickMsg:
 		cmd = c.progressBar.SetPercent(c.completed)
