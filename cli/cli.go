@@ -83,7 +83,7 @@ func New(config files.AppConfig, path string, gateway web.HttpGateway, appName s
 		},
 		outputFile:  outputFile,
 		logsCh:      make(chan string),
-		filesList:   createList(opts),
+		filesList:   createList(opts, "Choose a file to process"),
 		progressBar: progress.New(progress.WithDefaultGradient()),
 		help:        createHelp(),
 		viewport:    viewport.New(20, 60),
@@ -189,16 +189,13 @@ func (c *Cli) selectItem(item Option[string]) {
 }
 
 func (c *Cli) resizeElements(width int, height int) {
-	c.filesList.SetWidth(int(float64(width) * 0.3))
-
 	logViewWidth := width - lipgloss.Width(c.filesList.View()) - 7
-	c.progressBar.Width = logViewWidth
 	headerHeight := lipgloss.Height(viewPortTitle) + 9
 
-	c.viewport = viewport.New(logViewWidth, (height - headerHeight))
+	c.progressBar.Width = logViewWidth
+	c.viewport.Height = height - headerHeight
+	c.viewport.Width = logViewWidth
 	c.viewport.YPosition = headerHeight
-	c.viewport.SetContent(strings.Join(c.logs, "\n"))
-	c.viewport.GotoBottom()
 }
 
 func (c *Cli) logView() string {
