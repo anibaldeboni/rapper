@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -16,7 +17,7 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (c Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
@@ -31,12 +32,12 @@ func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, c.keyMap.Select):
 			item, ok := c.filesList.SelectedItem().(Option[string])
 			if ok {
-				c.selectItem(item)
+				return c.selectItem(item), nil
 			}
 
 		case key.Matches(msg, c.keyMap.Cancel):
-			if c.ctx != nil {
-				c.cancel()
+			if ctx != nil {
+				cancel()
 			}
 
 		case key.Matches(msg, c.keyMap.LogUp):
@@ -50,10 +51,15 @@ func (c *Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		c.resizeElements(msg.Width, msg.Height)
+		return c.resizeElements(msg.Width, msg.Height), nil
 
 	case tickMsg:
-		cmd = c.progressBar.SetPercent(c.completed)
+		cmd = c.progressBar.SetPercent(completed)
+		if c.logCount != logs.Len() {
+			c.logCount = logs.Len()
+			c.viewport.SetContent(strings.Join(logs.Get(), "\n"))
+			c.viewport.GotoBottom()
+		}
 		return c, tea.Batch(cmd, tickCmd())
 
 	case progress.FrameMsg:

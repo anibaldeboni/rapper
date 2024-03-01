@@ -11,6 +11,7 @@ import (
 	"github.com/anibaldeboni/rapper/files"
 	"github.com/anibaldeboni/rapper/versions"
 	"github.com/anibaldeboni/rapper/web"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 var AppVersion = "2.5.2"
@@ -35,10 +36,10 @@ func main() {
 	if err != nil {
 		handleExit(err)
 	}
-
-	if err := c.Start(); err != nil {
+	if _, err := tea.NewProgram(c).Run(); err != nil {
 		handleExit(err)
 	}
+
 	handleExit(nil)
 }
 

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/anibaldeboni/rapper/cli/ui"
 	"github.com/anibaldeboni/rapper/files"
@@ -23,6 +22,15 @@ var (
 	name          string
 	version       string
 	viewPortTitle = ui.Bold("Execution logs\n")
+	logs          = &Logs{}
+	csv           csvOption
+	gateway       web.HttpGateway
+	outputFile    string
+	completed     float64
+	errs          int
+	ctx           context.Context
+	cancelFn      context.CancelFunc
+	showProgress  bool
 )
 
 type csvOption struct {
@@ -31,164 +39,131 @@ type csvOption struct {
 }
 
 type Cli struct {
-	csv        csvOption
-	ctx        context.Context
-	cancelFn   context.CancelFunc
-	outputFile string
-
-	showProgress bool
-	progressBar  progress.Model
-	completed    float64
-	errs         int
-
-	viewport viewport.Model
-	logs     []string
-	logsCh   chan string
-
-	filesList list.Model
-	help      help.Model
-	keyMap    keyMap
-
-	gateway web.HttpGateway
+	progressBar progress.Model
+	viewport    viewport.Model
+	filesList   list.Model
+	help        help.Model
+	keyMap      keyMap
+	logCount    int
 }
 
-func (c *Cli) Start() error {
-	defer close(c.logsCh)
-	if _, err := tea.NewProgram(c).Run(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Cli) logManager() {
-	for log := range c.logsCh {
-		c.logs = append(c.logs, log)
-		c.viewport.SetContent(strings.Join(c.logs, "\n"))
-		c.viewport.GotoBottom()
-	}
-}
-
-func New(config files.AppConfig, path string, gateway web.HttpGateway, appName string, appVersion string, outputFile string) (*Cli, error) {
+func New(config files.AppConfig, path string, hg web.HttpGateway, appName string, appVersion string, of string) (Cli, error) {
 	opts, err := findCsv(path)
 	if err != nil {
-		return &Cli{}, err
+		return Cli{}, err
 	}
 	name = appName
 	version = appVersion
+	outputFile = of
+	logs = &Logs{}
+	csv = csvOption{
+		sep:    config.CSV.Separator,
+		fields: config.CSV.Fields,
+	}
+	gateway = hg
 
-	return &Cli{
-		csv: csvOption{
-			sep:    config.CSV.Separator,
-			fields: config.CSV.Fields,
-		},
-		outputFile:  outputFile,
-		logsCh:      make(chan string),
+	return Cli{
 		filesList:   createList(opts, "Choose a file to process"),
 		progressBar: progress.New(progress.WithDefaultGradient()),
 		help:        createHelp(),
 		viewport:    viewport.New(20, 60),
 		keyMap:      keys,
-		gateway:     gateway,
 	}, nil
 }
 
-func (c *Cli) Init() tea.Cmd {
-	go c.logManager()
+func (c Cli) Init() tea.Cmd {
 	return tea.Batch(tea.EnterAltScreen, tickCmd())
 }
 
-func (c *Cli) execRequests(ctx context.Context, file Option[string], ch chan<- string) {
-	defer c.done()
+func execRequests(ctx context.Context, file Option[string], ch chan<- string) {
+	defer done()
 	if ch != nil {
 		defer close(ch)
 	}
-	csv, err := files.MapCSV(file.Value, c.csv.sep, c.csv.fields)
+	csv, err := files.MapCSV(file.Value, csv.sep, csv.fields)
 	if err != nil {
-		c.logsCh <- fmtError(CSV, err.Error())
-		c.cancel()
+		logs.Add(fmtError(CSV, err.Error()))
+		cancel()
 		return
 	}
 	total := len(csv.Lines)
 	current := 0
 
 	if total == 0 {
-		c.logsCh <- fmtError(CSV, "No records found in the file\n")
-		c.cancel()
+		logs.Add(fmtError(CSV, "No records found in the file\n"))
+		cancel()
 		return
 	}
-	c.logsCh <- fmt.Sprintf("%s Processing file #%d: %s", ui.IconWomanDancing, c.filesList.Index()+1, ui.Green(file.Title))
+	logs.Add(fmt.Sprintf("%s Processing file %s", ui.IconWomanDancing, ui.Green(file.Title)))
 
 Processing:
 	for i, record := range csv.Lines {
 		select {
 		case <-ctx.Done():
-			c.logsCh <- fmtError(Cancelation, fmt.Sprintf("Processed %d of %d", current, total))
+			logs.Add(fmtError(Cancelation, fmt.Sprintf("Processed %d of %d", current, total)))
 			break Processing
 		default:
 			current = 1 + i
-			c.completed = float64(current) / float64(total)
-			response, err := c.gateway.Exec(record)
+			completed = float64(current) / float64(total)
+			response, err := gateway.Exec(record)
 			if err != nil {
-				c.logsCh <- fmtError(Request, err.Error())
-				c.errs++
+				logs.Add(fmtError(Request, err.Error()))
+				errs++
 			} else if response.Status != http.StatusOK {
-				c.logsCh <- fmtError(Status, fmtStatusError(record, response.Status))
-				c.errs++
+				logs.Add(fmtError(Status, fmtStatusError(record, response.Status)))
+				errs++
 			}
-			if c.outputFile != "" {
+			if outputFile != "" {
 				ch <- fmt.Sprintf("url=%s status=%d error=%s body=%s", response.URL, response.Status, err, response.Body)
 			}
 		}
 	}
-	c.logsCh <- formatDoneMessage(c.errs)
+	logs.Add(formatDoneMessage(errs))
 }
 
-func (c *Cli) writeOutputFile(outputFile string, ch <-chan string) {
+func writeOutputFile(outputFile string, ch <-chan string) {
 	file, err := os.OpenFile(outputFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
 	if err != nil {
-		c.logsCh <- fmtError(OutputFile, err.Error())
+		logs.Add(fmtError(OutputFile, err.Error()))
 	}
 	defer file.Close()
 	for log := range ch {
 		if _, err := file.WriteString(log + "\n"); err != nil {
-			c.logsCh <- fmtError(OutputFile, err.Error())
+			logs.Add(fmtError(OutputFile, err.Error()))
 		}
 	}
 }
 
-func (c *Cli) cancel() {
-	c.cancelFn()
-	c.done()
+func cancel() {
+	cancelFn()
+	done()
 }
 
-func (c *Cli) done() {
-	c.ctx = nil
-	c.cancelFn = nil
-	c.errs = 0
+func done() {
+	ctx = nil
+	cancelFn = nil
+	errs = 0
 }
 
-func (c *Cli) resetProgress() {
-	c.showProgress = true
-	c.completed = 0
-	c.progressBar.SetPercent(0)
-}
-
-func (c *Cli) selectItem(item Option[string]) {
+func (c Cli) selectItem(item Option[string]) Cli {
 	var ch chan string
-	if c.ctx != nil {
-		c.logsCh <- fmt.Sprintf("\n%s  %s\n", ui.IconInformation, "Please wait until the current operation is finished")
+	if ctx != nil {
+		logs.Add(fmt.Sprintf("\n%s  %s\n", ui.IconInformation, "Please wait until the current operation is finished"))
 	} else {
-		c.resetProgress()
-		if c.outputFile != "" {
+		showProgress = true
+		completed = 0
+		c.progressBar.SetPercent(0)
+		if outputFile != "" {
 			ch = make(chan string)
-			go c.writeOutputFile(c.outputFile, ch)
+			go writeOutputFile(outputFile, ch)
 		}
-		c.ctx, c.cancelFn = context.WithCancel(context.Background())
-		go c.execRequests(c.ctx, item, ch)
+		ctx, cancelFn = context.WithCancel(context.Background())
+		go execRequests(ctx, item, ch)
 	}
+	return c
 }
 
-func (c *Cli) resizeElements(width int, height int) {
+func (c Cli) resizeElements(width int, height int) Cli {
 	logViewWidth := width - lipgloss.Width(c.filesList.View()) - 7
 	headerHeight := lipgloss.Height(viewPortTitle) + 9
 
@@ -196,8 +171,6 @@ func (c *Cli) resizeElements(width int, height int) {
 	c.viewport.Height = height - headerHeight
 	c.viewport.Width = logViewWidth
 	c.viewport.YPosition = headerHeight
-}
 
-func (c *Cli) logView() string {
-	return fmt.Sprintf("%s\n%s\n\n", viewPortTitle, c.viewport.View())
+	return c
 }

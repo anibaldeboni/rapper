@@ -8,12 +8,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func (c *Cli) View() string {
+func (c Cli) View() string {
 	var progress string
-	if c.showProgress {
+	if showProgress {
 		progress = lipgloss.JoinVertical(
 			lipgloss.Top,
-			c.logView(),
+			fmt.Sprintf("%s\n%s\n\n", viewPortTitle, c.viewport.View()),
 			c.progressBar.View(),
 		)
 	}
