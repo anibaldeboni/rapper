@@ -43,6 +43,16 @@ func (d itemDelegate[T]) Render(w io.Writer, m list.Model, index int, listItem l
 	fmt.Fprint(w, fn(str))
 }
 
+func largestOptionTitleLength[T comparable](options []Option[T]) int {
+	var max int
+	for _, option := range options {
+		if len(option.Title) > max {
+			max = len(option.Title)
+		}
+	}
+	return max
+}
+
 func createList[T comparable](options []Option[T]) list.Model {
 	listItems := make([]list.Item, 0, len(options))
 
@@ -50,12 +60,13 @@ func createList[T comparable](options []Option[T]) list.Model {
 		listItems = append(listItems, option)
 	}
 
-	defaultWidth := 20
+	defaultWidth := largestOptionTitleLength(options) + 3
 	maxHeight := 20
 	listHeight := min(len(listItems), maxHeight) + 4
 
 	l := list.New(listItems, itemDelegate[T]{}, defaultWidth, listHeight)
 	l.Title = "Choose a file to process"
+	l.InfiniteScrolling = true
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
