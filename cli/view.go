@@ -20,7 +20,7 @@ func (c *Cli) View() string {
 
 	widgets := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		ui.ListStyle(c.filesList.View()),
+		c.filesList.View(),
 		ui.ProgressStyle(progress),
 	)
 
