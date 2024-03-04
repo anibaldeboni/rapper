@@ -1,7 +1,7 @@
 set -e
 APP=${1:-"rapper"}
-APP_NAME="main.AppName=$APP"
-APP_VERSION="main.AppVersion=$(git rev-parse --short HEAD)"
+APP_NAME="github.com/anibaldeboni/rapper/cli.AppName=$APP"
+APP_VERSION="github.com/anibaldeboni/rapper/cli.AppVersion=$(git rev-parse --short HEAD)"
 BUILD_OUTPUT="./build/$APP"
 
 go get -v ./...

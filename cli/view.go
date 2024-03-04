@@ -26,7 +26,7 @@ func (c cliImpl) View() string {
 
 	app := lipgloss.JoinVertical(
 		lipgloss.Top,
-		fmt.Sprintf("[ %s @ %s ]\n", ui.Bold(name), ui.Pink(version)),
+		fmt.Sprintf("[ %s @ %s ]\n", ui.Bold(AppName), ui.Pink(AppVersion)),
 		widgets,
 		c.help.View(c.keyMap),
 	)

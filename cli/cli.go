@@ -2,13 +2,17 @@ package cli
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/anibaldeboni/rapper/cli/log"
 	"github.com/anibaldeboni/rapper/cli/output"
 	"github.com/anibaldeboni/rapper/cli/ui"
 	"github.com/anibaldeboni/rapper/files"
+	"github.com/anibaldeboni/rapper/versions"
 	"github.com/anibaldeboni/rapper/web"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -20,8 +24,8 @@ import (
 )
 
 var (
-	name          string
-	version       string
+	AppName       = "rapper"
+	AppVersion    = "2.5.2"
 	viewPortTitle = ui.Bold("Execution logs\n")
 	logs          = &log.Logs{}
 	csvSeparator  string
@@ -49,14 +53,12 @@ type cliImpl struct {
 	keyMap      keyMap
 }
 
-func New(config files.AppConfig, path string, hg web.HttpGateway, appName string, appVersion string, of string) (Cli, error) {
+func New(config files.AppConfig, path string, hg web.HttpGateway, of string) (Cli, error) {
 	opts, err := findCsv(path)
 	if err != nil {
 		return cliImpl{}, err
 	}
 
-	name = appName
-	version = appVersion
 	outputStream = output.New(of, logs)
 	csvSeparator = config.CSV.Separator
 	csvFields = config.CSV.Fields
@@ -71,8 +73,20 @@ func New(config files.AppConfig, path string, hg web.HttpGateway, appName string
 	}, nil
 }
 
-func (c cliImpl) Init() tea.Cmd {
-	return tea.Batch(tea.EnterAltScreen, tickCmd())
+func Usage() {
+	fmt.Printf("%s (%s)\n", ui.Bold(AppName), AppVersion)
+	fmt.Println("\nA CLI tool to send HTTP requests based on CSV files.")
+	fmt.Printf("All flags are optional. If %s or %s are not provided, the current directory will be used.\n", ui.Bold("-config"), ui.Bold("-dir"))
+	fmt.Printf("If %s file is not provided, the responses bodies will not be saved.\n", ui.Bold("-output"))
+	fmt.Println("\nUsage:")
+	fmt.Printf("  %s [options]\n", ui.Bold(filepath.Base(os.Args[0])))
+	fmt.Println("\nOptions:")
+	flag.PrintDefaults()
+	fmt.Println("\n" + UpdateCheck())
+}
+
+func UpdateCheck() string {
+	return versions.CheckForUpdate(web.NewHttpClient(), AppVersion)
 }
 
 func execRequests(ctx context.Context, file Option[string]) {
@@ -125,6 +139,10 @@ func done() {
 	ctx = nil
 	cancelFn = nil
 	errs = 0
+}
+
+func (c cliImpl) Init() tea.Cmd {
+	return tea.Batch(tea.EnterAltScreen, tickCmd())
 }
 
 func (c cliImpl) selectItem(item Option[string]) cliImpl {
