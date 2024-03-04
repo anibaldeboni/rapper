@@ -26,27 +26,27 @@ func (c cliImpl) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, c.keyMap.Quit):
+		case key.Matches(msg, keys.Quit):
 			return c, tea.Quit
 
-		case key.Matches(msg, c.keyMap.Select):
+		case key.Matches(msg, keys.Select):
 			item, ok := c.filesList.SelectedItem().(Option[string])
 			if ok {
 				return c.selectItem(item), nil
 			}
 
-		case key.Matches(msg, c.keyMap.Cancel):
+		case key.Matches(msg, keys.Cancel):
 			if ctx != nil {
 				cancel()
 			}
 
-		case key.Matches(msg, c.keyMap.LogUp):
+		case key.Matches(msg, keys.LogUp):
 			c.viewport.LineUp(1)
 
-		case key.Matches(msg, c.keyMap.LogDown):
+		case key.Matches(msg, keys.LogDown):
 			c.viewport.LineDown(1)
 
-		case key.Matches(msg, c.keyMap.Help):
+		case key.Matches(msg, keys.Help):
 			c.help.ShowAll = !c.help.ShowAll
 		}
 

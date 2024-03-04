@@ -28,7 +28,7 @@ func (c cliImpl) View() string {
 		lipgloss.Top,
 		fmt.Sprintf("[ %s @ %s ]\n", ui.Bold(AppName), ui.Pink(AppVersion)),
 		widgets,
-		c.help.View(c.keyMap),
+		c.help.View(keys),
 	)
 
 	return ui.AppStyle(app)

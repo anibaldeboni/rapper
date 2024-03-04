@@ -50,7 +50,6 @@ type cliImpl struct {
 	viewport    viewport.Model
 	filesList   list.Model
 	help        help.Model
-	keyMap      keyMap
 }
 
 func New(config files.AppConfig, path string, hg web.HttpGateway, of string) (Cli, error) {
@@ -69,7 +68,6 @@ func New(config files.AppConfig, path string, hg web.HttpGateway, of string) (Cl
 		progressBar: progress.New(progress.WithDefaultGradient()),
 		help:        createHelp(),
 		viewport:    viewport.New(20, 60),
-		keyMap:      keys,
 	}, nil
 }
 
