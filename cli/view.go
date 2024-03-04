@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func (c cliImpl) View() string {
+func (c cliModel) View() string {
 	var progress string
 	if state.Get() == Running || state.Get() == Stale {
 		progress = lipgloss.JoinVertical(
@@ -19,16 +19,19 @@ func (c cliImpl) View() string {
 	}
 
 	widgets := lipgloss.JoinHorizontal(
-		lipgloss.Top,
+		lipgloss.Left,
 		c.filesList.View(),
 		ui.ProgressStyle(progress),
 	)
-
+	help := lipgloss.JoinHorizontal(
+		lipgloss.Left,
+		fmt.Sprintf("%s@%s: ", ui.Bold(AppName), ui.Pink(AppVersion)),
+		c.help.View(keys),
+	)
 	app := lipgloss.JoinVertical(
 		lipgloss.Top,
-		fmt.Sprintf("[ %s @ %s ]\n", ui.Bold(AppName), ui.Pink(AppVersion)),
 		widgets,
-		c.help.View(keys),
+		help,
 	)
 
 	return ui.AppStyle(app)

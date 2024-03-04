@@ -25,7 +25,7 @@ func createHelp() help.Model {
 	return help
 }
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Select, k.Cancel, k.Help, k.Quit}
+	return []key.Binding{k.Select, k.Cancel, k.Quit, k.Help}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
