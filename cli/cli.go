@@ -150,10 +150,9 @@ func (c cliImpl) selectItem(item Option[string]) cliImpl {
 		showProgress = true
 		completed = 0
 		c.progressBar.SetPercent(0)
-		if outputStream.Enabled() {
-			go outputStream.WriteToFile()
-		}
+
 		ctx, cancelFn = context.WithCancel(context.Background())
+		go outputStream.WriteToFile()
 		go execRequests(ctx, item)
 	}
 	return c

@@ -54,6 +54,9 @@ func (o *output) Send(log OutputMessage) {
 }
 
 func (o *output) WriteToFile() {
+	if !o.Enabled() {
+		return
+	}
 	file, err := os.OpenFile(o.filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
 	if err != nil {
 		o.logs.Add(fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("Output"), err.Error()))
@@ -61,8 +64,7 @@ func (o *output) WriteToFile() {
 	defer file.Close()
 	for log := range o.ch {
 		m, _ := json.Marshal(log)
-		m = append(m, '\n')
-		if _, err := file.Write(m); err != nil {
+		if _, err := file.Write(append(m, '\n')); err != nil {
 			o.logs.Add(fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("Output"), err.Error()))
 		}
 	}
