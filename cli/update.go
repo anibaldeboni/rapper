@@ -17,7 +17,7 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-func (c Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (c cliImpl) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
@@ -55,8 +55,7 @@ func (c Cli) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		cmd = c.progressBar.SetPercent(completed)
-		if c.logCount != logs.Len() {
-			c.logCount = logs.Len()
+		if logs.HasNewLogs() {
 			c.viewport.SetContent(strings.Join(logs.Get(), "\n"))
 			c.viewport.GotoBottom()
 		}

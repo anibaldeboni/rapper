@@ -18,7 +18,6 @@ const (
 	Status
 	CSV
 	Cancelation
-	OutputFile
 )
 
 func fmtError(kind Error, err string) string {
@@ -34,8 +33,6 @@ func fmtError(kind Error, err string) string {
 		return f("CSV", err)
 	case Cancelation:
 		return f("Cancelation", err)
-	case OutputFile:
-		return f("OutputFile", err)
 	default:
 		return f("Unknown", err)
 	}

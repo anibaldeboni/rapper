@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func (c Cli) View() string {
+func (c cliImpl) View() string {
 	var progress string
 	if showProgress {
 		progress = lipgloss.JoinVertical(
