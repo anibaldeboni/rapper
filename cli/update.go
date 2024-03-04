@@ -17,7 +17,7 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-func (c cliImpl) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (c cliModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
@@ -36,7 +36,7 @@ func (c cliImpl) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, keys.Cancel):
-			if ctx.Err() == nil {
+			if state.Get() == Running {
 				stop()
 			}
 

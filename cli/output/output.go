@@ -13,7 +13,7 @@ type Output interface {
 	Close()
 	Enabled() bool
 	Send(OutputMessage)
-	WriteToFile()
+	Listen()
 }
 
 type output struct {
@@ -53,7 +53,7 @@ func (o *output) Send(log OutputMessage) {
 	}
 }
 
-func (o *output) WriteToFile() {
+func (o *output) Listen() {
 	if !o.Enabled() {
 		return
 	}

@@ -33,7 +33,6 @@ var (
 	gateway       web.HttpGateway
 	outputStream  output.Output
 	completed     float64
-	errs          int
 	ctx           context.Context
 	cancel        context.CancelFunc
 	state         = &State{}
@@ -45,7 +44,7 @@ type Cli interface {
 	View() string
 }
 
-type cliImpl struct {
+type cliModel struct {
 	progressBar progress.Model
 	viewport    viewport.Model
 	filesList   list.Model
@@ -55,7 +54,7 @@ type cliImpl struct {
 func New(config files.AppConfig, path string, hg web.HttpGateway, of string) (Cli, error) {
 	opts, err := findCsv(path)
 	if err != nil {
-		return cliImpl{}, err
+		return cliModel{}, err
 	}
 
 	state.Set(SelectFile)
@@ -64,8 +63,10 @@ func New(config files.AppConfig, path string, hg web.HttpGateway, of string) (Cl
 	csvFields = config.CSV.Fields
 	gateway = hg
 
-	return cliImpl{
-		filesList:   createList(opts, "Choose a file to process"),
+	go outputStream.Listen()
+
+	return cliModel{
+		filesList:   createList(opts, "Choose a file to process:"),
 		progressBar: progress.New(progress.WithDefaultGradient()),
 		help:        createHelp(),
 		viewport:    viewport.New(20, 60),
@@ -95,6 +96,7 @@ func execRequests(ctx context.Context, file Option[string]) {
 		logs.Add(fmtError(CSV, err.Error()))
 		return
 	}
+	errs := 0
 	total := len(csv.Lines)
 	current := 0
 
@@ -130,7 +132,6 @@ Processing:
 func stop() {
 	cancel()
 	state.Set(Stale)
-	errs = 0
 }
 
 func setContext() {
@@ -138,17 +139,15 @@ func setContext() {
 	state.Set(Running)
 }
 
-func (c cliImpl) Init() tea.Cmd {
+func (c cliModel) Init() tea.Cmd {
 	return tea.Batch(tea.EnterAltScreen, tickCmd())
 }
 
-func (c cliImpl) selectItem(item Option[string]) cliImpl {
+func (c cliModel) selectItem(item Option[string]) cliModel {
 	if state.Get() != Running {
 		setContext()
 		completed = 0
 		c.progressBar.SetPercent(0)
-
-		go outputStream.WriteToFile()
 		go execRequests(ctx, item)
 	} else {
 		logs.Add(fmt.Sprintf("\n%s  %s\n", ui.IconInformation, "Please wait the current operation to finish or cancel pressing ESC"))
@@ -156,7 +155,7 @@ func (c cliImpl) selectItem(item Option[string]) cliImpl {
 	return c
 }
 
-func (c cliImpl) resizeElements(width int, height int) cliImpl {
+func (c cliModel) resizeElements(width int, height int) cliModel {
 	logViewWidth := width - lipgloss.Width(c.filesList.View()) - 7
 	headerHeight := lipgloss.Height(viewPortTitle) + 10
 
