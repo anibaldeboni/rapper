@@ -36,8 +36,8 @@ func (c cliImpl) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, keys.Cancel):
-			if ctx != nil {
-				cancel()
+			if ctx.Err() == nil {
+				stop()
 			}
 
 		case key.Matches(msg, keys.LogUp):

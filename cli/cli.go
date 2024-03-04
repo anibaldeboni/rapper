@@ -35,8 +35,8 @@ var (
 	completed     float64
 	errs          int
 	ctx           context.Context
-	cancelFn      context.CancelFunc
-	showProgress  bool
+	cancel        context.CancelFunc
+	state         = &State{}
 )
 
 type Cli interface {
@@ -58,6 +58,7 @@ func New(config files.AppConfig, path string, hg web.HttpGateway, of string) (Cl
 		return cliImpl{}, err
 	}
 
+	state.Set(SelectFile)
 	outputStream = output.New(of, logs)
 	csvSeparator = config.CSV.Separator
 	csvFields = config.CSV.Fields
@@ -88,11 +89,10 @@ func UpdateCheck() string {
 }
 
 func execRequests(ctx context.Context, file Option[string]) {
-	defer done()
+	defer stop()
 	csv, err := files.MapCSV(file.Value, csvSeparator, csvFields)
 	if err != nil {
 		logs.Add(fmtError(CSV, err.Error()))
-		cancel()
 		return
 	}
 	total := len(csv.Lines)
@@ -100,7 +100,6 @@ func execRequests(ctx context.Context, file Option[string]) {
 
 	if total == 0 {
 		logs.Add(fmtError(CSV, "No records found in the file\n"))
-		cancel()
 		return
 	}
 	logs.Add(fmt.Sprintf("%s Processing file %s", ui.IconWomanDancing, ui.Green(file.Title)))
@@ -128,15 +127,15 @@ Processing:
 	logs.Add(formatDoneMessage(errs))
 }
 
-func cancel() {
-	cancelFn()
-	done()
+func stop() {
+	cancel()
+	state.Set(Stale)
+	errs = 0
 }
 
-func done() {
-	ctx = nil
-	cancelFn = nil
-	errs = 0
+func setContext() {
+	ctx, cancel = context.WithCancel(context.Background())
+	state.Set(Running)
 }
 
 func (c cliImpl) Init() tea.Cmd {
@@ -144,16 +143,15 @@ func (c cliImpl) Init() tea.Cmd {
 }
 
 func (c cliImpl) selectItem(item Option[string]) cliImpl {
-	if ctx != nil {
-		logs.Add(fmt.Sprintf("\n%s  %s\n", ui.IconInformation, "Please wait until the current operation is finished"))
-	} else {
-		showProgress = true
+	if state.Get() != Running {
+		setContext()
 		completed = 0
 		c.progressBar.SetPercent(0)
 
-		ctx, cancelFn = context.WithCancel(context.Background())
 		go outputStream.WriteToFile()
 		go execRequests(ctx, item)
+	} else {
+		logs.Add(fmt.Sprintf("\n%s  %s\n", ui.IconInformation, "Please wait the current operation to finish or cancel pressing ESC"))
 	}
 	return c
 }

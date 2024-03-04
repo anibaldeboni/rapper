@@ -10,7 +10,7 @@ import (
 
 func (c cliImpl) View() string {
 	var progress string
-	if showProgress {
+	if state.Get() == Running || state.Get() == Stale {
 		progress = lipgloss.JoinVertical(
 			lipgloss.Top,
 			fmt.Sprintf("%s\n%s\n\n", viewPortTitle, c.viewport.View()),
