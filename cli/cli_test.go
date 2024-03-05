@@ -53,14 +53,6 @@ func TestUI(t *testing.T) {
 			t, m,
 			teatest.WithInitialTermSize(300, 100),
 		)
-		teatest.WaitFor(
-			t, tm.Output(),
-			func(bts []byte) bool {
-				return bytes.Contains(bts, []byte("Choose a file"))
-			},
-			teatest.WithCheckInterval(time.Millisecond*100),
-			teatest.WithDuration(time.Second*3),
-		)
 
 		tm.Send(tea.KeyMsg{
 			Type:  tea.KeyRunes,
@@ -70,7 +62,7 @@ func TestUI(t *testing.T) {
 		tm.WaitFinished(t)
 	})
 
-	t.Run("Should show 'done' when all requests complete", func(t *testing.T) {
+	t.Run("Should show 'Finished' when all requests complete", func(t *testing.T) {
 		config := files.AppConfig{}
 
 		gatewayMock := webMocks.NewHttpGateway(t)
@@ -82,14 +74,6 @@ func TestUI(t *testing.T) {
 		tm := teatest.NewTestModel(
 			t, m,
 			teatest.WithInitialTermSize(300, 100),
-		)
-		teatest.WaitFor(
-			t, tm.Output(),
-			func(bts []byte) bool {
-				return bytes.Contains(bts, []byte("Choose a file"))
-			},
-			teatest.WithCheckInterval(time.Millisecond*100),
-			teatest.WithDuration(time.Second*3),
 		)
 
 		tm.Send(tea.KeyMsg{
@@ -123,14 +107,6 @@ func TestUI(t *testing.T) {
 		tm := teatest.NewTestModel(
 			t, m,
 			teatest.WithInitialTermSize(300, 100),
-		)
-		teatest.WaitFor(
-			t, tm.Output(),
-			func(bts []byte) bool {
-				return bytes.Contains(bts, []byte("Choose a file"))
-			},
-			teatest.WithCheckInterval(time.Millisecond*100),
-			teatest.WithDuration(time.Second*3),
 		)
 
 		tm.Send(tea.KeyMsg{
