@@ -92,6 +92,9 @@ func MapCSV(filePath string, separator string, fields []string) (CSV, error) {
 	if err != nil {
 		return CSV{}, err
 	}
+	if len(rawCSV) == 0 {
+		return CSV{}, fmt.Errorf("Empty file: %s", ui.Bold(filePath))
+	}
 
 	var header = rawCSV[0]
 	var lines []CSVLine
