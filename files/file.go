@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
-	"github.com/anibaldeboni/rapper/cli/ui"
 	"os"
 	"path/filepath"
-	"strings"
+	"slices"
 	"text/template"
+
+	"github.com/anibaldeboni/rapper/cli/ui"
 
 	yaml "gopkg.in/yaml.v3"
 )
@@ -84,7 +85,7 @@ func MapCSV(filePath string, separator string, fields []string) (CSV, error) {
 		return CSV{}, err
 	}
 	defer csvfile.Close()
-	fileName := filepath.Base(filePath)
+
 	reader := csv.NewReader(csvfile)
 	reader.Comma = []rune(separator)[0]
 	rawCSV, err := reader.ReadAll()
@@ -92,31 +93,29 @@ func MapCSV(filePath string, separator string, fields []string) (CSV, error) {
 		return CSV{}, err
 	}
 
-	var header []string
-	var csvLines []CSVLine
+	var header = rawCSV[0]
+	var lines []CSVLine
 	var fieldsPosition []int
-	for lineNum, record := range rawCSV {
-		if lineNum == 0 {
-			for i := 0; i < len(record); i++ {
-				if contains(fields, record[i]) {
-					fieldsPosition = append(fieldsPosition, i)
-				}
-				header = append(header, strings.TrimSpace(record[i]))
+	if len(fields) == 0 {
+		fields = header
+	}
+	for _, field := range fields {
+		fieldsPosition = append(fieldsPosition, slices.Index(header, field))
+	}
+	for i := 1; i < len(rawCSV); i++ {
+		record := rawCSV[i]
+		line := CSVLine{}
+		for i, r := range record {
+			if contains(fieldsPosition, i) {
+				line[header[i]] = r
 			}
-		} else {
-			line := CSVLine{}
-			for i := 0; i < len(record); i++ {
-				if contains(fieldsPosition, i) {
-					line[header[i]] = record[i]
-				}
-			}
-			csvLines = append(csvLines, line)
 		}
+		lines = append(lines, line)
 	}
 
 	return CSV{
-		Name:  fileName,
-		Lines: csvLines,
+		Name:  filepath.Base(filePath),
+		Lines: lines,
 	}, nil
 }
 

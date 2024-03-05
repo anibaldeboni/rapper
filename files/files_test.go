@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/anibaldeboni/rapper/files"
+	"golang.org/x/exp/maps"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -17,15 +18,15 @@ func TestMapCSV(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "When the file exists",
+			name:    "When the file exists return the specified fields",
 			path:    "../tests/example.csv",
 			fields:  []string{"id", "street_number"},
 			wantErr: false,
 		},
 		{
-			name:    "When no field is specified",
+			name:    "When no field is specified, return all fields",
 			path:    "../tests/example.csv",
-			fields:  []string{},
+			fields:  []string{"id", "street_number", "house_number", "city"},
 			wantErr: false,
 		},
 		{
@@ -42,8 +43,8 @@ func TestMapCSV(t *testing.T) {
 
 			assert.Equal(t, tt.wantErr, err != nil)
 
-			if got.Lines != nil && len(got.Lines) > 0 {
-				assert.Equal(t, len(tt.fields), len(got.Lines[0]))
+			if got.Lines != nil {
+				assert.ElementsMatch(t, tt.fields, maps.Keys(got.Lines[0]))
 			}
 		})
 	}
