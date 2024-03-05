@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	"github.com/anibaldeboni/rapper/cli/ui"
 	"github.com/anibaldeboni/rapper/files"
@@ -41,7 +41,7 @@ func fmtError(kind Error, err string) string {
 func fmtStatusError(record map[string]string, status int) string {
 	var result string
 	keys := maps.Keys(record)
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		result += fmt.Sprintf("%s: %s ", ui.Bold(key), record[key])
 	}
@@ -78,7 +78,7 @@ func findCsv(path string) ([]Option[string], error) {
 		opts = append(
 			opts,
 			Option[string]{
-				Title: trimFilename(filePath),
+				Title: trimFilename(filePath, 17),
 				Value: filePath,
 			},
 		)
@@ -86,12 +86,12 @@ func findCsv(path string) ([]Option[string], error) {
 
 	return opts, nil
 }
-func trimFilename(filename string) string {
+func trimFilename(filename string, length int) string {
 	f := filepath.Base(filename)
-	if len(f) < 15 {
+	if len(f) < length {
 		return f
 	}
-	return f[:15] + "..."
+	return f[:length] + "..."
 
 }
 

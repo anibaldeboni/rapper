@@ -56,7 +56,7 @@ func TestUI(t *testing.T) {
 		teatest.WaitFor(
 			t, tm.Output(),
 			func(bts []byte) bool {
-				return bytes.Contains(bts, []byte("Choose a file to process"))
+				return bytes.Contains(bts, []byte("Choose a file"))
 			},
 			teatest.WithCheckInterval(time.Millisecond*100),
 			teatest.WithDuration(time.Second*3),
@@ -86,7 +86,7 @@ func TestUI(t *testing.T) {
 		teatest.WaitFor(
 			t, tm.Output(),
 			func(bts []byte) bool {
-				return bytes.Contains(bts, []byte("Choose a file to process"))
+				return bytes.Contains(bts, []byte("Choose a file"))
 			},
 			teatest.WithCheckInterval(time.Millisecond*100),
 			teatest.WithDuration(time.Second*3),
@@ -127,7 +127,7 @@ func TestUI(t *testing.T) {
 		teatest.WaitFor(
 			t, tm.Output(),
 			func(bts []byte) bool {
-				return bytes.Contains(bts, []byte("Choose a file to process"))
+				return bytes.Contains(bts, []byte("Choose a file"))
 			},
 			teatest.WithCheckInterval(time.Millisecond*100),
 			teatest.WithDuration(time.Second*3),

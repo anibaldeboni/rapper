@@ -26,7 +26,7 @@ import (
 var (
 	AppName       = "rapper"
 	AppVersion    = "2.5.2"
-	viewPortTitle = ui.Bold("Execution logs\n")
+	viewPortTitle = "Execution logs"
 	logs          = &log.Logs{}
 	csvSeparator  string
 	csvFields     []string
@@ -66,7 +66,7 @@ func New(config files.AppConfig, path string, hg web.HttpGateway, of string) (Cl
 	go outputStream.Listen()
 
 	return cliModel{
-		filesList:   createList(opts, "Choose a file to process:"),
+		filesList:   createList(opts, "Choose a file"),
 		progressBar: progress.New(progress.WithDefaultGradient()),
 		help:        createHelp(),
 		viewport:    viewport.New(20, 60),
