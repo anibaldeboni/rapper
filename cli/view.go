@@ -13,8 +13,9 @@ func (c cliModel) View() string {
 	if state.Get() == Running || state.Get() == Stale {
 		progress = lipgloss.JoinVertical(
 			lipgloss.Top,
-			ui.TitleStyle.Render(viewPortTitle),
+			viewPortTitle,
 			ui.ViewPortStyle(c.viewport.View()),
+			// c.viewport.View(),
 			c.progressBar.View(),
 		)
 	}

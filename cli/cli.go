@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/anibaldeboni/rapper/cli/log"
+	"github.com/anibaldeboni/rapper/cli/messages"
 	"github.com/anibaldeboni/rapper/cli/output"
 	"github.com/anibaldeboni/rapper/cli/ui"
 	"github.com/anibaldeboni/rapper/files"
@@ -26,7 +27,7 @@ import (
 var (
 	AppName       = "rapper"
 	AppVersion    = "2.5.2"
-	viewPortTitle = "Execution logs"
+	viewPortTitle = ui.TitleStyle.Render("Execution logs")
 	logs          = &log.Logs{}
 	csvSeparator  string
 	csvFields     []string
@@ -93,7 +94,7 @@ func execRequests(ctx context.Context, file Option[string]) {
 	defer stop()
 	csv, err := files.MapCSV(file.Value, csvSeparator, csvFields)
 	if err != nil {
-		logs.Add(fmtError(CSV, err.Error()))
+		logs.Add(messages.NewCsvError(err.Error()))
 		return
 	}
 	errs := 0
@@ -101,32 +102,32 @@ func execRequests(ctx context.Context, file Option[string]) {
 	current := 0
 
 	if total == 0 {
-		logs.Add(fmtError(CSV, "No records found in the file\n"))
+		logs.Add(messages.NewCsvError("No records found in the file\n"))
 		return
 	}
-	logs.Add(fmt.Sprintf("%s Processing file %s", ui.IconWomanDancing, ui.Green(file.Title)))
+	logs.Add(messages.NewProcessingMessage(file.Title))
 
 Processing:
 	for i, record := range csv.Lines {
 		select {
 		case <-ctx.Done():
-			logs.Add(fmtError(Cancelation, fmt.Sprintf("Processed %d of %d", current, total)))
+			logs.Add(messages.NewCancelationError(fmt.Sprintf("Processed %d of %d", current, total)))
 			break Processing
 		default:
 			current = 1 + i
 			completed = float64(current) / float64(total)
 			response, err := gateway.Exec(record)
 			if err != nil {
-				logs.Add(fmtError(Request, err.Error()))
+				logs.Add(messages.NewRequestError(err.Error()))
 				errs++
 			} else if response.Status != http.StatusOK {
-				logs.Add(fmtError(Status, fmtStatusError(record, response.Status)))
+				logs.Add(messages.NewHttpStatusError(record, response.Status))
 				errs++
 			}
 			outputStream.Send(output.NewMessage(response.URL, response.Status, err, response.Body))
 		}
 	}
-	logs.Add(formatDoneMessage(errs))
+	logs.Add(messages.NewDoneMessage(errs))
 }
 
 func stop() {
@@ -150,19 +151,18 @@ func (c cliModel) selectItem(item Option[string]) cliModel {
 		c.progressBar.SetPercent(0)
 		go execRequests(ctx, item)
 	} else {
-		logs.Add(fmt.Sprintf("\n%s  %s\n", ui.IconInformation, "Please wait the current operation to finish or cancel pressing ESC"))
+		logs.Add(messages.NewOperationError())
 	}
 	return c
 }
 
 func (c cliModel) resizeElements(width int, height int) cliModel {
 	logViewWidth := width - lipgloss.Width(c.filesList.View()) - 7
-	headerHeight := lipgloss.Height(viewPortTitle) + 10
+	headerHeight := lipgloss.Height(viewPortTitle)
 
 	c.progressBar.Width = logViewWidth
-	c.viewport.Height = height - headerHeight
+	c.viewport.Height = height - headerHeight - 10
 	c.viewport.Width = logViewWidth
-	c.viewport.YPosition = headerHeight
 
 	return c
 }

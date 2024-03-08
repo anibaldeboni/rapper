@@ -4,65 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"github.com/anibaldeboni/rapper/cli/ui"
 	"github.com/anibaldeboni/rapper/files"
-	"golang.org/x/exp/maps"
 )
-
-type Error int
-
-const (
-	Request Error = iota
-	Status
-	CSV
-	Cancelation
-)
-
-func fmtError(kind Error, err string) string {
-	f := func(kind string, err string) string {
-		return fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold(kind), err)
-	}
-	switch kind {
-	case Request:
-		return f("Request", err)
-	case Status:
-		return f("Status", err)
-	case CSV:
-		return f("CSV", err)
-	case Cancelation:
-		return f("Cancelation", err)
-	default:
-		return f("Unknown", err)
-	}
-}
-
-func fmtStatusError(record map[string]string, status int) string {
-	var result string
-	keys := maps.Keys(record)
-	slices.Sort(keys)
-	for _, key := range keys {
-		result += fmt.Sprintf("%s: %s ", ui.Bold(key), record[key])
-	}
-	result += fmt.Sprintf("status: %s", ui.Pink(fmt.Sprint(status)))
-
-	return result
-}
-
-func formatDoneMessage(errs int) string {
-	var errMsg string
-	var icon string
-	if errs > 0 {
-		errMsg = fmt.Sprintf("%s errors", ui.Pink(fmt.Sprint(errs)))
-		icon = ui.IconError
-	} else {
-		errMsg = ui.Green("no errors")
-		icon = ui.IconTrophy
-	}
-
-	return fmt.Sprintf("%s Finished with %s\n", icon, errMsg)
-}
 
 func findCsv(path string) ([]Option[string], error) {
 	filePaths, err := files.FindFiles(path, "*.csv")

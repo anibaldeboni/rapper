@@ -4,9 +4,13 @@ import (
 	"sync"
 )
 
+type LogMessage interface {
+	String() string
+}
+
 type Logs struct {
 	mu    sync.RWMutex
-	logs  []string
+	logs  []LogMessage
 	count int
 }
 
@@ -20,7 +24,7 @@ func (l *Logs) HasNewLogs() bool {
 	return false
 }
 
-func (l *Logs) Add(log string) {
+func (l *Logs) Add(log LogMessage) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.logs = append(l.logs, log)
@@ -28,7 +32,11 @@ func (l *Logs) Add(log string) {
 func (l *Logs) Get() []string {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	return l.logs
+	var logs []string
+	for _, log := range l.logs {
+		logs = append(logs, log.String())
+	}
+	return logs
 }
 func (l *Logs) Len() int {
 	l.mu.RLock()

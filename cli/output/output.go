@@ -59,13 +59,21 @@ func (o *output) Listen() {
 	}
 	file, err := os.OpenFile(o.filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
 	if err != nil {
-		o.logs.Add(fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("Output"), err.Error()))
+		o.logs.Add(&outputMessage{message: err.Error()})
 	}
 	defer file.Close()
 	for log := range o.ch {
 		m, _ := json.Marshal(log)
 		if _, err := file.Write(append(m, '\n')); err != nil {
-			o.logs.Add(fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("Output"), err.Error()))
+			o.logs.Add(&outputMessage{message: err.Error()})
 		}
 	}
+}
+
+type outputMessage struct {
+	message string
+}
+
+func (o *outputMessage) String() string {
+	return fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("Output"), o.message)
 }
