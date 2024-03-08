@@ -90,22 +90,23 @@ func UpdateCheck() string {
 	return versions.CheckForUpdate(web.NewHttpClient(), AppVersion)
 }
 
-func execRequests(ctx context.Context, file Option[string]) {
+func execRequests(ctx context.Context, file Option[string], gateway web.HttpGateway, outputStream output.Output, logs *log.Logs) {
 	defer stop()
 	csv, err := files.MapCSV(file.Value, csvSeparator, csvFields)
 	if err != nil {
 		logs.Add(messages.NewCsvError(err.Error()))
 		return
 	}
-	errs := 0
-	total := len(csv.Lines)
-	current := 0
 
-	if total == 0 {
+	if len(csv.Lines) == 0 {
 		logs.Add(messages.NewCsvError("No records found in the file\n"))
 		return
 	}
+
 	logs.Add(messages.NewProcessingMessage(file.Title))
+	errs := 0
+	total := len(csv.Lines)
+	current := 0
 
 Processing:
 	for i, record := range csv.Lines {
@@ -149,7 +150,7 @@ func (c cliModel) selectItem(item Option[string]) cliModel {
 		setContext()
 		completed = 0
 		c.progressBar.SetPercent(0)
-		go execRequests(ctx, item)
+		go execRequests(ctx, item, gateway, outputStream, logs)
 	} else {
 		logs.Add(messages.NewOperationError())
 	}
@@ -157,12 +158,15 @@ func (c cliModel) selectItem(item Option[string]) cliModel {
 }
 
 func (c cliModel) resizeElements(width int, height int) cliModel {
-	logViewWidth := width - lipgloss.Width(c.filesList.View()) - 7
+	c.filesList.SetHeight(height - 4)
+
+	logViewWidth := width - lipgloss.Width(c.filesList.View())
 	headerHeight := lipgloss.Height(viewPortTitle)
 
-	c.progressBar.Width = logViewWidth
-	c.viewport.Height = height - headerHeight - 10
-	c.viewport.Width = logViewWidth
+	c.progressBar.Width = logViewWidth - 6
+
+	c.viewport.Height = height - headerHeight - 8
+	c.viewport.Width = logViewWidth - 2
 
 	return c
 }

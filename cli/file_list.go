@@ -69,6 +69,8 @@ func createList[T comparable](options []Option[T], title string) list.Model {
 	l.KeyMap.CursorDown = key.NewBinding(key.WithKeys("down"))
 	l.Styles.Title = ui.TitleStyle
 	l.Styles.PaginationStyle = ui.PaginationStyle
+	l.Styles.ActivePaginationDot = ui.ActivePaginationDot
+	l.Styles.InactivePaginationDot = ui.InactivePaginationDot
 	l.Styles.TitleBar = ui.TitleBarStyle
 
 	return l

@@ -11,24 +11,27 @@ import (
 func (c cliModel) View() string {
 	var progress string
 	if state.Get() == Running || state.Get() == Stale {
-		progress = lipgloss.JoinVertical(
-			lipgloss.Top,
-			viewPortTitle,
-			ui.ViewPortStyle(c.viewport.View()),
-			// c.viewport.View(),
-			c.progressBar.View(),
-		)
+		progress = lipgloss.NewStyle().
+			PaddingLeft(2).
+			Render(
+				lipgloss.JoinVertical(
+					lipgloss.Top,
+					viewPortTitle,
+					ui.ViewPortStyle(c.viewport.View()),
+					c.progressBar.View(),
+				),
+			)
 	}
 
 	widgets := lipgloss.JoinHorizontal(
 		lipgloss.Left,
 		c.filesList.View(),
-		ui.ProgressStyle(progress),
+		progress,
 	)
 	help := lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		fmt.Sprintf("%s@%s: ", ui.Bold(AppName), ui.Pink(AppVersion)),
-		c.help.View(keys),
+		ui.LogoStyle(fmt.Sprintf("%s@%s", AppName, AppVersion)),
+		ui.HelpStyle(c.help.View(keys)),
 	)
 	app := lipgloss.JoinVertical(
 		lipgloss.Top,
