@@ -3,33 +3,57 @@ package cli
 import (
 	"fmt"
 
-	"github.com/anibaldeboni/rapper/cli/ui"
-
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/truncate"
 )
 
-func (c Cli) View() string {
-	var progress string
-	if showProgress {
-		progress = lipgloss.JoinVertical(
-			lipgloss.Top,
-			fmt.Sprintf("%s\n%s\n\n", viewPortTitle, c.viewport.View()),
-			c.progressBar.View(),
-		)
+func (c cliModel) View() string {
+	var executionLogs string
+	if state.Get() == Running || state.Get() == Stale {
+		executionLogs = lipgloss.NewStyle().
+			PaddingLeft(2).
+			Render(
+				lipgloss.JoinVertical(
+					lipgloss.Top,
+					viewPortTitle,
+					styles.ViewPortStyle(c.viewport.View()),
+				),
+			)
 	}
 
 	widgets := lipgloss.JoinHorizontal(
-		lipgloss.Top,
+		lipgloss.Left,
 		c.filesList.View(),
-		ui.ProgressStyle(progress),
+		executionLogs,
 	)
+	width := lipgloss.Width
+	logo := styles.LogoStyle(fmt.Sprintf("%s@%s", AppName, AppVersion))
+	var spinner string
+	if state.Get() == Running {
+		spinner = c.spinner.View()
+	} else {
+		spinner = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("205")).Render("∙∙∙")
+	}
 
+	help := lipgloss.NewStyle().
+		Height(1).
+		Width(c.width - width(logo) - width(spinner) - 3).
+		PaddingLeft(1).
+		Render(truncate.StringWithTail(c.help.View(keys), uint(c.width-width(logo)-width(spinner)), "…"))
+
+	statusbar := lipgloss.JoinHorizontal(
+		lipgloss.Left,
+		logo,
+		help,
+		spinner,
+	)
 	app := lipgloss.JoinVertical(
 		lipgloss.Top,
-		fmt.Sprintf("[ %s @ %s ]\n", ui.Bold(name), ui.Pink(version)),
 		widgets,
-		c.help.View(c.keyMap),
+		statusbar,
 	)
 
-	return ui.AppStyle(app)
+	return styles.AppStyle(app)
 }

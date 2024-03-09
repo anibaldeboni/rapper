@@ -2,10 +2,11 @@ package web_test
 
 import (
 	"bytes"
-	"github.com/anibaldeboni/rapper/web"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/anibaldeboni/rapper/internal/web"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -74,7 +75,7 @@ func TestPut(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res, err := client.Put(tt.route, body, tt.headers)
 			assert.Equal(t, tt.wantErr, err != nil)
-			assert.Equal(t, tt.wantErr, res.Status != http.StatusOK)
+			assert.Equal(t, tt.wantErr, res.StatusCode != http.StatusOK)
 		})
 	}
 }
@@ -139,7 +140,7 @@ func TestPost(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res, err := client.Post(tt.route, body, tt.headers)
 			assert.Equal(t, tt.wantErr, err != nil)
-			assert.Equal(t, tt.wantErr, res.Status != http.StatusOK)
+			assert.Equal(t, tt.wantErr, res.StatusCode != http.StatusOK)
 		})
 	}
 }
@@ -207,7 +208,7 @@ func TestGet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res, err := client.Get(tt.route, tt.headers)
 			assert.Equal(t, tt.wantErr, err != nil)
-			assert.Equal(t, tt.wantErr, res.Status != http.StatusOK)
+			assert.Equal(t, tt.wantErr, res.StatusCode != http.StatusOK)
 		})
 	}
 }

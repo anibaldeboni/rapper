@@ -6,8 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/anibaldeboni/rapper/cli/ui"
-
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -33,10 +32,10 @@ func (d itemDelegate[T]) Render(w io.Writer, m list.Model, index int, listItem l
 
 	str := fmt.Sprintf("%d. %s", index+1, i.Title)
 
-	fn := ui.ItemStyle.Render
+	fn := styles.ItemStyle.Render
 	if index == m.Index() {
 		fn = func(s ...string) string {
-			return ui.SelectedItemStyle.Render("> " + strings.Join(s, " "))
+			return styles.SelectedItemStyle.Render("> " + strings.Join(s, " "))
 		}
 	}
 
@@ -67,9 +66,11 @@ func createList[T comparable](options []Option[T], title string) list.Model {
 	l.DisableQuitKeybindings()
 	l.KeyMap.CursorUp = key.NewBinding(key.WithKeys("up"))
 	l.KeyMap.CursorDown = key.NewBinding(key.WithKeys("down"))
-	l.Styles.Title = ui.TitleStyle
-	l.Styles.PaginationStyle = ui.PaginationStyle
-	l.Styles.TitleBar = ui.TitleBarStyle
+	l.Styles.Title = styles.TitleStyle
+	l.Styles.PaginationStyle = styles.PaginationStyle
+	l.Styles.ActivePaginationDot = styles.ActivePaginationDot
+	l.Styles.InactivePaginationDot = styles.InactivePaginationDot
+	l.Styles.TitleBar = styles.TitleBarStyle
 
 	return l
 }

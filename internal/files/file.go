@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
-	"github.com/anibaldeboni/rapper/cli/ui"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/template"
 
+	"github.com/anibaldeboni/rapper/internal/styles"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -29,16 +28,10 @@ type AppConfig struct {
 	} `yaml:"csv"`
 }
 
-type CSVLine map[string]string
-type CSV struct {
-	Name  string
-	Lines []CSVLine
-}
-
 func Config(path string) (AppConfig, error) {
 	f, errs := FindFiles(path, "config.yml", "config.yaml")
 	if len(errs) > 0 || len(f) == 0 {
-		return AppConfig{}, fmt.Errorf("Could not find config.yml or config.yaml in %s", ui.Bold(path))
+		return AppConfig{}, fmt.Errorf("Could not find config.yml or config.yaml in %s", styles.Bold(path))
 	}
 
 	file, err := os.ReadFile(f[0])
@@ -63,60 +56,63 @@ func RenderTemplate[T map[string]string](t *template.Template, variables T) *byt
 	return buf
 }
 
-func contains[T comparable](slice []T, element T) bool {
-	for _, a := range slice {
-		if a == element {
-			return true
-		}
-	}
-	return false
+// CSVLine represents a line in the CSV file.
+type CSVLine map[string]string
+
+// CSV represents the CSV file.
+type CSV struct {
+	Name  string
+	Lines []CSVLine
 }
 
+// MapCSV reads a CSV file and maps its contents into a custom data structure.
 func MapCSV(filePath string, separator string, fields []string) (CSV, error) {
 	if len(separator) > 1 {
-		return CSV{}, fmt.Errorf("Invalid separator: %s", ui.Bold(separator))
+		return CSV{}, fmt.Errorf("Invalid separator: %s", separator)
 	}
 	if separator == "" {
 		separator = ","
 	}
+
 	csvfile, err := os.Open(filePath)
 	if err != nil {
 		return CSV{}, err
 	}
 	defer csvfile.Close()
-	fileName := filepath.Base(filePath)
+
 	reader := csv.NewReader(csvfile)
 	reader.Comma = []rune(separator)[0]
 	rawCSV, err := reader.ReadAll()
 	if err != nil {
 		return CSV{}, err
 	}
+	if len(rawCSV) == 0 {
+		return CSV{}, fmt.Errorf("Empty file: %s", filePath)
+	}
 
-	var header []string
-	var csvLines []CSVLine
-	var fieldsPosition []int
-	for lineNum, record := range rawCSV {
-		if lineNum == 0 {
-			for i := 0; i < len(record); i++ {
-				if contains(fields, record[i]) {
-					fieldsPosition = append(fieldsPosition, i)
-				}
-				header = append(header, strings.TrimSpace(record[i]))
+	header := rawCSV[0]
+	lines := make([]CSVLine, 0, len(rawCSV)-1)
+	fieldPositions := make(map[string]int, len(fields))
+	if len(fields) == 0 {
+		fields = header
+	}
+	for i, field := range fields {
+		fieldPositions[field] = i
+	}
+
+	for _, record := range rawCSV[1:] {
+		line := CSVLine{}
+		for i, r := range record {
+			if _, ok := fieldPositions[header[i]]; ok {
+				line[header[i]] = r
 			}
-		} else {
-			line := CSVLine{}
-			for i := 0; i < len(record); i++ {
-				if contains(fieldsPosition, i) {
-					line[header[i]] = record[i]
-				}
-			}
-			csvLines = append(csvLines, line)
 		}
+		lines = append(lines, line)
 	}
 
 	return CSV{
-		Name:  fileName,
-		Lines: csvLines,
+		Name:  filepath.Base(filePath),
+		Lines: lines,
 	}, nil
 }
 
@@ -133,12 +129,13 @@ func IsDir(path string) bool {
 	return false
 }
 
-// FindFiles returns a list of files that match the given pattern in the given directory.
+// FindFiles takes a directory path and a list of file patterns as input and returns a list of files that match the patterns in the given directory.
+// It also returns a list of any errors encountered during the process.
 func FindFiles(dir string, f ...string) ([]string, []error) {
-	files := []string{}
-	errs := []error{}
+	var files []string
+	var errs []error
 	for _, file := range f {
-		found, err := filepath.Glob(dir + "/" + file)
+		found, err := filepath.Glob(filepath.Join(dir, file))
 		if err != nil {
 			errs = append(errs, err)
 		}

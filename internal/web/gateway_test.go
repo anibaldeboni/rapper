@@ -3,13 +3,14 @@ package web_test
 import (
 	"bytes"
 	"errors"
-	"github.com/anibaldeboni/rapper/files"
-	"github.com/anibaldeboni/rapper/web"
-	"github.com/anibaldeboni/rapper/web/mocks"
 	"net/http"
 	"strings"
 	"testing"
 	"text/template"
+
+	"github.com/anibaldeboni/rapper/internal/files"
+	"github.com/anibaldeboni/rapper/internal/web"
+	"github.com/anibaldeboni/rapper/internal/web/mocks"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -41,9 +42,9 @@ func TestExec(t *testing.T) {
 		"value": "value",
 	}
 	successResponse := web.Response{
-		Status:  200,
-		Body:    []byte(body),
-		Headers: http.Header{"Content-Type": []string{"application/json"}},
+		StatusCode: 200,
+		Body:       []byte(body),
+		Headers:    http.Header{"Content-Type": []string{"application/json"}},
 	}
 
 	tests := []struct {
