@@ -4,7 +4,7 @@ package mocks
 
 import (
 	io "io"
-	web "github.com/anibaldeboni/rapper/web"
+	web "github.com/anibaldeboni/rapper/internal/web"
 
 	mock "github.com/stretchr/testify/mock"
 )

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -54,23 +53,17 @@ func (c cliModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return c.resizeElements(msg.Width, msg.Height), nil
 
 	case tickMsg:
-		cmd = c.progressBar.SetPercent(completed)
 		if logs.HasNewLogs() {
 			c.viewport.SetContent(strings.Join(logs.Get(), "\n"))
 			c.viewport.GotoBottom()
 		}
 		return c, tea.Batch(cmd, tickCmd())
 
-	case progress.FrameMsg:
-		progressModel, cmd := c.progressBar.Update(msg)
-		p, ok := progressModel.(progress.Model)
-		if ok {
-			c.progressBar = p
-		}
-		return c, cmd
 	}
 
 	c.filesList, cmd = c.filesList.Update(msg)
+	cmds = append(cmds, cmd)
+	c.spinner, cmd = c.spinner.Update(msg)
 	cmds = append(cmds, cmd)
 
 	return c, tea.Batch(cmds...)

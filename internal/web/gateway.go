@@ -2,10 +2,11 @@ package web
 
 import (
 	"errors"
-	"github.com/anibaldeboni/rapper/files"
 	"io"
 	"net/http"
 	"text/template"
+
+	"github.com/anibaldeboni/rapper/internal/files"
 )
 
 type HttpGateway interface {

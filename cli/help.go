@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/anibaldeboni/rapper/cli/ui"
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 )
@@ -20,13 +20,13 @@ type keyMap struct {
 func createHelp() help.Model {
 	help := help.New()
 
-	help.Styles.ShortKey = ui.HelpKeyStyle
-	help.Styles.ShortDesc = ui.HelpDescStyle
-	help.Styles.ShortSeparator = ui.HelpSepStyle
-	help.Styles.Ellipsis = ui.HelpSepStyle.Copy()
-	help.Styles.FullKey = ui.HelpKeyStyle.Copy()
-	help.Styles.FullDesc = ui.HelpDescStyle.Copy()
-	help.Styles.FullSeparator = ui.HelpSepStyle.Copy()
+	help.Styles.ShortKey = styles.HelpKeyStyle
+	help.Styles.ShortDesc = styles.HelpDescStyle
+	help.Styles.ShortSeparator = styles.HelpSepStyle
+	help.Styles.Ellipsis = styles.HelpSepStyle.Copy()
+	help.Styles.FullKey = styles.HelpKeyStyle.Copy()
+	help.Styles.FullDesc = styles.HelpDescStyle.Copy()
+	help.Styles.FullSeparator = styles.HelpSepStyle.Copy()
 
 	return help
 }

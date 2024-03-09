@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	web "github.com/anibaldeboni/rapper/web"
+	web "github.com/anibaldeboni/rapper/internal/web"
 
 	mock "github.com/stretchr/testify/mock"
 )

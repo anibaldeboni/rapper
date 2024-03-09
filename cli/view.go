@@ -3,22 +3,21 @@ package cli
 import (
 	"fmt"
 
-	"github.com/anibaldeboni/rapper/cli/ui"
-
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/truncate"
 )
 
 func (c cliModel) View() string {
-	var progress string
+	var executionLogs string
 	if state.Get() == Running || state.Get() == Stale {
-		progress = lipgloss.NewStyle().
+		executionLogs = lipgloss.NewStyle().
 			PaddingLeft(2).
 			Render(
 				lipgloss.JoinVertical(
 					lipgloss.Top,
 					viewPortTitle,
-					ui.ViewPortStyle(c.viewport.View()),
-					c.progressBar.View(),
+					styles.ViewPortStyle(c.viewport.View()),
 				),
 			)
 	}
@@ -26,18 +25,35 @@ func (c cliModel) View() string {
 	widgets := lipgloss.JoinHorizontal(
 		lipgloss.Left,
 		c.filesList.View(),
-		progress,
+		executionLogs,
 	)
-	help := lipgloss.JoinHorizontal(
+	width := lipgloss.Width
+	logo := styles.LogoStyle(fmt.Sprintf("%s@%s", AppName, AppVersion))
+	var spinner string
+	if state.Get() == Running {
+		spinner = c.spinner.View()
+	} else {
+		spinner = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("205")).Render("∙∙∙")
+	}
+
+	help := lipgloss.NewStyle().
+		Height(1).
+		Width(c.width - width(logo) - width(spinner) - 3).
+		PaddingLeft(1).
+		Render(truncate.StringWithTail(c.help.View(keys), uint(c.width-width(logo)-width(spinner)), "…"))
+
+	statusbar := lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		ui.LogoStyle(fmt.Sprintf("%s@%s", AppName, AppVersion)),
-		ui.HelpStyle(c.help.View(keys)),
+		logo,
+		help,
+		spinner,
 	)
 	app := lipgloss.JoinVertical(
 		lipgloss.Top,
 		widgets,
-		help,
+		statusbar,
 	)
 
-	return ui.AppStyle(app)
+	return styles.AppStyle(app)
 }

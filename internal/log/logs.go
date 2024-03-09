@@ -8,13 +8,24 @@ type LogMessage interface {
 	String() string
 }
 
-type Logs struct {
+type LogManager interface {
+	HasNewLogs() bool
+	Add(LogMessage)
+	Get() []string
+	Len() int
+}
+
+type logManagerImpl struct {
 	mu    sync.RWMutex
 	logs  []LogMessage
 	count int
 }
 
-func (l *Logs) HasNewLogs() bool {
+func NewLogManager() LogManager {
+	return &logManagerImpl{}
+}
+
+func (l *logManagerImpl) HasNewLogs() bool {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	if l.count < len(l.logs) {
@@ -24,12 +35,12 @@ func (l *Logs) HasNewLogs() bool {
 	return false
 }
 
-func (l *Logs) Add(log LogMessage) {
+func (l *logManagerImpl) Add(log LogMessage) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.logs = append(l.logs, log)
 }
-func (l *Logs) Get() []string {
+func (l *logManagerImpl) Get() []string {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	var logs []string
@@ -38,7 +49,7 @@ func (l *Logs) Get() []string {
 	}
 	return logs
 }
-func (l *Logs) Len() int {
+func (l *logManagerImpl) Len() int {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	return len(l.logs)

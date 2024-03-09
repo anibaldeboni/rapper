@@ -4,21 +4,19 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 
-	"github.com/anibaldeboni/rapper/cli/log"
 	"github.com/anibaldeboni/rapper/cli/messages"
-	"github.com/anibaldeboni/rapper/cli/output"
-	"github.com/anibaldeboni/rapper/cli/ui"
-	"github.com/anibaldeboni/rapper/files"
-	"github.com/anibaldeboni/rapper/versions"
-	"github.com/anibaldeboni/rapper/web"
+	"github.com/anibaldeboni/rapper/internal/log"
+	"github.com/anibaldeboni/rapper/internal/processor"
+	"github.com/anibaldeboni/rapper/internal/styles"
+	"github.com/anibaldeboni/rapper/internal/versions"
+	"github.com/anibaldeboni/rapper/internal/web"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -27,16 +25,12 @@ import (
 var (
 	AppName       = "rapper"
 	AppVersion    = "2.5.2"
-	viewPortTitle = ui.TitleStyle.Render("Execution logs")
-	logs          = &log.Logs{}
-	csvSeparator  string
-	csvFields     []string
-	gateway       web.HttpGateway
-	outputStream  output.Output
-	completed     float64
+	viewPortTitle = styles.TitleStyle.Render("Execution logs")
+	logs          = log.NewLogManager()
 	ctx           context.Context
 	cancel        context.CancelFunc
 	state         = &State{}
+	csvProcessor  processor.Processor
 )
 
 type Cli interface {
@@ -46,41 +40,42 @@ type Cli interface {
 }
 
 type cliModel struct {
-	progressBar progress.Model
-	viewport    viewport.Model
-	filesList   list.Model
-	help        help.Model
+	viewport  viewport.Model
+	filesList list.Model
+	help      help.Model
+	spinner   spinner.Model
+	width     int
 }
 
-func New(config files.AppConfig, path string, hg web.HttpGateway, of string) (Cli, error) {
-	opts, err := findCsv(path)
-	if err != nil {
-		return cliModel{}, err
-	}
-
+func New(csvFiles []string, csvProc processor.Processor, logManager log.LogManager) Cli {
 	state.Set(SelectFile)
-	outputStream = output.New(of, logs)
-	csvSeparator = config.CSV.Separator
-	csvFields = config.CSV.Fields
-	gateway = hg
-
-	go outputStream.Listen()
+	csvProcessor = csvProc
+	logs = logManager
 
 	return cliModel{
-		filesList:   createList(opts, "Choose a file"),
-		progressBar: progress.New(progress.WithDefaultGradient()),
-		help:        createHelp(),
-		viewport:    viewport.New(20, 60),
-	}, nil
+		viewport:  viewport.New(20, 60),
+		filesList: createList(mapListOptions(csvFiles), "Choose a file"),
+		help:      createHelp(),
+		spinner:   createSpinner(),
+	}
+}
+
+func createSpinner() spinner.Model {
+	s := spinner.New()
+	s.Spinner = spinner.Points
+	s.Style = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("205"))
+
+	return s
 }
 
 func Usage() {
-	fmt.Printf("%s (%s)\n", ui.Bold(AppName), AppVersion)
+	fmt.Printf("%s (%s)\n", styles.Bold(AppName), AppVersion)
 	fmt.Println("\nA CLI tool to send HTTP requests based on CSV files.")
-	fmt.Printf("All flags are optional. If %s or %s are not provided, the current directory will be used.\n", ui.Bold("-config"), ui.Bold("-dir"))
-	fmt.Printf("If %s file is not provided, the responses bodies will not be saved.\n", ui.Bold("-output"))
+	fmt.Printf("All flags are optional. If %s or %s are not provided, the current directory will be used.\n", styles.Bold("-config"), styles.Bold("-dir"))
+	fmt.Printf("If %s file is not provided, the responses bodies will not be saved.\n", styles.Bold("-output"))
 	fmt.Println("\nUsage:")
-	fmt.Printf("  %s [options]\n", ui.Bold(filepath.Base(os.Args[0])))
+	fmt.Printf("  %s [options]\n", styles.Bold(filepath.Base(os.Args[0])))
 	fmt.Println("\nOptions:")
 	flag.PrintDefaults()
 	fmt.Println("\n" + UpdateCheck())
@@ -88,47 +83,6 @@ func Usage() {
 
 func UpdateCheck() string {
 	return versions.CheckForUpdate(web.NewHttpClient(), AppVersion)
-}
-
-func execRequests(ctx context.Context, file Option[string], gateway web.HttpGateway, outputStream output.Output, logs *log.Logs) {
-	defer stop()
-	csv, err := files.MapCSV(file.Value, csvSeparator, csvFields)
-	if err != nil {
-		logs.Add(messages.NewCsvError(err.Error()))
-		return
-	}
-
-	if len(csv.Lines) == 0 {
-		logs.Add(messages.NewCsvError("No records found in the file\n"))
-		return
-	}
-
-	logs.Add(messages.NewProcessingMessage(file.Title))
-	errs := 0
-	total := len(csv.Lines)
-	current := 0
-
-Processing:
-	for i, record := range csv.Lines {
-		select {
-		case <-ctx.Done():
-			logs.Add(messages.NewCancelationError(fmt.Sprintf("Processed %d of %d", current, total)))
-			break Processing
-		default:
-			current = 1 + i
-			completed = float64(current) / float64(total)
-			response, err := gateway.Exec(record)
-			if err != nil {
-				logs.Add(messages.NewRequestError(err.Error()))
-				errs++
-			} else if response.Status != http.StatusOK {
-				logs.Add(messages.NewHttpStatusError(record, response.Status))
-				errs++
-			}
-			outputStream.Send(output.NewMessage(response.URL, response.Status, err, response.Body))
-		}
-	}
-	logs.Add(messages.NewDoneMessage(errs))
 }
 
 func stop() {
@@ -142,15 +96,13 @@ func setContext() {
 }
 
 func (c cliModel) Init() tea.Cmd {
-	return tea.Batch(tea.EnterAltScreen, tickCmd())
+	return tea.Batch(tea.EnterAltScreen, tickCmd(), c.spinner.Tick)
 }
 
 func (c cliModel) selectItem(item Option[string]) cliModel {
 	if state.Get() != Running {
 		setContext()
-		completed = 0
-		c.progressBar.SetPercent(0)
-		go execRequests(ctx, item, gateway, outputStream, logs)
+		csvProcessor.Do(ctx, stop, item.Value)
 	} else {
 		logs.Add(messages.NewOperationError())
 	}
@@ -158,14 +110,13 @@ func (c cliModel) selectItem(item Option[string]) cliModel {
 }
 
 func (c cliModel) resizeElements(width int, height int) cliModel {
+	c.width = width
 	c.filesList.SetHeight(height - 4)
 
 	logViewWidth := width - lipgloss.Width(c.filesList.View())
 	headerHeight := lipgloss.Height(viewPortTitle)
 
-	c.progressBar.Width = logViewWidth - 6
-
-	c.viewport.Height = height - headerHeight - 8
+	c.viewport.Height = height - headerHeight - 6
 	c.viewport.Width = logViewWidth - 2
 
 	return c

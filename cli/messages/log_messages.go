@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/anibaldeboni/rapper/cli/ui"
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"golang.org/x/exp/maps"
 )
 
@@ -13,7 +13,7 @@ type requestError struct {
 }
 
 func (e *requestError) String() string {
-	return fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("Request"), e.message)
+	return fmt.Sprintf("%s [%s] %s", styles.IconSkull, styles.Bold("Request"), e.message)
 }
 
 func NewRequestError(message string) *requestError {
@@ -25,7 +25,7 @@ type statusError struct {
 }
 
 func (e *statusError) String() string {
-	return fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("Status"), e.message)
+	return fmt.Sprintf("%s [%s] %s", styles.IconSkull, styles.Bold("Status"), e.message)
 }
 
 func NewStatusError(message string) *statusError {
@@ -37,7 +37,7 @@ type csvError struct {
 }
 
 func (e *csvError) String() string {
-	return fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("CSV"), e.message)
+	return fmt.Sprintf("%s [%s] %s", styles.IconSkull, styles.Bold("CSV"), e.message)
 }
 
 func NewCsvError(message string) *csvError {
@@ -49,7 +49,7 @@ type cancelationError struct {
 }
 
 func (e *cancelationError) String() string {
-	return fmt.Sprintf("%s [%s] %s", ui.IconSkull, ui.Bold("Cancelation"), e.message)
+	return fmt.Sprintf("%s [%s] %s", styles.IconSkull, styles.Bold("Cancelation"), e.message)
 }
 func NewCancelationError(message string) *cancelationError {
 	return &cancelationError{message: message}
@@ -65,9 +65,9 @@ func (e *httpStatusError) String() string {
 	keys := maps.Keys(e.record)
 	slices.Sort(keys)
 	for _, key := range keys {
-		result += fmt.Sprintf("%s: %s ", ui.Bold(key), e.record[key])
+		result += fmt.Sprintf("%s: %s ", styles.Bold(key), e.record[key])
 	}
-	result += fmt.Sprintf("status: %s", ui.Pink(fmt.Sprint(e.status)))
+	result += fmt.Sprintf("status: %s", styles.Pink(fmt.Sprint(e.status)))
 
 	return result
 }
@@ -83,11 +83,11 @@ func (d *doneMessage) String() string {
 	var errMsg string
 	var icon string
 	if d.errs > 0 {
-		errMsg = fmt.Sprintf("%s errors", ui.Pink(fmt.Sprint(d.errs)))
-		icon = ui.IconError
+		errMsg = fmt.Sprintf("%s errors", styles.Pink(fmt.Sprint(d.errs)))
+		icon = styles.IconError
 	} else {
-		errMsg = ui.Green("no errors")
-		icon = ui.IconTrophy
+		errMsg = styles.Green("no errors")
+		icon = styles.IconTrophy
 	}
 
 	return fmt.Sprintf("%s Finished with %s\n", icon, errMsg)
@@ -99,7 +99,7 @@ func NewDoneMessage(errs int) *doneMessage {
 type operationError struct{}
 
 func (e *operationError) String() string {
-	return fmt.Sprintf("\n%s  %s\n", ui.IconInformation, "Please wait the current operation to finish or cancel pressing ESC")
+	return fmt.Sprintf("\n%s  %s\n", styles.IconInformation, "Please wait the current operation to finish or cancel pressing ESC")
 }
 
 func NewOperationError() *operationError {
@@ -111,7 +111,7 @@ type processingMessage struct {
 }
 
 func (p *processingMessage) String() string {
-	return fmt.Sprintf("%s Processing file %s", ui.IconWomanDancing, ui.Green(p.file))
+	return fmt.Sprintf("%s Processing file %s", styles.IconWomanDancing, styles.Green(p.file))
 }
 
 func NewProcessingMessage(file string) *processingMessage {

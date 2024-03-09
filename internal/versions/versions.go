@@ -3,8 +3,8 @@ package versions
 import (
 	"encoding/json"
 
-	"github.com/anibaldeboni/rapper/cli/ui"
-	"github.com/anibaldeboni/rapper/web"
+	"github.com/anibaldeboni/rapper/internal/styles"
+	"github.com/anibaldeboni/rapper/internal/web"
 
 	version "github.com/hashicorp/go-version"
 )
@@ -45,7 +45,7 @@ func CheckForUpdate(hc web.HttpClient, currentVersion string) string {
 	}
 
 	if latest.GreaterThan(current) {
-		str := ui.IconInformation + "  New version available: " + ui.Bold(releases[0].TagName) + " (" + releases[0].HtmlUrl + ")"
+		str := styles.IconInformation + "  New version available: " + styles.Bold(releases[0].TagName) + " (" + releases[0].HtmlUrl + ")"
 		return str
 	}
 	return NoUpdates

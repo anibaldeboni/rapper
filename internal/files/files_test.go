@@ -1,9 +1,10 @@
 package files_test
 
 import (
+	"os"
 	"testing"
 
-	"github.com/anibaldeboni/rapper/files"
+	"github.com/anibaldeboni/rapper/internal/files"
 	"golang.org/x/exp/maps"
 
 	"github.com/stretchr/testify/assert"
@@ -19,13 +20,13 @@ func TestMapCSV(t *testing.T) {
 	}{
 		{
 			name:    "When the file exists return the specified fields",
-			path:    "../tests/example.csv",
+			path:    "../../tests/example.csv",
 			fields:  []string{"id", "street_number"},
 			wantErr: false,
 		},
 		{
 			name:    "When no field is specified, return all fields",
-			path:    "../tests/example.csv",
+			path:    "../../tests/example.csv",
 			fields:  []string{"id", "street_number", "house_number", "city"},
 			wantErr: false,
 		},
@@ -44,10 +45,34 @@ func TestMapCSV(t *testing.T) {
 			assert.Equal(t, tt.wantErr, err != nil)
 
 			if got.Lines != nil {
-				assert.ElementsMatch(t, tt.fields, maps.Keys(got.Lines[0]))
+				assert.ElementsMatch(t, tt.fields, maps.Keys[map[string]string](got.Lines[0]))
 			}
 		})
 	}
+}
+
+func TestInvalidSeparator(t *testing.T) {
+	// Initialize test data
+	separator := ";;"
+	fields := []string{"name", "age"}
+
+	// Create a test CSV file in memory
+	csvData := `name;;age;;city
+                John;;25;;New York
+                Jane;;30;;Los Angeles`
+	tempFile, err := os.CreateTemp("", "test.csv")
+	if err != nil {
+		t.Fatalf("Failed to create temporary file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+	_, err = tempFile.WriteString(csvData)
+	if err != nil {
+		t.Fatalf("Failed to write to temporary file: %v", err)
+	}
+
+	// Call the function under test
+	_, err = files.MapCSV(tempFile.Name(), separator, fields)
+	assert.Error(t, err, "Expected an error, but got nil")
 }
 
 func TestConfig(t *testing.T) {
@@ -59,7 +84,7 @@ func TestConfig(t *testing.T) {
 	}{
 		{
 			name:    "When the file exists",
-			path:    "..",
+			path:    "../../",
 			wantErr: false,
 		},
 		{

@@ -2,10 +2,11 @@ package versions_test
 
 import (
 	"errors"
-	"github.com/anibaldeboni/rapper/versions"
-	"github.com/anibaldeboni/rapper/web"
-	"github.com/anibaldeboni/rapper/web/mocks"
 	"testing"
+
+	"github.com/anibaldeboni/rapper/internal/versions"
+	"github.com/anibaldeboni/rapper/internal/web"
+	"github.com/anibaldeboni/rapper/internal/web/mocks"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -14,9 +15,9 @@ import (
 func TestCheckForUpdate(t *testing.T) {
 	client := mocks.NewHttpClient(t)
 	response := web.Response{
-		Status:  200,
-		Body:    []byte(`[{"tag_name": "v2.0.0", "html_url": "release_url"}]`),
-		Headers: *new(map[string][]string),
+		StatusCode: 200,
+		Body:       []byte(`[{"tag_name": "v2.0.0", "html_url": "release_url"}]`),
+		Headers:    *new(map[string][]string),
 	}
 
 	tests := []struct {
@@ -52,9 +53,9 @@ func TestCheckForUpdate(t *testing.T) {
 			version: "v1.0.0",
 			want:    "",
 			response: web.Response{
-				Status:  200,
-				Body:    []byte(`body-is-not-a-json`),
-				Headers: *new(map[string][]string),
+				StatusCode: 200,
+				Body:       []byte(`body-is-not-a-json`),
+				Headers:    *new(map[string][]string),
 			},
 			err: nil,
 		},

@@ -6,10 +6,10 @@ import (
 )
 
 type Response struct {
-	URL     string
-	Status  int
-	Headers http.Header
-	Body    []byte
+	URL        string
+	StatusCode int
+	Headers    http.Header
+	Body       []byte
 }
 
 type HttpClient interface {
@@ -72,9 +72,9 @@ func buildResponse(response *http.Response, err error) (Response, error) {
 	body, _ := io.ReadAll(response.Body)
 
 	return Response{
-		URL:     response.Request.URL.String(),
-		Status:  response.StatusCode,
-		Headers: response.Header,
-		Body:    body,
+		URL:        response.Request.URL.String(),
+		StatusCode: response.StatusCode,
+		Headers:    response.Header,
+		Body:       body,
 	}, nil
 }
