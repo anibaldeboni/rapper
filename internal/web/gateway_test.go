@@ -10,12 +10,13 @@ import (
 
 	"github.com/anibaldeboni/rapper/internal/files"
 	"github.com/anibaldeboni/rapper/internal/web"
-	"github.com/anibaldeboni/rapper/internal/web/mocks"
+	mock_web "github.com/anibaldeboni/rapper/internal/web/mock"
+	"go.uber.org/mock/gomock"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func buildGateway(t *testing.T, method string, client *mocks.HttpClient) *web.HttpGatewayImpl {
+func buildGateway(t *testing.T, method string, client *mock_web.MockHttpClient) *web.HttpGatewayImpl {
 	t.Helper()
 	gateway := &web.HttpGatewayImpl{
 		Token:  "auth-token",
@@ -33,7 +34,6 @@ func buildGateway(t *testing.T, method string, client *mocks.HttpClient) *web.Ht
 	return gateway
 }
 func TestExec(t *testing.T) {
-	httpClient := mocks.NewHttpClient(t)
 	url := "api.site.domain/"
 	body := `{ "key": "value" }`
 	headers := map[string]string{"Authorization": "Bearer auth-token"}
@@ -75,6 +75,10 @@ func TestExec(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			httpClient := mock_web.NewMockHttpClient(ctrl)
+
 			gateway := buildGateway(t, strings.ToUpper(tt.method), httpClient)
 
 			var err error
@@ -84,14 +88,14 @@ func TestExec(t *testing.T) {
 			} else {
 				res = successResponse
 			}
-
-			mockCall := httpClient.On(tt.method, url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
+			switch tt.method {
+			case "Post":
+				httpClient.EXPECT().Post(url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
+			case "Put":
+				httpClient.EXPECT().Put(url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
+			}
 
 			res, e := gateway.Exec(variables)
-			if tt.method != "Get" {
-				httpClient.AssertExpectations(t)
-			}
-			mockCall.Unset()
 
 			if tt.wantErr {
 				assert.Error(t, e)

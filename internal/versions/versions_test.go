@@ -6,14 +6,16 @@ import (
 
 	"github.com/anibaldeboni/rapper/internal/versions"
 	"github.com/anibaldeboni/rapper/internal/web"
-	"github.com/anibaldeboni/rapper/internal/web/mocks"
+	mock_web "github.com/anibaldeboni/rapper/internal/web/mock"
+	"go.uber.org/mock/gomock"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestCheckForUpdate(t *testing.T) {
-	client := mocks.NewHttpClient(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	client := mock_web.NewMockHttpClient(ctrl)
 	response := web.Response{
 		StatusCode: 200,
 		Body:       []byte(`[{"tag_name": "v2.0.0", "html_url": "release_url"}]`),
@@ -62,9 +64,8 @@ func TestCheckForUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCall := client.On("Get", mock.Anything, mock.Anything).Return(tt.response, tt.err)
+			client.EXPECT().Get(gomock.Any(), gomock.Any()).Return(tt.response, tt.err).Times(1)
 			got := versions.CheckForUpdate(client, tt.version)
-			mockCall.Unset()
 
 			assert.Equal(t, tt.want, got)
 		})
