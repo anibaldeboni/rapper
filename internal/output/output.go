@@ -9,13 +9,14 @@ import (
 	"github.com/anibaldeboni/rapper/internal/styles"
 )
 
+//go:generate mockgen -destination mock/output_mock.go github.com/anibaldeboni/rapper/internal/output Stream
 type Stream interface {
 	Close()
 	Enabled() bool
 	Send(Message)
 }
 
-type streamIpml struct {
+type streamImpl struct {
 	ch       chan Message
 	filePath string
 	logs     log.LogManager
@@ -28,33 +29,45 @@ type Message struct {
 	Body   []byte `json:"body"`
 }
 
+type message struct {
+	message string
+}
+
+func (o *message) String() string {
+	return fmt.Sprintf("%s [%s] %s", styles.IconSkull, styles.Bold("Output"), o.message)
+}
+
+// NewMessage creates a new Message with the specified URL, status code, error, and body.
 func NewMessage(url string, status int, err error, body []byte) Message {
 	return Message{URL: url, Status: status, Error: err, Body: body}
 }
 
+// New creates a new Stream instance with the specified file path and log manager.
+// It returns the created Stream.
 func New(filePath string, logs log.LogManager) Stream {
-	o := &streamIpml{filePath: filePath, ch: make(chan Message), logs: logs}
+	o := &streamImpl{filePath: filePath, ch: make(chan Message), logs: logs}
 	go listen(o)
 	return o
 }
 
-func (o *streamIpml) Close() {
+func (o *streamImpl) Close() {
 	if o.ch != nil {
 		close(o.ch)
 	}
 }
 
-func (o *streamIpml) Enabled() bool {
+func (o *streamImpl) Enabled() bool {
 	return o.filePath != ""
 }
 
-func (o *streamIpml) Send(log Message) {
+// Send sends the given log message to the output channel if the output is enabled.
+func (o *streamImpl) Send(log Message) {
 	if o.Enabled() {
 		o.ch <- log
 	}
 }
 
-func listen(o *streamIpml) {
+func listen(o *streamImpl) {
 	if !o.Enabled() {
 		return
 	}
@@ -69,12 +82,4 @@ func listen(o *streamIpml) {
 			o.logs.Add(&message{message: err.Error()})
 		}
 	}
-}
-
-type message struct {
-	message string
-}
-
-func (o *message) String() string {
-	return fmt.Sprintf("%s [%s] %s", styles.IconSkull, styles.Bold("Output"), o.message)
 }

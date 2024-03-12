@@ -8,7 +8,6 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/anibaldeboni/rapper/internal/files"
 	"github.com/anibaldeboni/rapper/internal/web"
 	mock_web "github.com/anibaldeboni/rapper/internal/web/mock"
 	"go.uber.org/mock/gomock"
@@ -26,8 +25,8 @@ func buildGateway(t *testing.T, method string, client *mock_web.MockHttpClient) 
 			Url  *template.Template
 			Body *template.Template
 		}{
-			files.NewTemplate("url", "api.site.domain/{{.id}}"),
-			files.NewTemplate("body", `{ "key": "{{.value}}" }`),
+			web.NewTemplate("url", "api.site.domain/{{.id}}"),
+			web.NewTemplate("body", `{ "key": "{{.value}}" }`),
 		},
 	}
 

@@ -6,11 +6,13 @@ import (
 	"os"
 
 	"github.com/anibaldeboni/rapper/cli"
-	"github.com/anibaldeboni/rapper/internal/files"
+	"github.com/anibaldeboni/rapper/internal"
+	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/log"
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/versions"
+	"github.com/anibaldeboni/rapper/internal/web"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -22,20 +24,28 @@ func main() {
 	flag.Usage = cli.Usage
 	flag.Parse()
 
-	config, err := files.Config(*configPath)
+	cfg, err := config.Config(*configPath)
 	if err != nil {
 		handleExit(err)
 	}
 
 	logsManager := log.NewLogManager()
 
+	hg := web.NewHttpGateway(
+		cfg.Token,
+		cfg.Path.Method,
+		cfg.Path.Template,
+		cfg.Payload.Template,
+	)
+
 	csvProcessor := processor.New(
-		config,
+		cfg.CSV,
+		hg,
 		*outputFile,
 		logsManager,
 	)
 
-	filePaths, errs := files.FindFiles(*workingDir, "*.csv")
+	filePaths, errs := internal.FindFiles(*workingDir, "*.csv")
 	if len(errs) > 0 {
 		handleExit(fmt.Errorf("Could not execute file scan in %s", styles.Bold(*workingDir)))
 	}

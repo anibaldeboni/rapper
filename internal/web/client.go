@@ -12,6 +12,7 @@ type Response struct {
 	Body       []byte
 }
 
+//go:generate mockgen -destination mock/client_mock.go github.com/anibaldeboni/rapper/internal/web HttpClient
 type HttpClient interface {
 	Put(url string, body io.Reader, headers map[string]string) (Response, error)
 	Post(url string, body io.Reader, headers map[string]string) (Response, error)

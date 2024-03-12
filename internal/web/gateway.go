@@ -1,14 +1,14 @@
 package web
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
 	"text/template"
-
-	"github.com/anibaldeboni/rapper/internal/files"
 )
 
+//go:generate mockgen -destination mock/gateway_mock.go github.com/anibaldeboni/rapper/internal/web HttpGateway
 type HttpGateway interface {
 	Exec(variables map[string]string) (Response, error)
 }
@@ -23,8 +23,9 @@ type HttpGatewayImpl struct {
 	}
 }
 
+// NewHttpGateway creates a new HttpGateway.
 func NewHttpGateway(token, method, urlTemplate, bodyTemplate string) HttpGateway {
-	return &HttpGatewayImpl{
+	return HttpGatewayImpl{
 		Token:  token,
 		Method: method,
 		Client: NewHttpClient(),
@@ -32,8 +33,8 @@ func NewHttpGateway(token, method, urlTemplate, bodyTemplate string) HttpGateway
 			Url  *template.Template
 			Body *template.Template
 		}{
-			files.NewTemplate("url", urlTemplate),
-			files.NewTemplate("body", bodyTemplate),
+			NewTemplate("url", urlTemplate),
+			NewTemplate("body", bodyTemplate),
 		},
 	}
 }
@@ -46,10 +47,24 @@ func (hg *HttpGatewayImpl) req(url string, body io.Reader, headers map[string]st
 	}
 	return Response{}, errors.New("method not supported")
 }
-func (hg *HttpGatewayImpl) Exec(variables map[string]string) (Response, error) {
+
+// Exec executes the request with the given variables to fill the body and url templates.
+func (hg HttpGatewayImpl) Exec(variables map[string]string) (Response, error) {
 	header := map[string]string{"Authorization": "Bearer " + hg.Token}
-	uri := files.RenderTemplate(hg.Templates.Url, variables).String()
-	body := files.RenderTemplate(hg.Templates.Body, variables)
+	uri := RenderTemplate(hg.Templates.Url, variables).String()
+	body := RenderTemplate(hg.Templates.Body, variables)
 
 	return hg.req(uri, body, header)
+}
+
+func NewTemplate(name string, templ string) *template.Template {
+	return template.Must(template.New(name).Parse(templ))
+}
+
+func RenderTemplate[T map[string]string](t *template.Template, variables T) *bytes.Buffer {
+	var result string
+	buf := bytes.NewBufferString(result)
+	_ = t.Execute(buf, variables)
+
+	return buf
 }

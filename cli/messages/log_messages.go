@@ -76,7 +76,8 @@ func NewHttpStatusError(record map[string]string, status int) *httpStatusError {
 }
 
 type doneMessage struct {
-	errs int
+	errs  uint64
+	lines uint64
 }
 
 func (d *doneMessage) String() string {
@@ -90,10 +91,10 @@ func (d *doneMessage) String() string {
 		icon = styles.IconTrophy
 	}
 
-	return fmt.Sprintf("%s Finished with %s\n", icon, errMsg)
+	return fmt.Sprintf("%s Read %d lines and got %s\n", icon, d.lines, errMsg)
 }
-func NewDoneMessage(errs int) *doneMessage {
-	return &doneMessage{errs: errs}
+func NewDoneMessage(errs uint64, lines uint64) *doneMessage {
+	return &doneMessage{errs: errs, lines: lines}
 }
 
 type operationError struct{}

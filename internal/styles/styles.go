@@ -28,7 +28,7 @@ var (
 	AppStyle      = lipgloss.NewStyle().Margin(1, 1, 1, 2).Render
 	ProgressStyle = lipgloss.NewStyle().Padding(0, 2, 1, 3).Render
 	HelpStyle     = lipgloss.NewStyle().PaddingLeft(1).Render //.Foreground(lipgloss.Color("245"))
-	ViewPortStyle = lipgloss.NewStyle().Padding(1, 0, 1, 0).Render
+	ViewPortStyle = lipgloss.NewStyle().PaddingTop(1).Render
 	LogoStyle     = lipgloss.NewStyle().
 			Background(lipgloss.Color("#F25D94")).
 			Foreground(lipgloss.Color("#ffffff")).
