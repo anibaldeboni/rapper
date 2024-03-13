@@ -1,4 +1,4 @@
-package output
+package output_test
 
 import (
 	"encoding/json"
@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	mock_log "github.com/anibaldeboni/rapper/internal/log/mock"
+	"github.com/anibaldeboni/rapper/internal/output"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func TestListen(t *testing.T) {
@@ -15,27 +17,14 @@ func TestListen(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
-	// Create a channel to simulate log messages
-	logs := make(chan Message)
+	ctrl := gomock.NewController(t)
+	logManagerMock := mock_log.NewMockManager(ctrl)
+	logManagerMock.EXPECT().Add(gomock.Any()).Times(0)
 
-	logManagerMock := mock_log.NewMockLogManager(nil)
+	stream := output.New(tmpFile.Name(), logManagerMock)
 
-	// Create an instance of the streamIpml struct
-	o := &streamImpl{
-		filePath: tmpFile.Name(),
-		ch:       logs,
-		logs:     logManagerMock,
-	}
-
-	// Start listening for log messages
-	go listen(o)
-
-	// Send a log message to the channel
-	log := Message{Status: 200, URL: "http://example.com"}
-	logs <- log
-
-	// Close the channel to stop listening
-	close(logs)
+	line := output.Line{Status: 200, URL: "http://example.com"}
+	stream.Send(line)
 
 	// Read the contents of the temporary file
 	file, err := os.Open(tmpFile.Name())
@@ -43,11 +32,11 @@ func TestListen(t *testing.T) {
 	defer file.Close()
 
 	// Read the log message from the file
-	var loggedMessage Message
+	var loggedMessage output.Line
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&loggedMessage)
 	assert.NoError(t, err)
 
 	// Assert that the logged message matches the sent log message
-	assert.Equal(t, &log, &loggedMessage)
+	assert.Equal(t, &line, &loggedMessage)
 }
