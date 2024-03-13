@@ -17,3 +17,17 @@ func FindFiles(dir string, f ...string) ([]string, []error) {
 
 	return files, errs
 }
+
+// Clamp returns a value clamped between a minimum and maximum value.
+// If the value is less than the minimum, it returns the minimum value.
+// If the value is greater than the maximum, it returns the maximum value.
+// Otherwise, it returns the original value.
+func Clamp(value, min, max int) int {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}

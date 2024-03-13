@@ -59,7 +59,7 @@ var (
 	IconError        = "❌"
 	IconWomanDancing = "💃"
 	IconTrophy       = "🏆"
-	IconInformation  = "ℹ️"
+	IconInformation  = "ℹ️ "
 	IconWarning      = "⚠️"
 	IconSkull        = "💀"
 )

@@ -2,8 +2,8 @@ package output
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
+	"sync"
 
 	"github.com/anibaldeboni/rapper/internal/log"
 	"github.com/anibaldeboni/rapper/internal/styles"
@@ -13,48 +13,34 @@ var _ Stream = (*streamImpl)(nil)
 
 //go:generate mockgen -destination mock/output_mock.go github.com/anibaldeboni/rapper/internal/output Stream
 type Stream interface {
-	Close()
 	Enabled() bool
-	Send(Message)
+	Send(Line)
 }
 
 type streamImpl struct {
-	ch       chan Message
-	filePath string
-	logs     log.LogManager
+	mu         sync.Mutex
+	filePath   string
+	logManager log.Manager
 }
 
-type Message struct {
+type Line struct {
 	URL    string `json:"url"`
 	Status int    `json:"status"`
 	Error  error  `json:"error"`
 	Body   []byte `json:"body"`
 }
 
-type message struct {
-	message string
-}
-
-func (this *message) String() string {
-	return fmt.Sprintf("%s [%s] %s", styles.IconSkull, styles.Bold("Output"), this.message)
-}
-
-// NewMessage creates a new Message with the specified URL, status code, error, and body.
-func NewMessage(url string, status int, err error, body []byte) Message {
-	return Message{URL: url, Status: status, Error: err, Body: body}
+// NewLine creates a new output line with the specified URL, status code, error, and body.
+func NewLine(url string, status int, err error, body []byte) Line {
+	return Line{URL: url, Status: status, Error: err, Body: body}
 }
 
 // New creates a new Stream instance with the specified file path and log manager.
 // It returns the created Stream.
-func New(filePath string, logs log.LogManager) Stream {
-	o := &streamImpl{filePath: filePath, ch: make(chan Message), logs: logs}
-	go listen(o)
-	return o
-}
-
-func (this *streamImpl) Close() {
-	if this.ch != nil {
-		close(this.ch)
+func New(filePath string, logManager log.Manager) Stream {
+	return &streamImpl{
+		filePath:   filePath,
+		logManager: logManager,
 	}
 }
 
@@ -63,25 +49,32 @@ func (this *streamImpl) Enabled() bool {
 }
 
 // Send sends the given log message to the output channel if the output is enabled.
-func (this *streamImpl) Send(log Message) {
+func (this *streamImpl) Send(line Line) {
 	if this.Enabled() {
-		this.ch <- log
+		this.mu.Lock()
+		defer this.mu.Unlock()
+		if err := write(this.filePath, line); err != nil {
+			this.logManager.Add(errorMessage(err.Error()))
+		}
 	}
 }
 
-func listen(this *streamImpl) {
-	if !this.Enabled() {
-		return
-	}
-	file, err := os.OpenFile(this.filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+func errorMessage(message string) log.Message {
+	return log.NewMessage().
+		WithIcon(styles.IconSkull).
+		WithKind("Output").
+		WithMessage(message)
+}
+
+func write(filePath string, line Line) error {
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
 	if err != nil {
-		this.logs.Add(&message{message: err.Error()})
+		return err
 	}
 	defer file.Close()
-	for log := range this.ch {
-		m, _ := json.Marshal(log)
-		if _, err := file.Write(append(m, '\n')); err != nil {
-			this.logs.Add(&message{message: err.Error()})
-		}
+	m, _ := json.Marshal(line)
+	if _, err := file.Write(append(m, '\n')); err != nil {
+		return err
 	}
+	return nil
 }

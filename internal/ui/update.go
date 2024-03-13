@@ -1,4 +1,4 @@
-package cli
+package ui
 
 import (
 	"strings"
@@ -16,7 +16,7 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-func (this cliModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (this Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd

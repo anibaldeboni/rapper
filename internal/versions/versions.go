@@ -45,7 +45,7 @@ func CheckForUpdate(hc web.HttpClient, currentVersion string) string {
 	}
 
 	if latest.GreaterThan(current) {
-		str := styles.IconInformation + "  New version available: " + styles.Bold(releases[0].TagName) + " (" + releases[0].HtmlUrl + ")"
+		str := styles.IconInformation + " New version available: " + styles.Bold(releases[0].TagName) + " (" + releases[0].HtmlUrl + ")"
 		return str
 	}
 	return NoUpdates

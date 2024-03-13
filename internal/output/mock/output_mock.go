@@ -66,7 +66,7 @@ func (mr *MockStreamMockRecorder) Enabled() *gomock.Call {
 }
 
 // Send mocks base method.
-func (m *MockStream) Send(arg0 output.Message) {
+func (m *MockStream) Send(arg0 output.Line) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Send", arg0)
 }
