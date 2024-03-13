@@ -39,7 +39,7 @@ func (c cliModel) View() string {
 
 	help := lipgloss.NewStyle().
 		Height(1).
-		Width(c.width - width(logo) - width(spinner) - 3).
+		Width(c.width - width(logo) - width(spinner) - 4).
 		PaddingLeft(1).
 		Render(truncate.StringWithTail(c.help.View(keys), uint(c.width-width(logo)-width(spinner)), "…"))
 
