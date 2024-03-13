@@ -14,7 +14,7 @@ Rapper is a configurable cli tool to perform multiple HTTP requests based on a C
 
 ## Installing
 
-We provide pre-compiled binaries for Linux and MacOS (amd64 and arm64). The latest release could be found [here](https://github.com/anibaldeboni/github.com/anibaldeboni/rapper/releases/latest). After downloading a suitable binary to your system and architecture follow the commands:
+We provide pre-compiled binaries for Linux and MacOS (amd64 and arm64). The latest release could be found [here](https://github.com/anibaldeboni/github.com/anibaldeboni/rapper/releases/latest). After downloading a suitable binary for your system and architecture follow the commands:
 
 ```shell
 chmod +x rapper-linux-amd64
@@ -25,7 +25,7 @@ The instructions above move the binary to `~./local/bin` with the name `rapper` 
 
 ## Configuration
 
-Prior to running `rapper` you must set a `config.yml` file inside the directory containing the CSV files you want to send data. The `config.yml` structure is as follow:
+Prior to running `rapper` you must set a `config.yml` structure is as follow:
 
 ```yaml
 token: "JWT of your application"
@@ -54,20 +54,22 @@ Have in mind that when a request fails all variables selected in `csv` field wil
 
 ## Usage
 
-You may run `rapper` directly in a directory containing a `config.yml` and CSV files to process
+All options are available via `rapper -h`
+
+You may run `rapper` directly in a directory containing a `config.yml` or `config.yaml` and CSV files to process. Or setting the options:
 
 ```shell
-cd ~/folder-with-csv
-rapper
+  -config string
+    	path to directory containing a config file (default current working dir)
+  -dir string
+    	path to directory containing the CSV files (default current working dir)
+  -output string
+    	path to output file, including the file name
+  -workers int
+    	number of request workers (max: 5) (default 1)
 ```
 
-Or poiting the app to the proper directory
-
-```shell
-rapper ~/some-folder
-```
-
-Then you may follow the instructions in your screen.
+A little demo of the app execution:
 ![rapper usage recording](./assets/rapper.gif)
 
 # Development
@@ -92,7 +94,7 @@ make lint
 
 ### Tsting
 
-For test assertions we use [testify](https://github.com/stretchr/testify) and [vektra/mockery](https://github.com/vektra/mockery) for test mocks generation.
+For test assertions we use [testify](https://github.com/stretchr/testify) and [gomock](https://go.uber.org/mock) for test mocks generation.
 
 ```shell
 make test
