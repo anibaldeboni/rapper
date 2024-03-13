@@ -4,7 +4,7 @@ go 1.21.4
 
 require (
 	github.com/charmbracelet/bubbletea v0.25.0
-	github.com/charmbracelet/lipgloss v0.9.1
+	github.com/charmbracelet/lipgloss v0.10.0
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20240202113029-6ff29cf0473e
 	github.com/hashicorp/go-version v1.6.0
 	go.uber.org/mock v0.4.0
@@ -33,7 +33,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.15.2 // indirect
-	github.com/rivo/uniseg v0.4.6 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3
 	golang.org/x/sys v0.16.0 // indirect
