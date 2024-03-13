@@ -23,19 +23,17 @@ type HttpClient interface {
 
 type httpClientImpl struct{}
 
-var jsonContentTypeHeader = map[string]string{"Content-Type": "application/json; charset=UTF-8"}
-
 func NewHttpClient() HttpClient {
 	return &httpClientImpl{}
 }
 
 func (httpClientImpl) Put(url string, body io.Reader, headers map[string]string) (Response, error) {
-	headers = mergeMaps(jsonContentTypeHeader, headers)
+	headers = buildHeaders(headers)
 	return request(http.MethodPut, url, headers, body)
 }
 
 func (httpClientImpl) Post(url string, body io.Reader, headers map[string]string) (Response, error) {
-	headers = mergeMaps(jsonContentTypeHeader, headers)
+	headers = buildHeaders(headers)
 	return request(http.MethodPost, url, headers, body)
 }
 
@@ -48,7 +46,8 @@ func addHeaders(headers map[string]string, request *http.Request) {
 		request.Header.Set(k, v)
 	}
 }
-func mergeMaps(m1 map[string]string, m2 map[string]string) map[string]string {
+func buildHeaders(m2 map[string]string) map[string]string {
+	m1 := map[string]string{"Content-Type": "application/json; charset=UTF-8"}
 	for k, v := range m2 {
 		m1[k] = v
 	}

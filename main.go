@@ -21,6 +21,7 @@ func main() {
 	configPath := flag.String("config", cwd, "path to directory containing a config file")
 	workingDir := flag.String("dir", cwd, "path to directory containing the CSV files")
 	outputFile := flag.String("output", "", "path to output file, including the file name")
+	workers := flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MAX_WORKERS))
 	flag.Usage = cli.Usage
 	flag.Parse()
 
@@ -43,6 +44,7 @@ func main() {
 		hg,
 		*outputFile,
 		logsManager,
+		*workers,
 	)
 
 	filePaths, errs := internal.FindFiles(*workingDir, "*.csv")

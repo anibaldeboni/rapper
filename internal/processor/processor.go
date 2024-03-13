@@ -17,6 +17,7 @@ import (
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/log"
 	"github.com/anibaldeboni/rapper/internal/output"
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/web"
 )
 
@@ -38,14 +39,19 @@ type processorImpl struct {
 	gateway      web.HttpGateway
 	outputStream output.Stream
 	logs         log.LogManager
+	workers      int
 }
 
-func New(cfg config.CSV, hg web.HttpGateway, outputFile string, lr log.LogManager) Processor {
+func New(cfg config.CSV, hg web.HttpGateway, outputFile string, lr log.LogManager, workers int) Processor {
+	if workers > MAX_WORKERS {
+		workers = MAX_WORKERS
+	}
 	return &processorImpl{
 		csvConfig:    cfg,
 		gateway:      hg,
 		outputStream: output.New(outputFile, lr),
 		logs:         lr,
+		workers:      workers,
 	}
 }
 
@@ -55,15 +61,23 @@ func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath strin
 
 	wg := &sync.WaitGroup{}
 
-	// for i := 0; i < MAX_WORKERS; i++ {
-	wg.Add(1)
-	go this.reqWorker(ctx, wg, out)
-	// }
+	this.logs.Add(
+		messages.NewGenericMessage().
+			WithMessage(fmt.Sprintf("Using %d workers", this.workers)).
+			WithKind("Info").
+			WithIcon(styles.IconInformation),
+	)
+
+	for i := 0; i < this.workers; i++ {
+		wg.Add(1)
+		go this.reqWorker(ctx, wg, out)
+	}
+
 	go func() {
 		wg.Wait()
 
 		if reqCount.Load() > 0 {
-			this.logs.Add(messages.NewDoneMessage(errCount.Load(), linesCount.Load()))
+			this.logs.Add(messages.NewDoneMessage(errCount.Load()))
 		}
 		reqCount.Store(0)
 		errCount.Store(0)

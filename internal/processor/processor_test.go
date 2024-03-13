@@ -33,7 +33,7 @@ func TestProcessor_mapCSV(t *testing.T) {
 		defer os.Remove(tempFile.Name())
 
 		ctx, cancel := context.WithCancel(context.Background())
-		p := New(config.CSV{Fields: []string{"header1", "header2"}, Separator: ","}, gatewayMock, "", logsManagerMock)
+		p := New(config.CSV{Fields: []string{"header1", "header2"}, Separator: ","}, gatewayMock, "", logsManagerMock, 1)
 
 		p.Do(ctx, cancel, tempFile.Name())
 		wg.Wait()
@@ -59,7 +59,7 @@ func TestProcessor_mapCSV(t *testing.T) {
 		defer os.Remove(tempFile.Name())
 
 		ctx, cancel := context.WithCancel(context.Background())
-		p := New(config.CSV{Fields: []string{"header1"}, Separator: ","}, gatewayMock, "", logsManagerMock)
+		p := New(config.CSV{Fields: []string{"header1"}, Separator: ","}, gatewayMock, "", logsManagerMock, 1)
 
 		p.Do(ctx, cancel, tempFile.Name())
 		wg.Wait()

@@ -18,6 +18,7 @@ var (
 	_ log.LogMessage = (*doneMessage)(nil)
 	_ log.LogMessage = (*operationError)(nil)
 	_ log.LogMessage = (*processingMessage)(nil)
+	_ log.LogMessage = (*genericMessage)(nil)
 )
 
 type requestError struct {
@@ -88,8 +89,7 @@ func NewHttpStatusError(record map[string]string, status int) *httpStatusError {
 }
 
 type doneMessage struct {
-	errs  uint64
-	lines uint64
+	errs uint64
 }
 
 func (this *doneMessage) String() string {
@@ -103,10 +103,10 @@ func (this *doneMessage) String() string {
 		icon = styles.IconTrophy
 	}
 
-	return fmt.Sprintf("%s Read %d lines and got %s\n", icon, this.lines, errMsg)
+	return fmt.Sprintf("%s Finished with %s\n", icon, errMsg)
 }
-func NewDoneMessage(errs uint64, lines uint64) *doneMessage {
-	return &doneMessage{errs: errs, lines: lines}
+func NewDoneMessage(errs uint64) *doneMessage {
+	return &doneMessage{errs: errs}
 }
 
 type operationError struct{}
@@ -129,4 +129,29 @@ func (this *processingMessage) String() string {
 
 func NewProcessingMessage(file string) *processingMessage {
 	return &processingMessage{file: file}
+}
+
+type genericMessage struct {
+	message string
+	kind    string
+	icon    string
+}
+
+func (this *genericMessage) String() string {
+	return fmt.Sprintf("%s [%s] %s", this.icon, styles.Bold(this.kind), this.message)
+}
+func (this *genericMessage) WithIcon(icon string) *genericMessage {
+	this.icon = icon
+	return this
+}
+func (this *genericMessage) WithKind(kind string) *genericMessage {
+	this.kind = kind
+	return this
+}
+func (this *genericMessage) WithMessage(message string) *genericMessage {
+	this.message = message
+	return this
+}
+func NewGenericMessage() *genericMessage {
+	return &genericMessage{icon: "🤷‍♂️"}
 }

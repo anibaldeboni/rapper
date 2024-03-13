@@ -2,9 +2,9 @@ package output
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 
+	"github.com/anibaldeboni/rapper/cli/messages"
 	"github.com/anibaldeboni/rapper/internal/log"
 	"github.com/anibaldeboni/rapper/internal/styles"
 )
@@ -29,14 +29,6 @@ type Message struct {
 	Status int    `json:"status"`
 	Error  error  `json:"error"`
 	Body   []byte `json:"body"`
-}
-
-type message struct {
-	message string
-}
-
-func (this *message) String() string {
-	return fmt.Sprintf("%s [%s] %s", styles.IconSkull, styles.Bold("Output"), this.message)
 }
 
 // NewMessage creates a new Message with the specified URL, status code, error, and body.
@@ -69,19 +61,26 @@ func (this *streamImpl) Send(log Message) {
 	}
 }
 
+func errorMessage(message string) log.LogMessage {
+	return messages.NewGenericMessage().
+		WithIcon(styles.IconSkull).
+		WithKind("Output").
+		WithMessage(message)
+}
+
 func listen(this *streamImpl) {
 	if !this.Enabled() {
 		return
 	}
 	file, err := os.OpenFile(this.filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
 	if err != nil {
-		this.logs.Add(&message{message: err.Error()})
+		this.logs.Add(errorMessage(err.Error()))
 	}
 	defer file.Close()
 	for log := range this.ch {
 		m, _ := json.Marshal(log)
 		if _, err := file.Write(append(m, '\n')); err != nil {
-			this.logs.Add(&message{message: err.Error()})
+			this.logs.Add(errorMessage(err.Error()))
 		}
 	}
 }
