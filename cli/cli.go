@@ -31,6 +31,7 @@ var (
 	cancel        context.CancelFunc
 	state         = &State{}
 	csvProcessor  processor.Processor
+	_             Cli = (*cliModel)(nil)
 )
 
 type Cli interface {

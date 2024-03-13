@@ -12,6 +12,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+var (
+	_ list.Item         = (*Option[any])(nil)
+	_ list.ItemDelegate = (*itemDelegate[any])(nil)
+)
+
 type Option[T comparable] struct {
 	Title string
 	Value T

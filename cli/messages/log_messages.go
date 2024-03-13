@@ -4,8 +4,20 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/anibaldeboni/rapper/internal/log"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"golang.org/x/exp/maps"
+)
+
+var (
+	_ log.LogMessage = (*requestError)(nil)
+	_ log.LogMessage = (*statusError)(nil)
+	_ log.LogMessage = (*csvError)(nil)
+	_ log.LogMessage = (*cancelationError)(nil)
+	_ log.LogMessage = (*httpStatusError)(nil)
+	_ log.LogMessage = (*doneMessage)(nil)
+	_ log.LogMessage = (*operationError)(nil)
+	_ log.LogMessage = (*processingMessage)(nil)
 )
 
 type requestError struct {

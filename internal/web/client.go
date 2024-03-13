@@ -5,6 +5,8 @@ import (
 	"net/http"
 )
 
+var _ HttpClient = (*httpClientImpl)(nil)
+
 type Response struct {
 	URL        string
 	StatusCode int

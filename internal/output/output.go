@@ -9,6 +9,8 @@ import (
 	"github.com/anibaldeboni/rapper/internal/styles"
 )
 
+var _ Stream = (*streamImpl)(nil)
+
 //go:generate mockgen -destination mock/output_mock.go github.com/anibaldeboni/rapper/internal/output Stream
 type Stream interface {
 	Close()

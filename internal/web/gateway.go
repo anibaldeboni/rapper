@@ -8,6 +8,8 @@ import (
 	"text/template"
 )
 
+var _ HttpGateway = (*HttpGatewayImpl)(nil)
+
 //go:generate mockgen -destination mock/gateway_mock.go github.com/anibaldeboni/rapper/internal/web HttpGateway
 type HttpGateway interface {
 	Exec(variables map[string]string) (Response, error)
