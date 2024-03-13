@@ -1,4 +1,4 @@
-package cli
+package ui
 
 import (
 	"github.com/anibaldeboni/rapper/internal/styles"

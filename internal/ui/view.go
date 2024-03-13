@@ -1,4 +1,4 @@
-package cli
+package ui
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/muesli/reflow/truncate"
 )
 
-func (this cliModel) View() string {
+func (this Model) View() string {
 	var executionLogs string
 	if state.Get() == Running || state.Get() == Stale {
 		executionLogs = lipgloss.NewStyle().

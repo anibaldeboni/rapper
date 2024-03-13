@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/anibaldeboni/rapper/cli"
 	"github.com/anibaldeboni/rapper/internal"
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/log"
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
+	"github.com/anibaldeboni/rapper/internal/ui"
 	"github.com/anibaldeboni/rapper/internal/versions"
 	"github.com/anibaldeboni/rapper/internal/web"
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,7 +22,7 @@ func main() {
 	workingDir := flag.String("dir", cwd, "path to directory containing the CSV files")
 	outputFile := flag.String("output", "", "path to output file, including the file name")
 	workers := flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MAX_WORKERS))
-	flag.Usage = cli.Usage
+	flag.Usage = ui.Usage
 	flag.Parse()
 
 	cfg, err := config.Config(*configPath)
@@ -55,9 +55,9 @@ func main() {
 		handleExit(fmt.Errorf("No CSV files found in %s", styles.Bold(*workingDir)))
 	}
 
-	c := cli.New(filePaths, csvProcessor, logsManager)
+	tui := ui.New(filePaths, csvProcessor, logsManager)
 
-	if _, err := tea.NewProgram(c).Run(); err != nil {
+	if _, err := tea.NewProgram(tui).Run(); err != nil {
 		handleExit(err)
 	}
 
@@ -65,12 +65,12 @@ func main() {
 }
 
 func handleExit(err error) {
-	update := cli.UpdateCheck()
+	update := ui.UpdateCheck()
 	if err == nil {
-		cli.Exit(update)
+		ui.Exit(update)
 	}
 	if update != versions.NoUpdates {
 		update = "\n\n" + update
 	}
-	cli.Exit(err.Error() + update)
+	ui.Exit(err.Error() + update)
 }

@@ -1,4 +1,4 @@
-package cli
+package ui
 
 import (
 	"context"
@@ -30,16 +30,10 @@ var (
 	cancel        context.CancelFunc
 	state         = &State{}
 	csvProcessor  processor.Processor
-	_             Cli = (*cliModel)(nil)
+	_             tea.Model = (*Model)(nil)
 )
 
-type Cli interface {
-	Init() tea.Cmd
-	Update(tea.Msg) (tea.Model, tea.Cmd)
-	View() string
-}
-
-type cliModel struct {
+type Model struct {
 	viewport  viewport.Model
 	filesList list.Model
 	help      help.Model
@@ -47,12 +41,12 @@ type cliModel struct {
 	width     int
 }
 
-func New(csvFiles []string, csvProc processor.Processor, logManager log.Manager) Cli {
+func New(csvFiles []string, csvProc processor.Processor, logManager log.Manager) *Model {
 	state.Set(SelectFile)
 	csvProcessor = csvProc
 	logs = logManager
 
-	return cliModel{
+	return &Model{
 		viewport:  viewport.New(20, 60),
 		filesList: createList(mapListOptions(csvFiles), "Choose a file"),
 		help:      createHelp(),
@@ -101,11 +95,11 @@ func setContext() {
 	state.Set(Running)
 }
 
-func (this cliModel) Init() tea.Cmd {
+func (this Model) Init() tea.Cmd {
 	return tea.Batch(tea.EnterAltScreen, tickCmd(), this.spinner.Tick)
 }
 
-func (this cliModel) selectItem(item Option[string]) cliModel {
+func (this Model) selectItem(item Option[string]) Model {
 	if state.Get() != Running {
 		setContext()
 		csvProcessor.Do(ctx, stop, item.Value)
@@ -115,7 +109,7 @@ func (this cliModel) selectItem(item Option[string]) cliModel {
 	return this
 }
 
-func (this cliModel) resizeElements(width int, height int) cliModel {
+func (this Model) resizeElements(width int, height int) Model {
 	this.width = width
 	this.filesList.SetHeight(height - 4)
 
