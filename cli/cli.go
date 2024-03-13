@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/anibaldeboni/rapper/cli/messages"
 	"github.com/anibaldeboni/rapper/internal/log"
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
@@ -26,7 +25,7 @@ var (
 	AppName       = "rapper"
 	AppVersion    = "2.5.2"
 	viewPortTitle = styles.TitleStyle.Render("Execution logs")
-	logs          = log.NewLogManager()
+	logs          log.Manager
 	ctx           context.Context
 	cancel        context.CancelFunc
 	state         = &State{}
@@ -48,7 +47,7 @@ type cliModel struct {
 	width     int
 }
 
-func New(csvFiles []string, csvProc processor.Processor, logManager log.LogManager) Cli {
+func New(csvFiles []string, csvProc processor.Processor, logManager log.Manager) Cli {
 	state.Set(SelectFile)
 	csvProcessor = csvProc
 	logs = logManager
@@ -91,6 +90,12 @@ func stop() {
 	state.Set(Stale)
 }
 
+func operationError() log.Message {
+	return log.NewMessage().
+		WithIcon(styles.IconInformation).
+		WithMessage("Please wait the current operation to finish or cancel pressing ESC")
+}
+
 func setContext() {
 	ctx, cancel = context.WithCancel(context.Background())
 	state.Set(Running)
@@ -105,7 +110,7 @@ func (this cliModel) selectItem(item Option[string]) cliModel {
 		setContext()
 		csvProcessor.Do(ctx, stop, item.Value)
 	} else {
-		logs.Add(messages.NewOperationError())
+		logs.Add(operationError())
 	}
 	return this
 }

@@ -25,7 +25,7 @@ func TestProcessor_mapCSV(t *testing.T) {
 			Do(func(arg0 interface{}) {
 				wg.Done()
 			}).Times(2)
-		logsManagerMock := mock_log.NewMockLogManager(ctrl)
+		logsManagerMock := mock_log.NewMockManager(ctrl)
 		logsManagerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
 
 		csvData := "header1,header2\nvalue1,value2\nvalue3,value4\n"
@@ -51,7 +51,7 @@ func TestProcessor_mapCSV(t *testing.T) {
 			Do(func(arg0 any) {
 				wg.Done()
 			}).Times(1)
-		logsManagerMock := mock_log.NewMockLogManager(ctrl)
+		logsManagerMock := mock_log.NewMockManager(ctrl)
 		logsManagerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
 
 		csvData := "header1,header2\nvalue1,value2\n"

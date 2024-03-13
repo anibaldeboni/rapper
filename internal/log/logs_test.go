@@ -7,19 +7,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type logMessage struct {
-	message string
-}
-
-func (l logMessage) String() string {
-	return l.message
-}
-
 func TestGet(t *testing.T) {
 	t.Run("Should return all logs", func(t *testing.T) {
 		logManager := log.NewLogManager()
 		var expectedLogs []string
-		logs := []logMessage{{message: "log 1"}, {message: "log 2"}, {message: "log 3"}}
+		logs := []log.Message{
+			log.NewMessage().WithMessage("log 1"),
+			log.NewMessage().WithMessage("log 2"),
+			log.NewMessage().WithMessage("log 3"),
+		}
 		for _, log := range logs {
 			logManager.Add(log)
 			expectedLogs = append(expectedLogs, log.String())
@@ -41,7 +37,11 @@ func TestGet(t *testing.T) {
 func TestHasNewLogs(t *testing.T) {
 	t.Run("Should return true when there are new logs", func(t *testing.T) {
 		logManager := log.NewLogManager()
-		logs := []logMessage{{message: "log 1"}, {message: "log 2"}, {message: "log 3"}}
+		logs := []log.Message{
+			log.NewMessage().WithMessage("log 1"),
+			log.NewMessage().WithMessage("log 2"),
+			log.NewMessage().WithMessage("log 3"),
+		}
 		for _, log := range logs {
 			logManager.Add(log)
 		}

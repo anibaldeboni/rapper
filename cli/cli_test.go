@@ -16,7 +16,7 @@ import (
 func TestNew(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	logManagerMock := mock_log.NewMockLogManager(ctrl)
+	logManagerMock := mock_log.NewMockManager(ctrl)
 	processorMock := mock_processor.NewMockProcessor(ctrl)
 
 	t.Run("When the path contains CSV files", func(t *testing.T) {
@@ -31,7 +31,7 @@ func TestNew(t *testing.T) {
 func TestUI(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	logManagerMock := mock_log.NewMockLogManager(ctrl)
+	logManagerMock := mock_log.NewMockManager(ctrl)
 	processorMock := mock_processor.NewMockProcessor(ctrl)
 
 	t.Run("Should quit when the user presses 'q'", func(t *testing.T) {

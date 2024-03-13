@@ -2,22 +2,16 @@ package processor
 
 import (
 	"context"
-	"encoding/csv"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 
-	"github.com/anibaldeboni/rapper/cli/messages"
+	"github.com/anibaldeboni/rapper/internal"
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/log"
 	"github.com/anibaldeboni/rapper/internal/output"
-	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/web"
 )
 
@@ -38,19 +32,18 @@ type processorImpl struct {
 	csvConfig    config.CSV
 	gateway      web.HttpGateway
 	outputStream output.Stream
-	logs         log.LogManager
+	logManager   log.Manager
 	workers      int
 }
 
-func New(cfg config.CSV, hg web.HttpGateway, outputFile string, lr log.LogManager, workers int) Processor {
-	if workers > MAX_WORKERS {
-		workers = MAX_WORKERS
-	}
+func New(cfg config.CSV, hg web.HttpGateway, outputFile string, logManager log.Manager, workers int) Processor {
+	workers = internal.Clamp(workers, 1, MAX_WORKERS)
+
 	return &processorImpl{
 		csvConfig:    cfg,
 		gateway:      hg,
-		outputStream: output.New(outputFile, lr),
-		logs:         lr,
+		outputStream: output.New(outputFile, logManager),
+		logManager:   logManager,
 		workers:      workers,
 	}
 }
@@ -61,23 +54,16 @@ func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath strin
 
 	wg := &sync.WaitGroup{}
 
-	this.logs.Add(
-		messages.NewGenericMessage().
-			WithMessage(fmt.Sprintf("Using %d workers", this.workers)).
-			WithKind("Info").
-			WithIcon(styles.IconInformation),
-	)
-
 	for i := 0; i < this.workers; i++ {
 		wg.Add(1)
-		go this.reqWorker(ctx, wg, out)
+		go this.worker(ctx, wg, out)
 	}
 
 	go func() {
 		wg.Wait()
 
 		if reqCount.Load() > 0 {
-			this.logs.Add(messages.NewDoneMessage(errCount.Load()))
+			this.logManager.Add(doneMessage(errCount.Load()))
 		}
 		reqCount.Store(0)
 		errCount.Store(0)
@@ -86,58 +72,50 @@ func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath strin
 	}()
 }
 
-func (this *processorImpl) reqWorker(ctx context.Context, wg *sync.WaitGroup, out <-chan map[string]string) {
+func (this *processorImpl) worker(ctx context.Context, wg *sync.WaitGroup, out <-chan map[string]string) {
 	defer wg.Done()
 
 Processing:
 	for row := range out {
 		select {
 		case <-ctx.Done():
-			this.logs.Add(messages.NewCancelationError(fmt.Sprintf("Read %d lines and executed %d requests", linesCount.Load(), reqCount.Load())))
+			this.logManager.Add(cancelationMsg())
 			break Processing
 		default:
 			response, err := this.gateway.Exec(row)
 			reqCount.Add(1)
 			if err != nil {
 				errCount.Add(1)
-				this.logs.Add(messages.NewRequestError(err.Error()))
+				this.logManager.Add(requestError(err.Error()))
 			} else if response.StatusCode != http.StatusOK {
 				errCount.Add(1)
-				this.logs.Add(messages.NewHttpStatusError(row, response.StatusCode))
+				this.logManager.Add(httpStatusError(row, response.StatusCode))
 			}
-			this.outputStream.Send(output.NewMessage(response.URL, response.StatusCode, err, response.Body))
+			this.outputStream.Send(output.NewLine(response.URL, response.StatusCode, err, response.Body))
 		}
 	}
-}
-
-func csvSep(cfg config.CSV) rune {
-	sep := strings.Trim(cfg.Separator, " ")
-	if sep == "" {
-		sep = ","
-	}
-	return rune(sep[0])
 }
 
 func (this *processorImpl) mapCSV(ctx context.Context, cancel func(), filePath string, out chan<- map[string]string) {
 	defer close(out)
 
 	reader, file, err := buildCSVReader(filePath, csvSep(this.csvConfig))
-	defer file.Close()
 	if err != nil {
-		this.logs.Add(messages.NewCsvError(err.Error()))
+		this.logManager.Add(csvError(err.Error()))
 		cancel()
 		return
 	}
+	defer file.Close()
 
 	headers, err := getCSVHeaders(reader)
 	if err != nil {
-		this.logs.Add(messages.NewCsvError(err.Error()))
+		this.logManager.Add(csvError(err.Error()))
 		cancel()
 		return
 	}
 
 	indexes := headerIndexes(headers, this.csvConfig.Fields)
-	this.logs.Add(messages.NewProcessingMessage(filepath.Base(filePath)))
+	this.logManager.Add(processingMessage(filepath.Base(filePath), this.workers))
 
 Read:
 	for {
@@ -150,57 +128,11 @@ Read:
 				break Read
 			}
 			if err != nil {
-				this.logs.Add(messages.NewCsvError(err.Error()))
+				this.logManager.Add(csvError(err.Error()))
 				continue
 			}
 			linesCount.Add(1)
 			out <- mapRow(headers, indexes, record)
 		}
 	}
-}
-
-func getCSVHeaders(reader *csv.Reader) ([]string, error) {
-	headers, err := reader.Read()
-	if err != nil {
-		if err == io.EOF {
-			err = errors.New("No records found in the file\n")
-		}
-		return nil, err
-	}
-
-	return headers, nil
-}
-
-func buildCSVReader(filePath string, sep rune) (*csv.Reader, *os.File, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	reader := csv.NewReader(file)
-	reader.Comma = sep
-
-	return reader, file, nil
-}
-
-func mapRow(headers []string, indexes map[string]int, record []string) map[string]string {
-	row := make(map[string]string)
-	for i, header := range headers {
-		if _, ok := indexes[header]; ok {
-			row[header] = record[i]
-		}
-	}
-	return row
-}
-
-func headerIndexes(headers []string, fields []string) map[string]int {
-	indexes := make(map[string]int, len(headers))
-	if len(fields) == 0 {
-		fields = headers
-	}
-	for i, field := range fields {
-		indexes[field] = i
-	}
-
-	return indexes
 }
