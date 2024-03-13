@@ -49,21 +49,21 @@ func New(cfg config.CSV, hg web.HttpGateway, outputFile string, lr log.LogManage
 	}
 }
 
-func (p *processorImpl) Do(ctx context.Context, cancel func(), filePath string) {
+func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath string) {
 	out := make(chan map[string]string)
-	go p.mapCSV(ctx, cancel, filePath, out)
+	go this.mapCSV(ctx, cancel, filePath, out)
 
 	wg := &sync.WaitGroup{}
 
 	// for i := 0; i < MAX_WORKERS; i++ {
 	wg.Add(1)
-	go p.reqWorker(ctx, wg, out)
+	go this.reqWorker(ctx, wg, out)
 	// }
 	go func() {
 		wg.Wait()
 
 		if reqCount.Load() > 0 {
-			p.logs.Add(messages.NewDoneMessage(errCount.Load(), linesCount.Load()))
+			this.logs.Add(messages.NewDoneMessage(errCount.Load(), linesCount.Load()))
 		}
 		reqCount.Store(0)
 		errCount.Store(0)
@@ -72,26 +72,26 @@ func (p *processorImpl) Do(ctx context.Context, cancel func(), filePath string) 
 	}()
 }
 
-func (p *processorImpl) reqWorker(ctx context.Context, wg *sync.WaitGroup, out <-chan map[string]string) {
+func (this *processorImpl) reqWorker(ctx context.Context, wg *sync.WaitGroup, out <-chan map[string]string) {
 	defer wg.Done()
 
 Processing:
 	for row := range out {
 		select {
 		case <-ctx.Done():
-			p.logs.Add(messages.NewCancelationError(fmt.Sprintf("Read %d lines and executed %d requests", linesCount.Load(), reqCount.Load())))
+			this.logs.Add(messages.NewCancelationError(fmt.Sprintf("Read %d lines and executed %d requests", linesCount.Load(), reqCount.Load())))
 			break Processing
 		default:
-			response, err := p.gateway.Exec(row)
+			response, err := this.gateway.Exec(row)
 			reqCount.Add(1)
 			if err != nil {
 				errCount.Add(1)
-				p.logs.Add(messages.NewRequestError(err.Error()))
+				this.logs.Add(messages.NewRequestError(err.Error()))
 			} else if response.StatusCode != http.StatusOK {
 				errCount.Add(1)
-				p.logs.Add(messages.NewHttpStatusError(row, response.StatusCode))
+				this.logs.Add(messages.NewHttpStatusError(row, response.StatusCode))
 			}
-			p.outputStream.Send(output.NewMessage(response.URL, response.StatusCode, err, response.Body))
+			this.outputStream.Send(output.NewMessage(response.URL, response.StatusCode, err, response.Body))
 		}
 	}
 }
@@ -104,26 +104,26 @@ func csvSep(cfg config.CSV) rune {
 	return rune(sep[0])
 }
 
-func (p *processorImpl) mapCSV(ctx context.Context, cancel func(), filePath string, out chan<- map[string]string) {
+func (this *processorImpl) mapCSV(ctx context.Context, cancel func(), filePath string, out chan<- map[string]string) {
 	defer close(out)
 
-	reader, file, err := buildCSVReader(filePath, csvSep(p.csvConfig))
+	reader, file, err := buildCSVReader(filePath, csvSep(this.csvConfig))
 	defer file.Close()
 	if err != nil {
-		p.logs.Add(messages.NewCsvError(err.Error()))
+		this.logs.Add(messages.NewCsvError(err.Error()))
 		cancel()
 		return
 	}
 
 	headers, err := getCSVHeaders(reader)
 	if err != nil {
-		p.logs.Add(messages.NewCsvError(err.Error()))
+		this.logs.Add(messages.NewCsvError(err.Error()))
 		cancel()
 		return
 	}
 
-	indexes := headerIndexes(headers, p.csvConfig.Fields)
-	p.logs.Add(messages.NewProcessingMessage(filepath.Base(filePath)))
+	indexes := headerIndexes(headers, this.csvConfig.Fields)
+	this.logs.Add(messages.NewProcessingMessage(filepath.Base(filePath)))
 
 Read:
 	for {
@@ -136,7 +136,7 @@ Read:
 				break Read
 			}
 			if err != nil {
-				p.logs.Add(messages.NewCsvError(err.Error()))
+				this.logs.Add(messages.NewCsvError(err.Error()))
 				continue
 			}
 			linesCount.Add(1)

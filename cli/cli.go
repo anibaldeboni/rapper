@@ -95,29 +95,29 @@ func setContext() {
 	state.Set(Running)
 }
 
-func (c cliModel) Init() tea.Cmd {
-	return tea.Batch(tea.EnterAltScreen, tickCmd(), c.spinner.Tick)
+func (this cliModel) Init() tea.Cmd {
+	return tea.Batch(tea.EnterAltScreen, tickCmd(), this.spinner.Tick)
 }
 
-func (c cliModel) selectItem(item Option[string]) cliModel {
+func (this cliModel) selectItem(item Option[string]) cliModel {
 	if state.Get() != Running {
 		setContext()
 		csvProcessor.Do(ctx, stop, item.Value)
 	} else {
 		logs.Add(messages.NewOperationError())
 	}
-	return c
+	return this
 }
 
-func (c cliModel) resizeElements(width int, height int) cliModel {
-	c.width = width
-	c.filesList.SetHeight(height - 4)
+func (this cliModel) resizeElements(width int, height int) cliModel {
+	this.width = width
+	this.filesList.SetHeight(height - 4)
 
-	logViewWidth := width - lipgloss.Width(c.filesList.View())
+	logViewWidth := width - lipgloss.Width(this.filesList.View())
 	headerHeight := lipgloss.Height(viewPortTitle)
 
-	c.viewport.Height = height - headerHeight - 6
-	c.viewport.Width = logViewWidth - 2
+	this.viewport.Height = height - headerHeight - 6
+	this.viewport.Width = logViewWidth - 2
 
-	return c
+	return this
 }

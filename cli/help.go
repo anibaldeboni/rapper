@@ -30,16 +30,16 @@ func createHelp() help.Model {
 
 	return help
 }
-func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Select, k.Cancel, k.Quit, k.Help}
+func (this keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{this.Select, this.Cancel, this.Quit, this.Help}
 }
 
-func (k keyMap) FullHelp() [][]key.Binding {
+func (this keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.ListUp, k.ListDown},
-		{k.LogUp, k.LogDown},
-		{k.Select, k.Cancel},
-		{k.Help, k.Quit},
+		{this.ListUp, this.ListDown},
+		{this.LogUp, this.LogDown},
+		{this.Select, this.Cancel},
+		{this.Help, this.Quit},
 	}
 }
 

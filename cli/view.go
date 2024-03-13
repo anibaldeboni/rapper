@@ -8,7 +8,7 @@ import (
 	"github.com/muesli/reflow/truncate"
 )
 
-func (c cliModel) View() string {
+func (this cliModel) View() string {
 	var executionLogs string
 	if state.Get() == Running || state.Get() == Stale {
 		executionLogs = lipgloss.NewStyle().
@@ -17,21 +17,21 @@ func (c cliModel) View() string {
 				lipgloss.JoinVertical(
 					lipgloss.Top,
 					viewPortTitle,
-					styles.ViewPortStyle(c.viewport.View()),
+					styles.ViewPortStyle(this.viewport.View()),
 				),
 			)
 	}
 
 	widgets := lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		c.filesList.View(),
+		this.filesList.View(),
 		executionLogs,
 	)
 	width := lipgloss.Width
 	logo := styles.LogoStyle(fmt.Sprintf("%s@%s", AppName, AppVersion))
 	var spinner string
 	if state.Get() == Running {
-		spinner = c.spinner.View()
+		spinner = this.spinner.View()
 	} else {
 		spinner = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("205")).Render("∙∙∙")
@@ -39,9 +39,9 @@ func (c cliModel) View() string {
 
 	help := lipgloss.NewStyle().
 		Height(1).
-		Width(c.width - width(logo) - width(spinner) - 4).
+		Width(this.width - width(logo) - width(spinner) - 4).
 		PaddingLeft(1).
-		Render(truncate.StringWithTail(c.help.View(keys), uint(c.width-width(logo)-width(spinner)), "…"))
+		Render(truncate.StringWithTail(this.help.View(keys), uint(this.width-width(logo)-width(spinner)), "…"))
 
 	statusbar := lipgloss.JoinHorizontal(
 		lipgloss.Left,

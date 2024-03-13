@@ -16,7 +16,7 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-func (c cliModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (this cliModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
@@ -26,12 +26,12 @@ func (c cliModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keys.Quit):
-			return c, tea.Quit
+			return this, tea.Quit
 
 		case key.Matches(msg, keys.Select):
-			item, ok := c.filesList.SelectedItem().(Option[string])
+			item, ok := this.filesList.SelectedItem().(Option[string])
 			if ok {
-				return c.selectItem(item), nil
+				return this.selectItem(item), nil
 			}
 
 		case key.Matches(msg, keys.Cancel):
@@ -40,31 +40,31 @@ func (c cliModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, keys.LogUp):
-			c.viewport.LineUp(1)
+			this.viewport.LineUp(1)
 
 		case key.Matches(msg, keys.LogDown):
-			c.viewport.LineDown(1)
+			this.viewport.LineDown(1)
 
 		case key.Matches(msg, keys.Help):
-			c.help.ShowAll = !c.help.ShowAll
+			this.help.ShowAll = !this.help.ShowAll
 		}
 
 	case tea.WindowSizeMsg:
-		return c.resizeElements(msg.Width, msg.Height), nil
+		return this.resizeElements(msg.Width, msg.Height), nil
 
 	case tickMsg:
 		if logs.HasNewLogs() {
-			c.viewport.SetContent(strings.Join(logs.Get(), "\n"))
-			c.viewport.GotoBottom()
+			this.viewport.SetContent(strings.Join(logs.Get(), "\n"))
+			this.viewport.GotoBottom()
 		}
-		return c, tea.Batch(cmd, tickCmd())
+		return this, tea.Batch(cmd, tickCmd())
 
 	}
 
-	c.filesList, cmd = c.filesList.Update(msg)
+	this.filesList, cmd = this.filesList.Update(msg)
 	cmds = append(cmds, cmd)
-	c.spinner, cmd = c.spinner.Update(msg)
+	this.spinner, cmd = this.spinner.Update(msg)
 	cmds = append(cmds, cmd)
 
-	return c, tea.Batch(cmds...)
+	return this, tea.Batch(cmds...)
 }

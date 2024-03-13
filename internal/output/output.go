@@ -33,8 +33,8 @@ type message struct {
 	message string
 }
 
-func (o *message) String() string {
-	return fmt.Sprintf("%s [%s] %s", styles.IconSkull, styles.Bold("Output"), o.message)
+func (this *message) String() string {
+	return fmt.Sprintf("%s [%s] %s", styles.IconSkull, styles.Bold("Output"), this.message)
 }
 
 // NewMessage creates a new Message with the specified URL, status code, error, and body.
@@ -50,36 +50,36 @@ func New(filePath string, logs log.LogManager) Stream {
 	return o
 }
 
-func (o *streamImpl) Close() {
-	if o.ch != nil {
-		close(o.ch)
+func (this *streamImpl) Close() {
+	if this.ch != nil {
+		close(this.ch)
 	}
 }
 
-func (o *streamImpl) Enabled() bool {
-	return o.filePath != ""
+func (this *streamImpl) Enabled() bool {
+	return this.filePath != ""
 }
 
 // Send sends the given log message to the output channel if the output is enabled.
-func (o *streamImpl) Send(log Message) {
-	if o.Enabled() {
-		o.ch <- log
+func (this *streamImpl) Send(log Message) {
+	if this.Enabled() {
+		this.ch <- log
 	}
 }
 
-func listen(o *streamImpl) {
-	if !o.Enabled() {
+func listen(this *streamImpl) {
+	if !this.Enabled() {
 		return
 	}
-	file, err := os.OpenFile(o.filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+	file, err := os.OpenFile(this.filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
 	if err != nil {
-		o.logs.Add(&message{message: err.Error()})
+		this.logs.Add(&message{message: err.Error()})
 	}
 	defer file.Close()
-	for log := range o.ch {
+	for log := range this.ch {
 		m, _ := json.Marshal(log)
 		if _, err := file.Write(append(m, '\n')); err != nil {
-			o.logs.Add(&message{message: err.Error()})
+			this.logs.Add(&message{message: err.Error()})
 		}
 	}
 }

@@ -25,7 +25,7 @@ type HttpGatewayImpl struct {
 
 // NewHttpGateway creates a new HttpGateway.
 func NewHttpGateway(token, method, urlTemplate, bodyTemplate string) HttpGateway {
-	return HttpGatewayImpl{
+	return &HttpGatewayImpl{
 		Token:  token,
 		Method: method,
 		Client: NewHttpClient(),
@@ -38,23 +38,23 @@ func NewHttpGateway(token, method, urlTemplate, bodyTemplate string) HttpGateway
 		},
 	}
 }
-func (hg *HttpGatewayImpl) req(url string, body io.Reader, headers map[string]string) (Response, error) {
-	if hg.Method == http.MethodPost {
-		return hg.Client.Post(url, body, headers)
+func (this *HttpGatewayImpl) req(url string, body io.Reader, headers map[string]string) (Response, error) {
+	if this.Method == http.MethodPost {
+		return this.Client.Post(url, body, headers)
 	}
-	if hg.Method == http.MethodPut {
-		return hg.Client.Put(url, body, headers)
+	if this.Method == http.MethodPut {
+		return this.Client.Put(url, body, headers)
 	}
 	return Response{}, errors.New("method not supported")
 }
 
 // Exec executes the request with the given variables to fill the body and url templates.
-func (hg HttpGatewayImpl) Exec(variables map[string]string) (Response, error) {
-	header := map[string]string{"Authorization": "Bearer " + hg.Token}
-	uri := RenderTemplate(hg.Templates.Url, variables).String()
-	body := RenderTemplate(hg.Templates.Body, variables)
+func (this *HttpGatewayImpl) Exec(variables map[string]string) (Response, error) {
+	header := map[string]string{"Authorization": "Bearer " + this.Token}
+	uri := RenderTemplate(this.Templates.Url, variables).String()
+	body := RenderTemplate(this.Templates.Body, variables)
 
-	return hg.req(uri, body, header)
+	return this.req(uri, body, header)
 }
 
 func NewTemplate(name string, templ string) *template.Template {

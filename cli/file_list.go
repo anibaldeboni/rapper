@@ -17,14 +17,14 @@ type Option[T comparable] struct {
 	Value T
 }
 
-func (i Option[T]) FilterValue() string { return "" }
+func (Option[T]) FilterValue() string { return "" }
 
 type itemDelegate[T comparable] struct{}
 
-func (d itemDelegate[T]) Height() int                             { return 1 }
-func (d itemDelegate[T]) Spacing() int                            { return 0 }
-func (d itemDelegate[T]) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-func (d itemDelegate[T]) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+func (itemDelegate[T]) Height() int                             { return 1 }
+func (itemDelegate[T]) Spacing() int                            { return 0 }
+func (itemDelegate[T]) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (itemDelegate[T]) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
 	i, ok := listItem.(Option[T])
 	if !ok {
 		return
