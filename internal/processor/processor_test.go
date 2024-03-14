@@ -13,7 +13,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestProcessor_mapCSV(t *testing.T) {
+func TestProcessor_Do(t *testing.T) {
 	t.Run("Should send a request for each csv line", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
