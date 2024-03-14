@@ -1,4 +1,4 @@
-package log
+package execlog
 
 import (
 	"sync"
@@ -13,7 +13,7 @@ type Message interface {
 	WithMessage(string) Message
 }
 
-//go:generate mockgen -destination mock/log_mock.go github.com/anibaldeboni/rapper/internal/log Manager
+//go:generate mockgen -destination mock/log_mock.go github.com/anibaldeboni/rapper/internal/execlog Manager
 type Manager interface {
 	HasNewLogs() bool
 	Add(Message)

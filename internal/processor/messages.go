@@ -4,27 +4,27 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/anibaldeboni/rapper/internal/log"
+	"github.com/anibaldeboni/rapper/internal/execlog"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"golang.org/x/exp/maps"
 )
 
-func cancelationMsg() log.Message {
-	return log.NewMessage().
+func cancelationMsg() execlog.Message {
+	return execlog.NewMessage().
 		WithIcon(styles.IconSkull).
 		WithKind("Cancelation").
 		WithMessage(fmt.Sprintf("Read %d lines and executed %d requests", linesCount.Load(), reqCount.Load()))
 }
 
-func requestError(message string) log.Message {
-	return log.NewMessage().
+func requestError(message string) execlog.Message {
+	return execlog.NewMessage().
 		WithIcon(styles.IconSkull).
 		WithKind("Request").
 		WithMessage(message)
 }
 
-func csvError(message string) log.Message {
-	return log.NewMessage().
+func csvError(message string) execlog.Message {
+	return execlog.NewMessage().
 		WithIcon(styles.IconSkull).
 		WithKind("CSV").
 		WithMessage(message)
@@ -41,13 +41,13 @@ func mapResponse(record map[string]string, status int) string {
 
 	return result
 }
-func httpStatusError(record map[string]string, status int) log.Message {
-	return log.NewMessage().
+func httpStatusError(record map[string]string, status int) execlog.Message {
+	return execlog.NewMessage().
 		WithIcon(styles.IconWarning).
 		WithMessage(mapResponse(record, status))
 }
 
-func doneMessage(errs uint64) log.Message {
+func doneMessage(errs uint64) execlog.Message {
 	var errMsg string
 	var icon string
 	if errs > 0 {
@@ -57,14 +57,14 @@ func doneMessage(errs uint64) log.Message {
 		errMsg = styles.Green("no errors")
 		icon = styles.IconTrophy
 	}
-	return log.NewMessage().
+	return execlog.NewMessage().
 		WithIcon(icon).
 		WithMessage(fmt.Sprintf("Finished with %s\n", errMsg))
 
 }
 
-func processingMessage(file string, workers int) log.Message {
-	return log.NewMessage().
+func processingMessage(file string, workers int) execlog.Message {
+	return execlog.NewMessage().
 		WithIcon(styles.IconWomanDancing).
 		WithMessage(fmt.Sprintf("Processing file %s using %s", styles.Green(file), workersMsg(workers)))
 }

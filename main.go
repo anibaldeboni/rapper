@@ -7,7 +7,7 @@ import (
 
 	"github.com/anibaldeboni/rapper/internal"
 	"github.com/anibaldeboni/rapper/internal/config"
-	"github.com/anibaldeboni/rapper/internal/log"
+	"github.com/anibaldeboni/rapper/internal/execlog"
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui"
@@ -30,7 +30,7 @@ func main() {
 		handleExit(err)
 	}
 
-	logsManager := log.NewLogManager()
+	logsManager := execlog.NewLogManager()
 
 	hg := web.NewHttpGateway(
 		cfg.Token,

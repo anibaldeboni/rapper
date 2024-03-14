@@ -10,8 +10,8 @@ import (
 
 	"github.com/anibaldeboni/rapper/internal"
 	"github.com/anibaldeboni/rapper/internal/config"
-	"github.com/anibaldeboni/rapper/internal/log"
-	"github.com/anibaldeboni/rapper/internal/output"
+	"github.com/anibaldeboni/rapper/internal/execlog"
+	"github.com/anibaldeboni/rapper/internal/filelogger"
 	"github.com/anibaldeboni/rapper/internal/web"
 )
 
@@ -29,22 +29,22 @@ type Processor interface {
 }
 
 type processorImpl struct {
-	csvConfig    config.CSV
-	gateway      web.HttpGateway
-	outputStream output.Stream
-	logManager   log.Manager
-	workers      int
+	csvConfig  config.CSV
+	gateway    web.HttpGateway
+	fileLogger filelogger.FileLogger
+	logManager execlog.Manager
+	workers    int
 }
 
-func New(cfg config.CSV, hg web.HttpGateway, outputFile string, logManager log.Manager, workers int) Processor {
+func New(cfg config.CSV, hg web.HttpGateway, outputFile string, logManager execlog.Manager, workers int) Processor {
 	workers = internal.Clamp(workers, 1, MAX_WORKERS)
 
 	return &processorImpl{
-		csvConfig:    cfg,
-		gateway:      hg,
-		outputStream: output.New(outputFile, logManager),
-		logManager:   logManager,
-		workers:      workers,
+		csvConfig:  cfg,
+		gateway:    hg,
+		fileLogger: filelogger.New(outputFile, logManager),
+		logManager: logManager,
+		workers:    workers,
 	}
 }
 
@@ -91,7 +91,7 @@ Processing:
 				errCount.Add(1)
 				this.logManager.Add(httpStatusError(row, response.StatusCode))
 			}
-			this.outputStream.Send(output.NewLine(response.URL, response.StatusCode, err, response.Body))
+			this.fileLogger.Write(filelogger.NewLine(response.URL, response.StatusCode, err, response.Body))
 		}
 	}
 }

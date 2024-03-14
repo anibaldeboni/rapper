@@ -12,7 +12,7 @@ package mock_output
 import (
 	reflect "reflect"
 
-	output "github.com/anibaldeboni/rapper/internal/output"
+	output "github.com/anibaldeboni/rapper/internal/filelogger"
 	gomock "go.uber.org/mock/gomock"
 )
 

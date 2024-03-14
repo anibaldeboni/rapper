@@ -3,7 +3,7 @@ package ui_test
 import (
 	"testing"
 
-	mock_log "github.com/anibaldeboni/rapper/internal/log/mock"
+	mock_log "github.com/anibaldeboni/rapper/internal/execlog/mock"
 	mock_processor "github.com/anibaldeboni/rapper/internal/processor/mock"
 	"github.com/anibaldeboni/rapper/internal/ui"
 	"go.uber.org/mock/gomock"

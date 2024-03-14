@@ -1,12 +1,12 @@
-package output_test
+package filelogger_test
 
 import (
 	"encoding/json"
 	"os"
 	"testing"
 
-	mock_log "github.com/anibaldeboni/rapper/internal/log/mock"
-	"github.com/anibaldeboni/rapper/internal/output"
+	mock_log "github.com/anibaldeboni/rapper/internal/execlog/mock"
+	"github.com/anibaldeboni/rapper/internal/filelogger"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -21,10 +21,10 @@ func TestListen(t *testing.T) {
 	logManagerMock := mock_log.NewMockManager(ctrl)
 	logManagerMock.EXPECT().Add(gomock.Any()).Times(0)
 
-	stream := output.New(tmpFile.Name(), logManagerMock)
+	stream := filelogger.New(tmpFile.Name(), logManagerMock)
 
-	line := output.Line{Status: 200, URL: "http://example.com"}
-	stream.Send(line)
+	line := filelogger.Line{Status: 200, URL: "http://example.com"}
+	stream.Write(line)
 
 	// Read the contents of the temporary file
 	file, err := os.Open(tmpFile.Name())
@@ -32,7 +32,7 @@ func TestListen(t *testing.T) {
 	defer file.Close()
 
 	// Read the log message from the file
-	var loggedMessage output.Line
+	var loggedMessage filelogger.Line
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&loggedMessage)
 	assert.NoError(t, err)

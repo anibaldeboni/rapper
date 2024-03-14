@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/anibaldeboni/rapper/internal/config"
-	mock_log "github.com/anibaldeboni/rapper/internal/log/mock"
+	mock_log "github.com/anibaldeboni/rapper/internal/execlog/mock"
 	mock_web "github.com/anibaldeboni/rapper/internal/web/mock"
 	"go.uber.org/mock/gomock"
 )

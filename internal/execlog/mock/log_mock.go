@@ -12,7 +12,7 @@ package mock_log
 import (
 	reflect "reflect"
 
-	log "github.com/anibaldeboni/rapper/internal/log"
+	log "github.com/anibaldeboni/rapper/internal/execlog"
 	gomock "go.uber.org/mock/gomock"
 )
 
