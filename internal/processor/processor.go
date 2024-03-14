@@ -36,15 +36,13 @@ type processorImpl struct {
 	workers    int
 }
 
-func New(cfg config.CSV, hg web.HttpGateway, outputFile string, logManager execlog.Manager, workers int) Processor {
-	workers = internal.Clamp(workers, 1, MAX_WORKERS)
-
+func New(cfg config.CSV, hg web.HttpGateway, fileLogger filelogger.FileLogger, logManager execlog.Manager, workers int) Processor {
 	return &processorImpl{
 		csvConfig:  cfg,
 		gateway:    hg,
-		fileLogger: filelogger.New(outputFile, logManager),
+		fileLogger: fileLogger,
 		logManager: logManager,
-		workers:    workers,
+		workers:    internal.Clamp(workers, 1, MAX_WORKERS),
 	}
 }
 

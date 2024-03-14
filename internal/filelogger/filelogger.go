@@ -11,7 +11,7 @@ import (
 
 var _ FileLogger = (*fileLoggerImpl)(nil)
 
-//go:generate mockgen -destination mock/output_mock.go github.com/anibaldeboni/rapper/internal/filelogger Stream
+//go:generate mockgen -destination mock/filelogger_mock.go github.com/anibaldeboni/rapper/internal/filelogger FileLogger
 type FileLogger interface {
 	Write(Line)
 }

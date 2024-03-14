@@ -8,6 +8,7 @@ import (
 	"github.com/anibaldeboni/rapper/internal"
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/execlog"
+	"github.com/anibaldeboni/rapper/internal/filelogger"
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui"
@@ -42,7 +43,7 @@ func main() {
 	csvProcessor := processor.New(
 		cfg.CSV,
 		hg,
-		*outputFile,
+		filelogger.New(*outputFile, logsManager),
 		logsManager,
 		*workers,
 	)

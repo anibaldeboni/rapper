@@ -8,6 +8,7 @@ import (
 
 	"github.com/anibaldeboni/rapper/internal/config"
 	mock_log "github.com/anibaldeboni/rapper/internal/execlog/mock"
+	mock_filelogger "github.com/anibaldeboni/rapper/internal/filelogger/mock"
 	mock_web "github.com/anibaldeboni/rapper/internal/web/mock"
 	"go.uber.org/mock/gomock"
 )
@@ -28,12 +29,15 @@ func TestProcessor_mapCSV(t *testing.T) {
 		logsManagerMock := mock_log.NewMockManager(ctrl)
 		logsManagerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
 
+		fileLoggerMock := mock_filelogger.NewMockFileLogger(ctrl)
+		fileLoggerMock.EXPECT().Write(gomock.Any()).Times(2)
+
 		csvData := "header1,header2\nvalue1,value2\nvalue3,value4\n"
 		tempFile := createCsvFile(t, csvData)
 		defer os.Remove(tempFile.Name())
 
 		ctx, cancel := context.WithCancel(context.Background())
-		p := New(config.CSV{Fields: []string{"header1", "header2"}, Separator: ","}, gatewayMock, "", logsManagerMock, 1)
+		p := New(config.CSV{Fields: []string{"header1", "header2"}, Separator: ","}, gatewayMock, fileLoggerMock, logsManagerMock, 1)
 
 		p.Do(ctx, cancel, tempFile.Name())
 		wg.Wait()
@@ -54,12 +58,15 @@ func TestProcessor_mapCSV(t *testing.T) {
 		logsManagerMock := mock_log.NewMockManager(ctrl)
 		logsManagerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
 
+		fileLoggerMock := mock_filelogger.NewMockFileLogger(ctrl)
+		fileLoggerMock.EXPECT().Write(gomock.Any()).Times(1)
+
 		csvData := "header1,header2\nvalue1,value2\n"
 		tempFile := createCsvFile(t, csvData)
 		defer os.Remove(tempFile.Name())
 
 		ctx, cancel := context.WithCancel(context.Background())
-		p := New(config.CSV{Fields: []string{"header1"}, Separator: ","}, gatewayMock, "", logsManagerMock, 1)
+		p := New(config.CSV{Fields: []string{"header1"}, Separator: ","}, gatewayMock, fileLoggerMock, logsManagerMock, 1)
 
 		p.Do(ctx, cancel, tempFile.Name())
 		wg.Wait()
