@@ -17,7 +17,7 @@ type FileLogger interface {
 }
 
 type fileLoggerImpl struct {
-	mu         sync.Mutex
+	sync.Mutex
 	logManager execlog.Manager
 	file       *os.File
 }
@@ -60,8 +60,8 @@ func enabled(this *fileLoggerImpl) bool {
 // and adds an error message to the log manager if there was an error writing to the file.
 func (this *fileLoggerImpl) Write(line Line) {
 	if enabled(this) {
-		this.mu.Lock()
-		defer this.mu.Unlock()
+		this.Lock()
+		defer this.Unlock()
 		if err := write(this.file, line); err != nil {
 			this.logManager.Add(errorMessage(err.Error()))
 		}
