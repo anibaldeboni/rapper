@@ -2,16 +2,10 @@ package ui
 
 import (
 	"context"
-	"flag"
-	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/anibaldeboni/rapper/internal/execlog"
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
-	"github.com/anibaldeboni/rapper/internal/versions"
-	"github.com/anibaldeboni/rapper/internal/web"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
@@ -61,22 +55,6 @@ func createSpinner() spinner.Model {
 		Foreground(lipgloss.Color("205"))
 
 	return s
-}
-
-func Usage() {
-	fmt.Printf("%s (%s)\n", styles.Bold(AppName), AppVersion)
-	fmt.Println("\nA CLI tool to send HTTP requests based on CSV files.")
-	fmt.Printf("All flags are optional. If %s or %s are not provided, the current directory will be used.\n", styles.Bold("-config"), styles.Bold("-dir"))
-	fmt.Printf("If %s file is not provided, the responses bodies will not be saved.\n", styles.Bold("-output"))
-	fmt.Println("\nUsage:")
-	fmt.Printf("  %s [options]\n", styles.Bold(filepath.Base(os.Args[0])))
-	fmt.Println("\nOptions:")
-	flag.PrintDefaults()
-	fmt.Println("\n" + UpdateCheck())
-}
-
-func UpdateCheck() string {
-	return versions.CheckForUpdate(web.NewHttpClient(), AppVersion)
 }
 
 func stop() {

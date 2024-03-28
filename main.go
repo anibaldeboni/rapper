@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/anibaldeboni/rapper/internal"
 	"github.com/anibaldeboni/rapper/internal/config"
@@ -17,15 +18,24 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func main() {
-	cwd, _ := os.Getwd()
-	configPath := flag.String("config", cwd, "path to directory containing a config file")
-	workingDir := flag.String("dir", cwd, "path to directory containing the CSV files")
-	outputFile := flag.String("output", "", "path to output file, including the file name")
-	workers := flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MAX_WORKERS))
-	flag.Usage = ui.Usage
-	flag.Parse()
+var (
+	configPath *string
+	workingDir *string
+	outputFile *string
+	workers    *int
+)
 
+func init() {
+	cwd, _ := os.Getwd()
+	configPath = flag.String("config", cwd, "path to directory containing a config file")
+	workingDir = flag.String("dir", cwd, "path to directory containing the CSV files")
+	outputFile = flag.String("output", "", "path to output file, including the file name")
+	workers = flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MAX_WORKERS))
+	flag.Usage = Usage
+	flag.Parse()
+}
+
+func main() {
 	cfg, err := config.Config(*configPath)
 	if err != nil {
 		handleExit(err)
@@ -65,8 +75,24 @@ func main() {
 	handleExit(nil)
 }
 
+func Usage() {
+	fmt.Printf("%s (%s)\n", styles.Bold(ui.AppName), ui.AppVersion)
+	fmt.Println("\nA CLI tool to send HTTP requests based on CSV files.")
+	fmt.Printf("All flags are optional. If %s or %s are not provided, the current directory will be used.\n", styles.Bold("-config"), styles.Bold("-dir"))
+	fmt.Printf("If %s file is not provided, the responses bodies will not be saved.\n", styles.Bold("-output"))
+	fmt.Println("\nUsage:")
+	fmt.Printf("  %s [options]\n", styles.Bold(filepath.Base(os.Args[0])))
+	fmt.Println("\nOptions:")
+	flag.PrintDefaults()
+	fmt.Println("\n" + UpdateCheck())
+}
+
+func UpdateCheck() string {
+	return versions.CheckForUpdate(web.NewHttpClient(), ui.AppVersion)
+}
+
 func handleExit(err error) {
-	update := ui.UpdateCheck()
+	update := UpdateCheck()
 	if err == nil {
 		ui.Exit(update)
 	}
