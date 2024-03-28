@@ -1,6 +1,6 @@
 module github.com/anibaldeboni/rapper
 
-go 1.21.4
+go 1.22
 
 require (
 	github.com/charmbracelet/bubbletea v0.25.0
