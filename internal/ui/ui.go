@@ -17,7 +17,7 @@ import (
 
 var (
 	AppName       = "rapper"
-	AppVersion    = "2.5.2"
+	AppVersion    = "2.6.0"
 	viewPortTitle = styles.TitleStyle.Render("Execution logs")
 	logs          execlog.Manager
 	ctx           context.Context

@@ -2,6 +2,7 @@ package styles
 
 import (
 	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/term"
 )
 
 var (
@@ -24,7 +25,6 @@ var (
 				Foreground(lipgloss.AdaptiveColor{Light: "#8d8d8d", Dark: "#8d8d8d"}).
 				SetString(inactiveDot).
 				Bold(true)
-	QuitTextStyle = lipgloss.NewStyle().Margin(1, 0, 1, 2).Render
 	AppStyle      = lipgloss.NewStyle().Margin(1, 1, 1, 2).Render
 	ProgressStyle = lipgloss.NewStyle().Padding(0, 2, 1, 3).Render
 	HelpStyle     = lipgloss.NewStyle().PaddingLeft(1).Render //.Foreground(lipgloss.Color("245"))
@@ -50,6 +50,10 @@ var (
 		Dark:  "#535353",
 	})
 
+	ScreenCenteredStyle = lipgloss.NewStyle().
+				Width(TerminalWidth()).
+				Align(lipgloss.Center).Render
+
 	Bold   = lipgloss.NewStyle().Bold(true).Render
 	Italic = lipgloss.NewStyle().Italic(true).Render
 	Green  = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render
@@ -63,3 +67,11 @@ var (
 	IconWarning      = "⚠️"
 	IconSkull        = "💀"
 )
+
+func TerminalWidth() int {
+	width, _, err := term.GetSize(0)
+	if err != nil {
+		width = 80
+	}
+	return width
+}

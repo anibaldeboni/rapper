@@ -25,35 +25,35 @@ func TestCheckForUpdate(t *testing.T) {
 	tests := []struct {
 		name     string
 		version  string
-		want     string
+		want     versions.Update
 		response web.Response
 		err      error
 	}{
 		{
 			name:     "When app is up-to-date",
 			version:  "v2.0.0",
-			want:     "",
+			want:     versions.Update{},
 			response: response,
 			err:      nil,
 		},
 		{
 			name:     "When app is out-of-date",
 			version:  "v1.0.0",
-			want:     "ℹ️  New version available: v2.0.0 (release_url)",
+			want:     versions.Update{Version: "v2.0.0", Url: "release_url"},
 			response: response,
 			err:      nil,
 		},
 		{
 			name:     "When a request error occur",
 			version:  "v1.0.0",
-			want:     "",
+			want:     versions.Update{},
 			response: web.Response{},
 			err:      errors.New("request-error"),
 		},
 		{
 			name:    "When the request body is not a json",
 			version: "v1.0.0",
-			want:    "",
+			want:    versions.Update{},
 			response: web.Response{
 				StatusCode: 200,
 				Body:       []byte(`body-is-not-a-json`),
@@ -65,9 +65,10 @@ func TestCheckForUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client.EXPECT().Get(gomock.Any(), gomock.Any()).Return(tt.response, tt.err).Times(1)
-			got := versions.CheckForUpdate(client, tt.version)
+			got, _ := versions.CheckForUpdate(client, tt.version)
 
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want.Url, got.Url)
+			assert.Equal(t, tt.want.Version, got.Version)
 		})
 	}
 }

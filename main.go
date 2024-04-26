@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/anibaldeboni/rapper/internal"
 	"github.com/anibaldeboni/rapper/internal/config"
@@ -13,6 +15,7 @@ import (
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui"
+	"github.com/anibaldeboni/rapper/internal/ui/logo"
 	"github.com/anibaldeboni/rapper/internal/versions"
 	"github.com/anibaldeboni/rapper/internal/web"
 	tea "github.com/charmbracelet/bubbletea"
@@ -72,7 +75,7 @@ func main() {
 		handleExit(err)
 	}
 
-	handleExit(nil)
+	handleExit()
 }
 
 func Usage() {
@@ -88,16 +91,38 @@ func Usage() {
 }
 
 func UpdateCheck() string {
-	return versions.CheckForUpdate(web.NewHttpClient(), ui.AppVersion)
+	update, available := versions.CheckForUpdate(web.NewHttpClient(), ui.AppVersion)
+	if available {
+		return styles.IconInformation + " New version available: " + styles.Bold(update.Version) + " (" + update.Url + ")"
+	}
+	return "is up-to-date."
 }
 
-func handleExit(err error) {
-	update := UpdateCheck()
-	if err == nil {
-		ui.Exit(update)
+func handleExit(err ...error) {
+	var wg sync.WaitGroup
+	var exitMsg []string
+	var exitCode int
+
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		exitMsg = append(exitMsg, UpdateCheck())
+	}(&wg)
+
+	logo.PrintAnimated()
+	wg.Wait()
+
+	if err != nil {
+		exitCode = 1
+		for _, e := range err {
+			exitMsg = append(exitMsg, e.Error())
+		}
 	}
-	if update != versions.NoUpdates {
-		update = "\n\n" + update
-	}
-	ui.Exit(err.Error() + update)
+
+	fmt.Println(
+		styles.ScreenCenteredStyle(
+			strings.Join(exitMsg, "\n"),
+		),
+	)
+	os.Exit(exitCode)
 }
