@@ -2,51 +2,30 @@ package assets
 
 import (
 	"embed"
-
-	"github.com/anibaldeboni/rapper/internal/utils"
+	"strings"
 )
 
-//go:embed files/*
-var logoFiles embed.FS
+//go:embed figlets/*
+var figlets embed.FS
 
-type LogoName string
+type Figlets map[string][]byte
 
-const (
-	MainLogo LogoName = "logo.txt"
-	Crawford LogoName = "crawford.txt"
-	Fraktur  LogoName = "fraktur.txt"
-	Ghoulish LogoName = "ghoulish.txt"
-	Larry3D  LogoName = "larry3d.txt"
-	Merlin1  LogoName = "merlin1.txt"
-	NancyJ   LogoName = "nancyj.txt"
-	Poison   LogoName = "poison.txt"
-	Rozzo    LogoName = "rozzo.txt"
-	Script   LogoName = "script.txt"
-	Small    LogoName = "small.txt"
-)
+func LoadAllFiglets() (Figlets, error) {
+	files, err := figlets.ReadDir("figlets")
+	if err != nil {
+		return nil, err
+	}
 
-func Logo() string {
-	logo, _ := logoFiles.ReadFile("files/logo.txt")
-
-	return string(logo)
-}
-
-func LogoByName(name LogoName) string {
-	logo, _ := logoFiles.ReadFile("files/" + string(name))
-
-	return string(logo)
-}
-
-// RandomLogo returns a randomly selected logo from the "files" directory.
-func RandomLogo() string {
-	files, _ := logoFiles.ReadDir("files")
-	var logos []string
+	var figletMap = make(map[string][]byte)
 	for _, file := range files {
 		if !file.IsDir() {
-			logo, _ := logoFiles.ReadFile("files/" + file.Name())
-			logos = append(logos, string(logo))
+			font, err := figlets.ReadFile("figlets/" + file.Name())
+			if err != nil {
+				return nil, err
+			}
+			figletMap[strings.TrimSuffix(file.Name(), ".flf")] = font
 		}
 	}
 
-	return logos[utils.RandomInt(len(logos))]
+	return figletMap, nil
 }
