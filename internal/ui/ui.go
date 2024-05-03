@@ -89,11 +89,10 @@ func (this Model) selectItem(item Option[string]) Model {
 
 func (this Model) resizeElements(width int, height int) Model {
 	this.width = width
-	this.filesList.SetHeight(height - 4)
+	headerHeight := lipgloss.Height(viewPortTitle)
+	this.filesList.SetHeight(height - headerHeight - 3)
 
 	logViewWidth := width - lipgloss.Width(this.filesList.View())
-	headerHeight := lipgloss.Height(viewPortTitle)
-
 	this.viewport.Height = height - headerHeight - 6
 	this.viewport.Width = logViewWidth - 2
 

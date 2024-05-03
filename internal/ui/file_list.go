@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"io"
-	"slices"
 	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/styles"
@@ -57,11 +56,7 @@ func createList[T comparable](options []Option[T], title string) list.Model {
 		}
 	}
 
-	defaultWidth := max(maxItemTitleLength, len(title)) + 2
-	maxHeight := 20
-	listHeight := min(len(listItems), maxHeight) + 4
-
-	l := list.New(listItems, itemDelegate[T]{}, defaultWidth, listHeight)
+	l := list.New(listItems, itemDelegate[T]{}, 0, 0)
 	l.Title = title
 	l.InfiniteScrolling = true
 	l.SetShowStatusBar(false)
@@ -78,12 +73,4 @@ func createList[T comparable](options []Option[T], title string) list.Model {
 	l.Styles.TitleBar = styles.TitleBarStyle
 
 	return l
-}
-
-func max(v ...int) int {
-	return slices.Max(v)
-}
-
-func min(v ...int) int {
-	return slices.Min(v)
 }

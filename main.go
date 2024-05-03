@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/anibaldeboni/rapper/internal"
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/execlog"
 	"github.com/anibaldeboni/rapper/internal/filelogger"
@@ -16,6 +15,7 @@ import (
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui"
 	"github.com/anibaldeboni/rapper/internal/ui/logo"
+	"github.com/anibaldeboni/rapper/internal/utils"
 	"github.com/anibaldeboni/rapper/internal/versions"
 	"github.com/anibaldeboni/rapper/internal/web"
 	tea "github.com/charmbracelet/bubbletea"
@@ -61,7 +61,7 @@ func main() {
 		*workers,
 	)
 
-	filePaths, errs := internal.FindFiles(*workingDir, "*.csv")
+	filePaths, errs := utils.FindFiles(*workingDir, "*.csv")
 	if len(errs) > 0 {
 		handleExit(fmt.Errorf("Could not execute file scan in %s", styles.Bold(*workingDir)))
 	}

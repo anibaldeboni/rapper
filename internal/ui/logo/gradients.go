@@ -6,16 +6,16 @@ import (
 )
 
 var (
-	warm               = colorgrad.Warm()
-	cool               = colorgrad.Cool()
-	spectral           = colorgrad.Spectral()
-	goldToTurquoise, _ = colorgrad.NewGradient().
+	Warm               = colorgrad.Warm()
+	Cool               = colorgrad.Cool()
+	Spectral           = colorgrad.Spectral()
+	GoldToTurquoise, _ = colorgrad.NewGradient().
 				HtmlColors("gold", "hotpink", "darkturquoise").
 				Build()
-	pinkToGreen, _ = colorgrad.NewGradient().
+	PinkToGreen, _ = colorgrad.NewGradient().
 			HtmlColors("deeppink", "gold", "seagreen").
 			Build()
-	pinkToPurple, _ = colorgrad.NewGradient().
+	PinkToPurple, _ = colorgrad.NewGradient().
 			HtmlColors("#C41189", "#00BFFF").
 			Build()
 )
@@ -23,12 +23,12 @@ var (
 func randomColorGradient() colorgrad.Gradient {
 
 	grads := []colorgrad.Gradient{
-		pinkToPurple,
-		pinkToGreen,
-		goldToTurquoise,
-		warm,
-		cool,
-		spectral,
+		PinkToPurple,
+		PinkToGreen,
+		GoldToTurquoise,
+		Warm,
+		Cool,
+		Spectral,
 	}
 
 	return grads[utils.RandomInt(len(grads))]

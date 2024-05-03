@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/anibaldeboni/rapper/internal"
 	"github.com/anibaldeboni/rapper/internal/styles"
+	"github.com/anibaldeboni/rapper/internal/utils"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -28,7 +28,7 @@ type App struct {
 }
 
 func Config(path string) (App, error) {
-	f, errs := internal.FindFiles(path, "config.yml", "config.yaml")
+	f, errs := utils.FindFiles(path, "config.yml", "config.yaml")
 	if len(errs) > 0 || len(f) == 0 {
 		return App{}, fmt.Errorf("Could not find config.yml or config.yaml in %s", styles.Bold(path))
 	}

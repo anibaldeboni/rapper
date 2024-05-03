@@ -5,13 +5,14 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 
-	"github.com/anibaldeboni/rapper/internal"
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/execlog"
 	"github.com/anibaldeboni/rapper/internal/filelogger"
+	"github.com/anibaldeboni/rapper/internal/utils"
 	"github.com/anibaldeboni/rapper/internal/web"
 )
 
@@ -20,7 +21,7 @@ var (
 	reqCount    atomic.Uint64
 	errCount    atomic.Uint64
 	linesCount  atomic.Uint64
-	MAX_WORKERS = 5
+	MAX_WORKERS = runtime.NumCPU()
 )
 
 //go:generate mockgen -destination mock/processor_mock.go github.com/anibaldeboni/rapper/internal/processor Processor
@@ -42,7 +43,7 @@ func New(cfg config.CSV, hg web.HttpGateway, fileLogger filelogger.FileLogger, l
 		gateway:    hg,
 		fileLogger: fileLogger,
 		logManager: logManager,
-		workers:    internal.Clamp(workers, 1, MAX_WORKERS),
+		workers:    utils.Clamp(workers, 1, MAX_WORKERS),
 	}
 }
 
