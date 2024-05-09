@@ -10,8 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/anibaldeboni/rapper/internal/config"
-	"github.com/anibaldeboni/rapper/internal/execlog"
-	"github.com/anibaldeboni/rapper/internal/filelogger"
+	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/utils"
 	"github.com/anibaldeboni/rapper/internal/web"
 )
@@ -30,20 +29,18 @@ type Processor interface {
 }
 
 type processorImpl struct {
-	csvConfig  config.CSV
-	gateway    web.HttpGateway
-	fileLogger filelogger.FileLogger
-	logManager execlog.Manager
-	workers    int
+	csvConfig config.CSV
+	gateway   web.HttpGateway
+	logger    logs.Logger
+	workers   int
 }
 
-func New(cfg config.CSV, hg web.HttpGateway, fileLogger filelogger.FileLogger, logManager execlog.Manager, workers int) Processor {
+func New(cfg config.CSV, hg web.HttpGateway, logger logs.Logger, workers int) Processor {
 	return &processorImpl{
-		csvConfig:  cfg,
-		gateway:    hg,
-		fileLogger: fileLogger,
-		logManager: logManager,
-		workers:    utils.Clamp(workers, 1, MAX_WORKERS),
+		csvConfig: cfg,
+		gateway:   hg,
+		logger:    logger,
+		workers:   utils.Clamp(workers, 1, MAX_WORKERS),
 	}
 }
 
@@ -62,7 +59,7 @@ func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath strin
 		wg.Wait()
 
 		if reqCount.Load() > 0 {
-			this.logManager.Add(doneMessage(errCount.Load()))
+			this.logger.Add(doneMessage(errCount.Load()))
 		}
 		reqCount.Store(0)
 		errCount.Store(0)
@@ -78,19 +75,19 @@ Processing:
 	for row := range out {
 		select {
 		case <-ctx.Done():
-			this.logManager.Add(cancelationMsg())
+			this.logger.Add(cancelationMsg())
 			break Processing
 		default:
 			response, err := this.gateway.Exec(row)
 			reqCount.Add(1)
 			if err != nil {
 				errCount.Add(1)
-				this.logManager.Add(requestError(err.Error()))
+				this.logger.Add(requestError(err.Error()))
 			} else if response.StatusCode != http.StatusOK {
 				errCount.Add(1)
-				this.logManager.Add(httpStatusError(row, response.StatusCode))
+				this.logger.Add(httpStatusError(row, response.StatusCode))
 			}
-			this.fileLogger.Write(filelogger.NewLine(response.URL, response.StatusCode, err, response.Body))
+			this.logger.Write(logs.NewLine(response.URL, response.StatusCode, err, response.Body))
 		}
 	}
 }
@@ -100,7 +97,7 @@ func (this *processorImpl) mapCSV(ctx context.Context, cancel func(), filePath s
 
 	reader, file, err := buildCSVReader(filePath, csvSep(this.csvConfig))
 	if err != nil {
-		this.logManager.Add(csvError(err.Error()))
+		this.logger.Add(csvError(err.Error()))
 		cancel()
 		return
 	}
@@ -108,13 +105,13 @@ func (this *processorImpl) mapCSV(ctx context.Context, cancel func(), filePath s
 
 	headers, err := getCSVHeaders(reader)
 	if err != nil {
-		this.logManager.Add(csvError(err.Error()))
+		this.logger.Add(csvError(err.Error()))
 		cancel()
 		return
 	}
 
 	indexes := headerIndexes(headers, this.csvConfig.Fields)
-	this.logManager.Add(processingMessage(filepath.Base(filePath), this.workers))
+	this.logger.Add(processingMessage(filepath.Base(filePath), this.workers))
 
 Read:
 	for {
@@ -127,7 +124,7 @@ Read:
 				break Read
 			}
 			if err != nil {
-				this.logManager.Add(csvError(err.Error()))
+				this.logger.Add(csvError(err.Error()))
 				continue
 			}
 			linesCount.Add(1)

@@ -3,7 +3,7 @@ package ui
 import (
 	"context"
 
-	"github.com/anibaldeboni/rapper/internal/execlog"
+	logs1 "github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
 
@@ -19,7 +19,7 @@ var (
 	AppName       = "rapper"
 	AppVersion    = "2.6.0"
 	viewPortTitle = styles.TitleStyle.Render("Execution logs")
-	logs          execlog.Manager
+	logs          logs1.Logger
 	ctx           context.Context
 	cancel        context.CancelFunc
 	state         = &State{}
@@ -35,10 +35,10 @@ type Model struct {
 	width     int
 }
 
-func New(csvFiles []string, csvProc processor.Processor, logManager execlog.Manager) *Model {
+func New(csvFiles []string, csvProc processor.Processor, logger logs1.Logger) *Model {
 	state.Set(SelectFile)
 	csvProcessor = csvProc
-	logs = logManager
+	logs = logger
 
 	return &Model{
 		viewport:  viewport.New(20, 60),
@@ -62,8 +62,8 @@ func stop() {
 	state.Set(Stale)
 }
 
-func operationError() execlog.Message {
-	return execlog.NewMessage().
+func operationError() logs1.Message {
+	return logs1.NewMessage().
 		WithIcon(styles.IconInformation).
 		WithMessage("Please wait the current operation to finish or cancel pressing ESC")
 }

@@ -1,4 +1,4 @@
-package execlog
+package logs
 
 import (
 	"fmt"

@@ -8,8 +8,7 @@ import (
 	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/config"
-	"github.com/anibaldeboni/rapper/internal/execlog"
-	"github.com/anibaldeboni/rapper/internal/filelogger"
+	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui"
@@ -45,7 +44,7 @@ func main() {
 		handleExit(err)
 	}
 
-	logsManager := execlog.NewLogManager()
+	logger := logs.NewLoggger(*outputFile)
 
 	hg := web.NewHttpGateway(
 		cfg.Token,
@@ -57,8 +56,7 @@ func main() {
 	csvProcessor := processor.New(
 		cfg.CSV,
 		hg,
-		filelogger.New(*outputFile, logsManager),
-		logsManager,
+		logger,
 		*workers,
 	)
 
@@ -70,7 +68,7 @@ func main() {
 		handleExit(fmt.Errorf("No CSV files found in %s", styles.Bold(*workingDir)))
 	}
 
-	tui := ui.New(filePaths, csvProcessor, logsManager)
+	tui := ui.New(filePaths, csvProcessor, logger)
 
 	if _, err := tea.NewProgram(tui).Run(); err != nil {
 		handleExit(err)
