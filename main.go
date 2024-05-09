@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/execlog"
@@ -99,18 +98,18 @@ func UpdateCheck() string {
 }
 
 func handleExit(err ...error) {
-	var wg sync.WaitGroup
 	var exitMsg []string
 	var exitCode int
 
-	wg.Add(1)
-	go func(wg *sync.WaitGroup) {
-		defer wg.Done()
+	ch := make(chan bool, 1)
+
+	go func(ch chan bool) {
 		exitMsg = append(exitMsg, UpdateCheck())
-	}(&wg)
+		ch <- true
+	}(ch)
 
 	logo.PrintAnimated()
-	wg.Wait()
+	<-ch
 
 	if err != nil {
 		exitCode = 1
