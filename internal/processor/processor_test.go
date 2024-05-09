@@ -27,7 +27,7 @@ func TestProcessor_Do(t *testing.T) {
 			}).Times(2)
 		loggerMock := mock_log.NewMockLogger(ctrl)
 		loggerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
-		loggerMock.EXPECT().Write(gomock.Any()).Times(2)
+		loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(2)
 
 		csvData := "header1,header2\nvalue1,value2\nvalue3,value4\n"
 		tempFile := createCsvFile(t, csvData)
@@ -54,7 +54,7 @@ func TestProcessor_Do(t *testing.T) {
 			}).Times(1)
 		loggerMock := mock_log.NewMockLogger(ctrl)
 		loggerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
-		loggerMock.EXPECT().Write(gomock.Any()).Times(1)
+		loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
 
 		csvData := "header1,header2\nvalue1,value2\n"
 		tempFile := createCsvFile(t, csvData)

@@ -23,7 +23,7 @@ type Logger interface {
 	Add(Message)
 	Get() []string
 	Len() int
-	Write(Line)
+	WriteToFile(Line)
 }
 
 type loggerImpl struct {
@@ -95,17 +95,11 @@ func NewLine(url string, status int, err error, body []byte) Line {
 	return Line{URL: url, Status: status, Error: err, Body: body}
 }
 
-func enabled(this *loggerImpl) bool {
-	return this.logFile != nil
-}
-
-// Write writes a line to the file logger.
+// WriteToFile writes a line to the file logger.
 // If the logger is enabled, it acquires a lock, writes the line to the file,
 // and adds an error message to the log manager if there was an error writing to the file.
-func (this *loggerImpl) Write(line Line) {
-	if enabled(this) {
-		this.Lock()
-		defer this.Unlock()
+func (this *loggerImpl) WriteToFile(line Line) {
+	if this.logFile != nil {
 		if err := write(this.logFile, line); err != nil {
 			this.Add(errorMessage(err.Error()))
 		}

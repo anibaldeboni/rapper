@@ -65,7 +65,7 @@ func TestWriteToFile(t *testing.T) {
 	stream := logs.NewLoggger(tmpFile.Name())
 
 	line := logs.Line{Status: 200, URL: "http://example.com"}
-	stream.Write(line)
+	stream.WriteToFile(line)
 
 	// Read the contents of the temporary file
 	file, err := os.Open(tmpFile.Name())

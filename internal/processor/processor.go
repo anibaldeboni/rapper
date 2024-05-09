@@ -87,7 +87,7 @@ Processing:
 				errCount.Add(1)
 				this.logger.Add(httpStatusError(row, response.StatusCode))
 			}
-			this.logger.Write(logs.NewLine(response.URL, response.StatusCode, err, response.Body))
+			this.logger.WriteToFile(logs.NewLine(response.URL, response.StatusCode, err, response.Body))
 		}
 	}
 }

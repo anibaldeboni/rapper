@@ -93,14 +93,14 @@ func (mr *MockLoggerMockRecorder) Len() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Len", reflect.TypeOf((*MockLogger)(nil).Len))
 }
 
-// Write mocks base method.
-func (m *MockLogger) Write(arg0 logs.Line) {
+// WriteToFile mocks base method.
+func (m *MockLogger) WriteToFile(arg0 logs.Line) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Write", arg0)
+	m.ctrl.Call(m, "WriteToFile", arg0)
 }
 
-// Write indicates an expected call of Write.
-func (mr *MockLoggerMockRecorder) Write(arg0 any) *gomock.Call {
+// WriteToFile indicates an expected call of WriteToFile.
+func (mr *MockLoggerMockRecorder) WriteToFile(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockLogger)(nil).Write), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteToFile", reflect.TypeOf((*MockLogger)(nil).WriteToFile), arg0)
 }
