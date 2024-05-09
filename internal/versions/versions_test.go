@@ -12,6 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type want struct {
+	update  bool
+	version string
+	url     string
+}
+
 func TestCheckForUpdate(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -25,35 +31,35 @@ func TestCheckForUpdate(t *testing.T) {
 	tests := []struct {
 		name     string
 		version  string
-		want     versions.Update
+		want     want
 		response web.Response
 		err      error
 	}{
 		{
 			name:     "When app is up-to-date",
 			version:  "v2.0.0",
-			want:     versions.Update{},
+			want:     want{update: false, version: "", url: ""},
 			response: response,
 			err:      nil,
 		},
 		{
 			name:     "When app is out-of-date",
 			version:  "v1.0.0",
-			want:     versions.Update{Version: "v2.0.0", Url: "release_url"},
+			want:     want{update: true, version: "v2.0.0", url: "release_url"},
 			response: response,
 			err:      nil,
 		},
 		{
 			name:     "When a request error occur",
 			version:  "v1.0.0",
-			want:     versions.Update{},
+			want:     want{update: false, version: "", url: ""},
 			response: web.Response{},
 			err:      errors.New("request-error"),
 		},
 		{
 			name:    "When the request body is not a json",
 			version: "v1.0.0",
-			want:    versions.Update{},
+			want:    want{update: false, version: "", url: ""},
 			response: web.Response{
 				StatusCode: 200,
 				Body:       []byte(`body-is-not-a-json`),
@@ -65,10 +71,12 @@ func TestCheckForUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client.EXPECT().Get(gomock.Any(), gomock.Any()).Return(tt.response, tt.err).Times(1)
-			got, _ := versions.CheckForUpdate(client, tt.version)
+			subject := versions.NewUpdateChecker(client, tt.version)
+			got := subject.CheckForUpdate()
 
-			assert.Equal(t, tt.want.Url, got.Url)
-			assert.Equal(t, tt.want.Version, got.Version)
+			assert.Equal(t, tt.want.url, got.Url())
+			assert.Equal(t, tt.want.version, got.Version())
+			assert.Equal(t, tt.want.update, got.HasUpdate())
 		})
 	}
 }

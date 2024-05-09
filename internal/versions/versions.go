@@ -23,40 +23,69 @@ type release struct {
 	HtmlUrl string `json:"html_url"`
 }
 
-type Update struct {
-	Available bool
-	Version   string
-	Url       string
+type update struct {
+	available bool
+	version   string
+	url       string
 }
 
-func CheckForUpdate(hc web.HttpClient, currentVersion string) (Update, bool) {
-	var update Update
-	var ok bool
+type Update interface {
+	HasUpdate() bool
+	Version() string
+	Url() string
+}
 
-	res, err := hc.Get(releaseUrl, headers)
+func (u update) HasUpdate() bool {
+	return u.available
+}
+
+func (u update) Version() string {
+	return u.version
+}
+
+func (u update) Url() string {
+	return u.url
+}
+
+type UpdateChecker interface {
+	CheckForUpdate() Update
+}
+
+type updateChecker struct {
+	hc             web.HttpClient
+	currentVersion string
+}
+
+func NewUpdateChecker(hc web.HttpClient, currentVersion string) UpdateChecker {
+	return &updateChecker{hc: hc, currentVersion: currentVersion}
+}
+
+func (this updateChecker) CheckForUpdate() Update {
+	var update update
+
+	res, err := this.hc.Get(releaseUrl, headers)
 	if err != nil {
-		return update, ok
+		return update
 	}
 	var releases []release
 	err = json.Unmarshal(res.Body, &releases)
 	if err != nil {
-		return update, ok
+		return update
 	}
 
-	current, err := version.NewVersion(currentVersion)
+	current, err := version.NewVersion(this.currentVersion)
 	if err != nil {
-		return update, ok
+		return update
 	}
 	latest, err := version.NewVersion(releases[0].TagName)
 	if err != nil {
-		return update, ok
+		return update
 	}
 
 	if latest.GreaterThan(current) {
-		update.Version = releases[0].TagName
-		update.Url = releases[0].HtmlUrl
-		update.Available = true
-		ok = true
+		update.version = releases[0].TagName
+		update.url = releases[0].HtmlUrl
+		update.available = true
 	}
-	return update, ok
+	return update
 }

@@ -21,10 +21,11 @@ import (
 )
 
 var (
-	configPath *string
-	workingDir *string
-	outputFile *string
-	workers    *int
+	configPath    *string
+	workingDir    *string
+	outputFile    *string
+	workers       *int
+	updateChecker versions.UpdateChecker
 )
 
 func init() {
@@ -35,6 +36,7 @@ func init() {
 	workers = flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MAX_WORKERS))
 	flag.Usage = Usage
 	flag.Parse()
+	updateChecker = versions.NewUpdateChecker(web.NewHttpClient(), ui.AppVersion)
 }
 
 func main() {
@@ -90,9 +92,9 @@ func Usage() {
 }
 
 func UpdateCheck() string {
-	update, available := versions.CheckForUpdate(web.NewHttpClient(), ui.AppVersion)
-	if available {
-		return styles.IconInformation + " New version available: " + styles.Bold(update.Version) + " (" + update.Url + ")"
+	update := updateChecker.CheckForUpdate()
+	if update.HasUpdate() {
+		return styles.IconInformation + " New version available: " + styles.Bold(update.Version()) + " (" + update.Url() + ")"
 	}
 	return "is up-to-date."
 }
