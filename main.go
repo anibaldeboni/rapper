@@ -33,7 +33,7 @@ func init() {
 	workingDir = flag.String("dir", cwd, "path to directory containing the CSV files")
 	outputFile = flag.String("output", "", "path to output file, including the file name")
 	workers = flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MAX_WORKERS))
-	flag.Usage = Usage
+	flag.Usage = usage
 	flag.Parse()
 	updateChecker = versions.NewUpdateChecker(web.NewHttpClient(), ui.AppVersion)
 }
@@ -53,7 +53,7 @@ func main() {
 		cfg.Payload.Template,
 	)
 
-	csvProcessor := processor.New(
+	csvProcessor := processor.NewProcessor(
 		cfg.CSV,
 		hg,
 		logger,
@@ -77,7 +77,7 @@ func main() {
 	handleExit()
 }
 
-func Usage() {
+func usage() {
 	fmt.Printf("%s (%s)\n", styles.Bold(ui.AppName), ui.AppVersion)
 	fmt.Println("\nA CLI tool to send HTTP requests based on CSV files.")
 	fmt.Printf("All flags are optional. If %s or %s are not provided, the current directory will be used.\n", styles.Bold("-config"), styles.Bold("-dir"))
@@ -86,10 +86,10 @@ func Usage() {
 	fmt.Printf("  %s [options]\n", styles.Bold(filepath.Base(os.Args[0])))
 	fmt.Println("\nOptions:")
 	flag.PrintDefaults()
-	fmt.Println("\n" + UpdateCheck())
+	fmt.Println("\n" + updateCheck())
 }
 
-func UpdateCheck() string {
+func updateCheck() string {
 	update := updateChecker.CheckForUpdate()
 	if update.HasUpdate() {
 		return styles.IconInformation + " New version available: " + styles.Bold(update.Version()) + " (" + update.Url() + ")"
@@ -101,15 +101,15 @@ func handleExit(err ...error) {
 	var exitMsg []string
 	var exitCode int
 
-	ch := make(chan bool, 1)
+	wait := make(chan bool, 1)
 
-	go func(ch chan bool) {
-		exitMsg = append(exitMsg, UpdateCheck())
-		ch <- true
-	}(ch)
+	go func(wait chan bool) {
+		exitMsg = append(exitMsg, updateCheck())
+		wait <- true
+	}(wait)
 
 	logo.PrintAnimated()
-	<-ch
+	<-wait
 
 	if err != nil {
 		exitCode = 1

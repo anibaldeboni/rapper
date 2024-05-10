@@ -34,7 +34,7 @@ func TestProcessor_Do(t *testing.T) {
 		defer os.Remove(tempFile.Name())
 
 		ctx, cancel := context.WithCancel(context.Background())
-		p := New(config.CSV{Fields: []string{"header1", "header2"}, Separator: ","}, gatewayMock, loggerMock, 1)
+		p := NewProcessor(config.CSV{Fields: []string{"header1", "header2"}, Separator: ","}, gatewayMock, loggerMock, 1)
 
 		p.Do(ctx, cancel, tempFile.Name())
 		wg.Wait()
@@ -61,7 +61,7 @@ func TestProcessor_Do(t *testing.T) {
 		defer os.Remove(tempFile.Name())
 
 		ctx, cancel := context.WithCancel(context.Background())
-		p := New(config.CSV{Fields: []string{"header1"}, Separator: ","}, gatewayMock, loggerMock, 1)
+		p := NewProcessor(config.CSV{Fields: []string{"header1"}, Separator: ","}, gatewayMock, loggerMock, 1)
 
 		p.Do(ctx, cancel, tempFile.Name())
 		wg.Wait()

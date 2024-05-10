@@ -35,7 +35,14 @@ type processorImpl struct {
 	workers   int
 }
 
-func New(cfg config.CSV, hg web.HttpGateway, logger logs.Logger, workers int) Processor {
+// NewProcessor creates a new instance of the Processor interface.
+// It takes in the following parameters:
+// - cfg: The CSV configuration.
+// - hg: The HTTP gateway.
+// - logger: The logger.
+// - workers: The number of workers to be used.
+// It returns a pointer to the Processor interface.
+func NewProcessor(cfg config.CSV, hg web.HttpGateway, logger logs.Logger, workers int) Processor {
 	return &processorImpl{
 		csvConfig: cfg,
 		gateway:   hg,
@@ -44,6 +51,10 @@ func New(cfg config.CSV, hg web.HttpGateway, logger logs.Logger, workers int) Pr
 	}
 }
 
+// Do performs the processing of a file specified by the given filePath.
+// It creates a channel to receive the output from the mapCSV function and spawns multiple worker goroutines to process the output concurrently.
+// Once all the workers have finished processing, it checks if there were any requests processed and logs a message if there were any errors.
+// Finally, it resets the request, error, and lines counters and cancels the context.
 func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath string) {
 	out := make(chan map[string]string)
 	go this.mapCSV(ctx, cancel, filePath, out)

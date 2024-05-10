@@ -9,13 +9,6 @@ import (
 
 var _ Logger = (*loggerImpl)(nil)
 
-type Message interface {
-	String() string
-	WithIcon(string) Message
-	WithKind(string) Message
-	WithMessage(string) Message
-}
-
 //go:generate mockgen -destination mock/log_mock.go github.com/anibaldeboni/rapper/internal/logs Logger
 type Logger interface {
 	HasNewLogs() bool
@@ -86,9 +79,8 @@ type LogLiner interface {
 	String() []byte
 }
 
-// WriteToFile writes a line to the file logger.
-// If the logger is enabled, it acquires a lock, writes the line to the file,
-// and adds an error message to the log manager if there was an error writing to the file.
+// WriteToFile writes the given log line to the log file, if it is open.
+// If there is an error while writing to the file, an error message is added to the logger.
 func (this *loggerImpl) WriteToFile(line LogLiner) {
 	if this.logFile != nil {
 		if err := write(this.logFile, line); err != nil {
