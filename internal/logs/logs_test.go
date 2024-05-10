@@ -56,6 +56,14 @@ func TestHasNewLogs(t *testing.T) {
 	})
 }
 
+type testLog struct {
+	Message string `json:"message"`
+}
+
+func (this testLog) String() []byte {
+	return []byte("{\"message\":\"" + this.Message + "\"}")
+}
+
 func TestWriteToFile(t *testing.T) {
 	// Create a temporary file for testing
 	tmpFile, err := os.CreateTemp("", "test_output_*.txt")
@@ -64,7 +72,7 @@ func TestWriteToFile(t *testing.T) {
 
 	stream := logs.NewLoggger(tmpFile.Name())
 
-	line := logs.Line{Status: 200, URL: "http://example.com"}
+	line := testLog{Message: "test message"}
 	stream.WriteToFile(line)
 
 	// Read the contents of the temporary file
@@ -73,7 +81,7 @@ func TestWriteToFile(t *testing.T) {
 	defer file.Close()
 
 	// Read the log message from the file
-	var loggedMessage logs.Line
+	var loggedMessage testLog
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&loggedMessage)
 	assert.NoError(t, err)

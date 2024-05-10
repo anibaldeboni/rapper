@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 
@@ -75,4 +76,16 @@ func workersMsg(workers int) string {
 		w += "s"
 	}
 	return fmt.Sprintf("%d %s", workers, w)
+}
+
+type RequestLine struct {
+	URL    string `json:"url"`
+	Status int    `json:"status"`
+	Error  error  `json:"error"`
+	Body   []byte `json:"body"`
+}
+
+func (this RequestLine) String() []byte {
+	m, _ := json.Marshal(this)
+	return m
 }

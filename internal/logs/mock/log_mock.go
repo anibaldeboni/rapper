@@ -94,7 +94,7 @@ func (mr *MockLoggerMockRecorder) Len() *gomock.Call {
 }
 
 // WriteToFile mocks base method.
-func (m *MockLogger) WriteToFile(arg0 logs.Line) {
+func (m *MockLogger) WriteToFile(arg0 logs.LogLiner) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "WriteToFile", arg0)
 }

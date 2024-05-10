@@ -1,7 +1,6 @@
 package logs
 
 import (
-	"encoding/json"
 	"os"
 	"sync"
 
@@ -23,7 +22,7 @@ type Logger interface {
 	Add(Message)
 	Get() []string
 	Len() int
-	WriteToFile(Line)
+	WriteToFile(LogLiner)
 }
 
 type loggerImpl struct {
@@ -83,22 +82,14 @@ func (this *loggerImpl) Len() int {
 	return len(this.logs)
 }
 
-type Line struct {
-	URL    string `json:"url"`
-	Status int    `json:"status"`
-	Error  error  `json:"error"`
-	Body   []byte `json:"body"`
-}
-
-// NewLine creates a new Line struct with the provided URL, status code, error, and body.
-func NewLine(url string, status int, err error, body []byte) Line {
-	return Line{URL: url, Status: status, Error: err, Body: body}
+type LogLiner interface {
+	String() []byte
 }
 
 // WriteToFile writes a line to the file logger.
 // If the logger is enabled, it acquires a lock, writes the line to the file,
 // and adds an error message to the log manager if there was an error writing to the file.
-func (this *loggerImpl) WriteToFile(line Line) {
+func (this *loggerImpl) WriteToFile(line LogLiner) {
 	if this.logFile != nil {
 		if err := write(this.logFile, line); err != nil {
 			this.Add(errorMessage(err.Error()))
@@ -113,9 +104,8 @@ func errorMessage(message string) Message {
 		WithMessage(message)
 }
 
-func write(file *os.File, line Line) error {
-	m, _ := json.Marshal(line)
-	if _, err := file.Write(append(m, '\n')); err != nil {
+func write(file *os.File, line LogLiner) error {
+	if _, err := file.Write(append(line.String(), '\n')); err != nil {
 		return err
 	}
 	return nil
