@@ -1,4 +1,4 @@
-package execlog
+package logs
 
 import (
 	"fmt"
@@ -7,6 +7,13 @@ import (
 )
 
 var _ Message = (*messageImpl)(nil)
+
+type Message interface {
+	String() string
+	WithIcon(string) Message
+	WithKind(string) Message
+	WithMessage(string) Message
+}
 
 type messageImpl struct {
 	message string

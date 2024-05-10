@@ -6,11 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/anibaldeboni/rapper/internal/config"
-	"github.com/anibaldeboni/rapper/internal/execlog"
-	"github.com/anibaldeboni/rapper/internal/filelogger"
+	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui"
@@ -22,10 +20,11 @@ import (
 )
 
 var (
-	configPath *string
-	workingDir *string
-	outputFile *string
-	workers    *int
+	configPath    *string
+	workingDir    *string
+	outputFile    *string
+	workers       *int
+	updateChecker versions.UpdateChecker
 )
 
 func init() {
@@ -34,8 +33,9 @@ func init() {
 	workingDir = flag.String("dir", cwd, "path to directory containing the CSV files")
 	outputFile = flag.String("output", "", "path to output file, including the file name")
 	workers = flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MAX_WORKERS))
-	flag.Usage = Usage
+	flag.Usage = usage
 	flag.Parse()
+	updateChecker = versions.NewUpdateChecker(web.NewHttpClient(), ui.AppVersion)
 }
 
 func main() {
@@ -44,7 +44,7 @@ func main() {
 		handleExit(err)
 	}
 
-	logsManager := execlog.NewLogManager()
+	logger := logs.NewLoggger(*outputFile)
 
 	hg := web.NewHttpGateway(
 		cfg.Token,
@@ -53,11 +53,10 @@ func main() {
 		cfg.Payload.Template,
 	)
 
-	csvProcessor := processor.New(
+	csvProcessor := processor.NewProcessor(
 		cfg.CSV,
 		hg,
-		filelogger.New(*outputFile, logsManager),
-		logsManager,
+		logger,
 		*workers,
 	)
 
@@ -69,7 +68,7 @@ func main() {
 		handleExit(fmt.Errorf("No CSV files found in %s", styles.Bold(*workingDir)))
 	}
 
-	tui := ui.New(filePaths, csvProcessor, logsManager)
+	tui := ui.New(filePaths, csvProcessor, logger)
 
 	if _, err := tea.NewProgram(tui).Run(); err != nil {
 		handleExit(err)
@@ -78,39 +77,39 @@ func main() {
 	handleExit()
 }
 
-func Usage() {
+func usage() {
 	fmt.Printf("%s (%s)\n", styles.Bold(ui.AppName), ui.AppVersion)
 	fmt.Println("\nA CLI tool to send HTTP requests based on CSV files.")
 	fmt.Printf("All flags are optional. If %s or %s are not provided, the current directory will be used.\n", styles.Bold("-config"), styles.Bold("-dir"))
-	fmt.Printf("If %s file is not provided, the responses bodies will not be saved.\n", styles.Bold("-output"))
+	fmt.Printf("If %s file is not provided, the request responses will not be saved.\n", styles.Bold("-output"))
 	fmt.Println("\nUsage:")
 	fmt.Printf("  %s [options]\n", styles.Bold(filepath.Base(os.Args[0])))
 	fmt.Println("\nOptions:")
 	flag.PrintDefaults()
-	fmt.Println("\n" + UpdateCheck())
+	fmt.Println("\n" + updateCheck())
 }
 
-func UpdateCheck() string {
-	update, available := versions.CheckForUpdate(web.NewHttpClient(), ui.AppVersion)
-	if available {
-		return styles.IconInformation + " New version available: " + styles.Bold(update.Version) + " (" + update.Url + ")"
+func updateCheck() string {
+	update := updateChecker.CheckForUpdate()
+	if update.HasUpdate() {
+		return styles.IconInformation + " New version available: " + styles.Bold(update.Version()) + " (" + update.Url() + ")"
 	}
 	return "is up-to-date."
 }
 
 func handleExit(err ...error) {
-	var wg sync.WaitGroup
 	var exitMsg []string
 	var exitCode int
 
-	wg.Add(1)
-	go func(wg *sync.WaitGroup) {
-		defer wg.Done()
-		exitMsg = append(exitMsg, UpdateCheck())
-	}(&wg)
+	wait := make(chan bool, 1)
+
+	go func(wait chan bool) {
+		exitMsg = append(exitMsg, updateCheck())
+		wait <- true
+	}(wait)
 
 	logo.PrintAnimated()
-	wg.Wait()
+	<-wait
 
 	if err != nil {
 		exitCode = 1

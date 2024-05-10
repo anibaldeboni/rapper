@@ -53,8 +53,8 @@ func (this Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return this.resizeElements(msg.Width, msg.Height), nil
 
 	case tickMsg:
-		if logs.HasNewLogs() {
-			this.viewport.SetContent(strings.Join(logs.Get(), "\n"))
+		if logger.HasNewLogs() {
+			this.viewport.SetContent(strings.Join(logger.Get(), "\n"))
 			this.viewport.GotoBottom()
 		}
 		return this, tea.Batch(cmd, tickCmd())
