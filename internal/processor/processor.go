@@ -28,6 +28,8 @@ type Processor interface {
 	Do(ctx context.Context, cancel func(), filePath string)
 }
 
+type csvLineMap map[string]string
+
 type processorImpl struct {
 	csvConfig config.CSV
 	gateway   web.HttpGateway
@@ -56,9 +58,10 @@ func NewProcessor(cfg config.CSV, hg web.HttpGateway, logger logs.Logger, worker
 // Once all the workers have finished processing, it checks if there were any requests processed and logs a message if there were any errors.
 // Finally, it resets the request, error, and lines counters and cancels the context.
 func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath string) {
-	out := this.mapCSV(ctx, cancel, filePath)
+	out := this.mapCSV(ctx, filePath)
 
 	if out == nil {
+		cancel()
 		return
 	}
 
@@ -81,7 +84,7 @@ func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath strin
 	}()
 }
 
-func (this *processorImpl) worker(ctx context.Context, wg *sync.WaitGroup, out <-chan map[string]string) {
+func (this *processorImpl) worker(ctx context.Context, wg *sync.WaitGroup, out <-chan csvLineMap) {
 	defer wg.Done()
 
 Processing:
@@ -105,24 +108,22 @@ Processing:
 	}
 }
 
-func (this *processorImpl) mapCSV(ctx context.Context, cancel func(), filePath string) <-chan map[string]string {
-	out := make(chan map[string]string, this.workers)
+func (this *processorImpl) mapCSV(ctx context.Context, filePath string) <-chan csvLineMap {
+	out := make(chan csvLineMap, this.workers)
 
-	reader, file, err := buildCSVReader(filePath, csvSep(this.csvConfig))
+	reader, file, err := newCSVReader(filePath, csvSep(this.csvConfig))
 	if err != nil {
 		this.logger.Add(csvError(err.Error()))
-		cancel()
 		return nil
 	}
 
-	headers, err := getCSVHeaders(reader)
+	headers, err := readCSVHeaders(reader)
 	if err != nil {
 		this.logger.Add(csvError(err.Error()))
-		cancel()
 		return nil
 	}
 
-	indexes := headerIndexes(headers, this.csvConfig.Fields)
+	indexes := buildFilteredFieldIndex(headers, this.csvConfig.Fields)
 	this.logger.Add(processingMessage(filepath.Base(filePath), this.workers))
 
 	go func() {

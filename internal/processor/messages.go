@@ -49,19 +49,17 @@ func httpStatusError(record map[string]string, status int) logs.Message {
 }
 
 func doneMessage(errs uint64) logs.Message {
-	var errMsg string
-	var icon string
+	errMsg := styles.Green("no errors")
+	icon := styles.IconTrophy
+
 	if errs > 0 {
 		errMsg = fmt.Sprintf("%s errors", styles.Pink(fmt.Sprint(errs)))
 		icon = styles.IconError
-	} else {
-		errMsg = styles.Green("no errors")
-		icon = styles.IconTrophy
 	}
+
 	return logs.NewMessage().
 		WithIcon(icon).
 		WithMessage(fmt.Sprintf("Finished with %s\n", errMsg))
-
 }
 
 func processingMessage(file string, workers int) logs.Message {
