@@ -28,11 +28,20 @@ var (
 	baseConfig LogoConfiguration
 )
 
+func rndLogo() string {
+	weightedNames := map[string]float64{
+		"Rapper": 0.75,
+		"Aggro!": 0.25,
+	}
+
+	return utils.WeightedRandom(weightedNames)
+}
+
 func init() {
 	figlets, _ = assets.LoadAllFiglets()
 	baseConfig = LogoConfiguration{
 		Style: &lipgloss.Style{},
-		Text:  "Rapper",
+		Text:  rndLogo(),
 		Font:  randomFiglet(),
 	}
 }
@@ -75,6 +84,7 @@ func PrintAnimated() {
 		time.Sleep(50 * time.Millisecond)
 	}
 }
+
 func buildLogo(config LogoConfiguration, options ...LogoOption) string {
 	for _, opt := range options {
 		opt(&config)
