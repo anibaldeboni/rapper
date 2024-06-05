@@ -9,9 +9,10 @@ import (
 	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/config"
+	"github.com/anibaldeboni/rapper/internal/utils"
 )
 
-func getCSVHeaders(reader *csv.Reader) ([]string, error) {
+func readCSVHeaders(reader *csv.Reader) ([]string, error) {
 	headers, err := reader.Read()
 	if err != nil {
 		if err == io.EOF {
@@ -23,7 +24,7 @@ func getCSVHeaders(reader *csv.Reader) ([]string, error) {
 	return headers, nil
 }
 
-func buildCSVReader(filePath string, sep rune) (*csv.Reader, *os.File, error) {
+func newCSVReader(filePath string, sep rune) (*csv.Reader, *os.File, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error opening file: %w", err)
@@ -45,12 +46,12 @@ func mapRow(headers []string, indexes map[string]int, record []string) map[strin
 	return row
 }
 
-func headerIndexes(headers []string, fields []string) map[string]int {
-	indexes := make(map[string]int, len(headers))
-	if len(fields) == 0 {
-		fields = headers
+func buildFilteredFieldIndex(csvHeaders []string, fieldsToFilter []string) map[string]int {
+	indexes := make(map[string]int, len(csvHeaders))
+	if len(fieldsToFilter) == 0 {
+		fieldsToFilter = csvHeaders
 	}
-	for i, field := range fields {
+	for i, field := range fieldsToFilter {
 		indexes[field] = i
 	}
 
@@ -59,7 +60,7 @@ func headerIndexes(headers []string, fields []string) map[string]int {
 
 func csvSep(cfg config.CSV) rune {
 	sep := strings.Trim(cfg.Separator, " ")
-	if sep == "" {
+	if utils.IsZero(sep) {
 		sep = ","
 	}
 	return rune(sep[0])
