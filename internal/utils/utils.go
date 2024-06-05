@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"cmp"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -81,7 +82,7 @@ func FindFiles(dir string, f ...string) ([]string, error) {
 // If the value is less than the minimum, it returns the minimum value.
 // If the value is greater than the maximum, it returns the maximum value.
 // Otherwise, it returns the original value.
-func Clamp(value, min, max int) int {
+func Clamp[T cmp.Ordered](value, min, max T) T {
 	if value < min {
 		return min
 	}
