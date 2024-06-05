@@ -2,6 +2,7 @@ package assets
 
 import (
 	"embed"
+	"fmt"
 	"strings"
 )
 
@@ -13,7 +14,7 @@ type Figlets map[string][]byte
 func LoadAllFiglets() (Figlets, error) {
 	files, err := figlets.ReadDir("figlets")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error reading figlet files: %w", err)
 	}
 
 	var figletMap = make(map[string][]byte)

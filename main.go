@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -24,7 +25,7 @@ var (
 	workingDir    *string
 	outputFile    *string
 	workers       *int
-	updateChecker versions.UpdateChecker
+	updateChecker = versions.NewUpdateChecker(web.NewHttpClient(), ui.AppVersion)
 )
 
 func init() {
@@ -35,7 +36,6 @@ func init() {
 	workers = flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MAX_WORKERS))
 	flag.Usage = usage
 	flag.Parse()
-	updateChecker = versions.NewUpdateChecker(web.NewHttpClient(), ui.AppVersion)
 }
 
 func main() {
@@ -60,9 +60,9 @@ func main() {
 		*workers,
 	)
 
-	filePaths, errs := utils.FindFiles(*workingDir, "*.csv")
-	if len(errs) > 0 {
-		handleExit(fmt.Errorf("Could not execute file scan in %s", styles.Bold(*workingDir)))
+	filePaths, err := utils.FindFiles(*workingDir, "*.csv")
+	if err != nil {
+		handleExit(fmt.Errorf("Could not execute file scan in %s - %w", styles.Bold(*workingDir), err))
 	}
 	if len(filePaths) == 0 {
 		handleExit(fmt.Errorf("No CSV files found in %s", styles.Bold(*workingDir)))
@@ -113,9 +113,8 @@ func handleExit(err ...error) {
 
 	if err != nil {
 		exitCode = 1
-		for _, e := range err {
-			exitMsg = append(exitMsg, e.Error())
-		}
+		errs := fmt.Errorf("%w", errors.Join(err...))
+		exitMsg = append(exitMsg, errs.Error())
 	}
 
 	fmt.Println(

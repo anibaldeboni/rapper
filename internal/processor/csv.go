@@ -3,6 +3,7 @@ package processor
 import (
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -16,7 +17,7 @@ func getCSVHeaders(reader *csv.Reader) ([]string, error) {
 		if err == io.EOF {
 			err = errors.New("No records found in the file\n")
 		}
-		return nil, err
+		return nil, fmt.Errorf("Error reading headers: %w", err)
 	}
 
 	return headers, nil
@@ -25,7 +26,7 @@ func getCSVHeaders(reader *csv.Reader) ([]string, error) {
 func buildCSVReader(filePath string, sep rune) (*csv.Reader, *os.File, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("Error opening file: %w", err)
 	}
 
 	reader := csv.NewReader(file)
