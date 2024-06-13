@@ -21,14 +21,16 @@ import (
 )
 
 var (
-	configPath    *string
-	workingDir    *string
-	outputFile    *string
-	workers       *int
-	updateChecker = versions.NewUpdateChecker(web.NewHttpClient(), ui.AppVersion)
+	configPath *string
+	workingDir *string
+	outputFile *string
+	workers    *int
+	updateMsg  = "is up-to-date."
+	wait       = make(chan struct{})
 )
 
 func init() {
+	go updateCheck(wait)
 	cwd, _ := os.Getwd()
 	configPath = flag.String("config", cwd, "path to directory containing a config file")
 	workingDir = flag.String("dir", cwd, "path to directory containing the CSV files")
@@ -41,7 +43,7 @@ func init() {
 func main() {
 	cfg, err := config.Config(*configPath)
 	if err != nil {
-		handleExit(err)
+		handleExit(fmt.Errorf("Could not read config file: %w", err))
 	}
 
 	logger := logs.NewLoggger(*outputFile)
@@ -62,7 +64,7 @@ func main() {
 
 	filePaths, err := utils.FindFiles(*workingDir, "*.csv")
 	if err != nil {
-		handleExit(fmt.Errorf("Could not execute file scan in %s - %w", styles.Bold(*workingDir), err))
+		handleExit(fmt.Errorf("Could not execute file scan in %s: %w", styles.Bold(*workingDir), err))
 	}
 	if len(filePaths) == 0 {
 		handleExit(fmt.Errorf("No CSV files found in %s", styles.Bold(*workingDir)))
@@ -71,7 +73,7 @@ func main() {
 	tui := ui.New(filePaths, csvProcessor, logger)
 
 	if _, err := tea.NewProgram(tui).Run(); err != nil {
-		handleExit(err)
+		handleExit(fmt.Errorf("Could not run the program: %w", err))
 	}
 
 	handleExit()
@@ -86,35 +88,32 @@ func usage() {
 	fmt.Printf("  %s [options]\n", styles.Bold(filepath.Base(os.Args[0])))
 	fmt.Println("\nOptions:")
 	flag.PrintDefaults()
-	fmt.Println("\n" + updateCheck())
+	<-wait
+	fmt.Println("\n", updateMsg)
 }
 
-func updateCheck() string {
-	update := updateChecker.CheckForUpdate()
+func updateCheck(wait chan struct{}) {
+	update := versions.NewUpdateChecker(
+		web.NewHttpClient(),
+		ui.AppVersion,
+	).CheckForUpdate()
+
 	if update.HasUpdate() {
-		return styles.IconInformation + " New version available: " + styles.Bold(update.Version()) + " (" + update.Url() + ")"
+		updateMsg = styles.IconInformation + " New version available: " + styles.Bold(update.Version()) + " (" + update.Url() + ")"
 	}
-	return "is up-to-date."
+	wait <- struct{}{}
 }
 
 func handleExit(err ...error) {
-	var exitMsg []string
+	var exitMsg = []string{updateMsg}
 	var exitCode int
-
-	wait := make(chan bool, 1)
-
-	go func(wait chan bool) {
-		exitMsg = append(exitMsg, updateCheck())
-		wait <- true
-	}(wait)
 
 	logo.PrintAnimated()
 	<-wait
 
 	if err != nil {
 		exitCode = 1
-		errs := fmt.Errorf("%w", errors.Join(err...))
-		exitMsg = append(exitMsg, errs.Error())
+		exitMsg = append(exitMsg, errors.Join(err...).Error())
 	}
 
 	fmt.Println(
