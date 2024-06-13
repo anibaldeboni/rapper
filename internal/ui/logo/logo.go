@@ -30,8 +30,8 @@ var (
 
 func rndLogo() string {
 	weightedNames := map[string]float64{
-		"Rapper": 0.75,
-		"Aggro!": 0.25,
+		"Rapper": 0.9,
+		"Aggro!": 0.1,
 	}
 
 	return utils.WeightedRandom(weightedNames)
