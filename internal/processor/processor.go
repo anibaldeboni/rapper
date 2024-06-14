@@ -28,6 +28,8 @@ type Processor interface {
 	Do(ctx context.Context, cancel func(), filePath string)
 }
 
+type csvLineMap map[string]string
+
 type processorImpl struct {
 	csvConfig config.CSV
 	gateway   web.HttpGateway
@@ -56,13 +58,16 @@ func NewProcessor(cfg config.CSV, hg web.HttpGateway, logger logs.Logger, worker
 // Once all the workers have finished processing, it checks if there were any requests processed and logs a message if there were any errors.
 // Finally, it resets the request, error, and lines counters and cancels the context.
 func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath string) {
-	out := make(chan map[string]string)
-	go this.mapCSV(ctx, cancel, filePath, out)
+	out := this.mapCSV(ctx, filePath)
+
+	if out == nil {
+		cancel()
+		return
+	}
 
 	wg := &sync.WaitGroup{}
-
+	wg.Add(this.workers)
 	for i := 0; i < this.workers; i++ {
-		wg.Add(1)
 		go this.worker(ctx, wg, out)
 	}
 
@@ -79,7 +84,7 @@ func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath strin
 	}()
 }
 
-func (this *processorImpl) worker(ctx context.Context, wg *sync.WaitGroup, out <-chan map[string]string) {
+func (this *processorImpl) worker(ctx context.Context, wg *sync.WaitGroup, out <-chan csvLineMap) {
 	defer wg.Done()
 
 Processing:
@@ -103,43 +108,46 @@ Processing:
 	}
 }
 
-func (this *processorImpl) mapCSV(ctx context.Context, cancel func(), filePath string, out chan<- map[string]string) {
-	defer close(out)
+func (this *processorImpl) mapCSV(ctx context.Context, filePath string) <-chan csvLineMap {
+	out := make(chan csvLineMap, this.workers)
 
-	reader, file, err := buildCSVReader(filePath, csvSep(this.csvConfig))
+	reader, file, err := newCSVReader(filePath, csvSep(this.csvConfig))
 	if err != nil {
 		this.logger.Add(csvError(err.Error()))
-		cancel()
-		return
+		return nil
 	}
-	defer file.Close()
 
-	headers, err := getCSVHeaders(reader)
+	headers, err := readCSVHeaders(reader)
 	if err != nil {
 		this.logger.Add(csvError(err.Error()))
-		cancel()
-		return
+		return nil
 	}
 
-	indexes := headerIndexes(headers, this.csvConfig.Fields)
+	indexes := buildFilteredFieldIndex(headers, this.csvConfig.Fields)
 	this.logger.Add(processingMessage(filepath.Base(filePath), this.workers))
 
-Read:
-	for {
-		select {
-		case <-ctx.Done():
-			break Read
-		default:
-			record, err := reader.Read()
-			if err == io.EOF {
+	go func() {
+		defer file.Close()
+		defer close(out)
+	Read:
+		for {
+			select {
+			case <-ctx.Done():
 				break Read
+			default:
+				record, err := reader.Read()
+				if err == io.EOF {
+					break Read
+				}
+				if err != nil {
+					this.logger.Add(csvError(err.Error()))
+					continue
+				}
+				linesCount.Add(1)
+				out <- mapRow(headers, indexes, record)
 			}
-			if err != nil {
-				this.logger.Add(csvError(err.Error()))
-				continue
-			}
-			linesCount.Add(1)
-			out <- mapRow(headers, indexes, record)
 		}
-	}
+	}()
+
+	return out
 }

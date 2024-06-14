@@ -1,6 +1,7 @@
 package logs
 
 import (
+	"fmt"
 	"os"
 	"sync"
 
@@ -98,7 +99,7 @@ func errorMessage(message string) Message {
 
 func write(file *os.File, line LogLiner) error {
 	if _, err := file.Write(append(line.String(), '\n')); err != nil {
-		return err
+		return fmt.Errorf("Error writing to file: %w", err)
 	}
 	return nil
 }

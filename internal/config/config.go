@@ -32,8 +32,11 @@ type AppConfig struct {
 // If the file is found, it reads and unmarshals the file content into the AppConfig object.
 // If the file is not found or there is an error reading/unmarshaling the file, it returns an empty AppConfig object and an error.
 func Config(path string) (AppConfig, error) {
-	f, errs := utils.FindFiles(path, "config.yml", "config.yaml")
-	if len(errs) > 0 || len(f) == 0 {
+	f, err := utils.FindFiles(path, "config.yml", "config.yaml")
+	if err != nil {
+		return AppConfig{}, fmt.Errorf("Error finding config file: %w", err)
+	}
+	if len(f) == 0 {
 		return AppConfig{}, fmt.Errorf("Could not find config.yml or config.yaml in %s", styles.Bold(path))
 	}
 

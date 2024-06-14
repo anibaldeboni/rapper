@@ -87,5 +87,6 @@ func (this updateChecker) CheckForUpdate() Update {
 		update.url = releases[0].HtmlUrl
 		update.available = true
 	}
+
 	return update
 }
