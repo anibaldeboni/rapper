@@ -14,24 +14,25 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-type LogoOption func(*LogoConfiguration)
+type Option func(*Config)
 
-type LogoConfiguration struct {
-	Style    *lipgloss.Style
-	Gradient colorgrad.Gradient
-	Font     *figletlib.Font
-	Text     string
+type Config struct {
+	Style           *lipgloss.Style
+	Gradient        colorgrad.Gradient
+	ColoringPattern func(string, colorgrad.Gradient) string
+	Font            *figletlib.Font
+	Text            string
 }
 
 var (
 	figlets    assets.Figlets
-	baseConfig LogoConfiguration
+	baseConfig Config
 )
 
 func rndLogo() string {
 	weightedNames := map[string]float64{
-		"Rapper": 0.75,
-		"Aggro!": 0.25,
+		"Rapper": 0.9,
+		"Aggro!": 0.1,
 	}
 
 	return utils.WeightedRandom(weightedNames)
@@ -39,10 +40,11 @@ func rndLogo() string {
 
 func init() {
 	figlets, _ = assets.LoadAllFiglets()
-	baseConfig = LogoConfiguration{
-		Style: &lipgloss.Style{},
-		Text:  rndLogo(),
-		Font:  randomFiglet(),
+	baseConfig = Config{
+		Style:           &lipgloss.Style{},
+		Text:            rndLogo(),
+		Font:            randomFiglet(),
+		ColoringPattern: horizontalColoring,
 	}
 }
 
@@ -52,15 +54,15 @@ func randomFiglet() *figletlib.Font {
 
 	font, err := figletlib.ReadFontFromBytes(randomFiglet)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("Error reading font: %w", err))
 	}
 
 	return font
 }
 
 // Static returns a string representation of the logo using the provided options.
-// It accepts zero or more LogoOption arguments to customize the logo.
-func Static(options ...LogoOption) string {
+// It accepts zero or more Option arguments to customize the logo.
+func Static(options ...Option) string {
 	config := baseConfig
 	return buildLogo(config, options...)
 }
@@ -73,6 +75,7 @@ func PrintAnimated() {
 		config,
 		WithRandomGradient(),
 		WithHorizontalPosition(lipgloss.Center, styles.TerminalWidth()),
+		WithDiagonalColoring(),
 	)
 
 	lines := strings.Split(colorized, "\n")
@@ -85,7 +88,7 @@ func PrintAnimated() {
 	}
 }
 
-func buildLogo(config LogoConfiguration, options ...LogoOption) string {
+func buildLogo(config Config, options ...Option) string {
 	for _, opt := range options {
 		opt(&config)
 	}
@@ -96,11 +99,11 @@ func buildLogo(config LogoConfiguration, options ...LogoOption) string {
 		return config.Style.Render(img)
 	}
 
-	return config.Style.Render(colorize(img, config.Gradient))
+	return config.Style.Render(config.ColoringPattern(img, config.Gradient))
 }
 
-func colorize(img string, grad colorgrad.Gradient) string {
-	splited := strings.Split(img, "\n")
+func horizontalColoring(str string, grad colorgrad.Gradient) string {
+	splited := strings.Split(str, "\n")
 	lines := len(splited)
 	grad = grad.Sharp(uint(lines), 0)
 	steps := 1.0 / float64(lines)
@@ -114,6 +117,27 @@ func colorize(img string, grad colorgrad.Gradient) string {
 				Foreground(lipgloss.Color(color.Hex())).
 				Render(line),
 		)
+	}
+
+	return strings.Join(colorized, "\n")
+}
+
+func diagonalColoring(str string, grad colorgrad.Gradient) string {
+	lines := strings.Split(str, "\n")
+	numVerticals := len(lines) + len(lines[0]) - 1
+	grad = grad.Sharp(uint(numVerticals), 0)
+	step := 1.0 / float64(numVerticals)
+
+	var colorized []string
+	for i, line := range lines {
+		chars := strings.Split(line, "")
+		for j, char := range chars {
+			color := grad.At(step * float64(i+j))
+			chars[j] = lipgloss.NewStyle().
+				Foreground(lipgloss.Color(color.Hex())).
+				Render(char)
+		}
+		colorized = append(colorized, strings.Join(chars, ""))
 	}
 
 	return strings.Join(colorized, "\n")

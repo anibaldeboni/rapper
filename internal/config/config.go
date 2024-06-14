@@ -34,7 +34,7 @@ type AppConfig struct {
 func Config(path string) (AppConfig, error) {
 	f, err := utils.FindFiles(path, "config.yml", "config.yaml")
 	if err != nil {
-		return AppConfig{}, fmt.Errorf("Error finding config file - %w", err)
+		return AppConfig{}, fmt.Errorf("Error finding config file: %w", err)
 	}
 	if len(f) == 0 {
 		return AppConfig{}, fmt.Errorf("Could not find config.yml or config.yaml in %s", styles.Bold(path))
