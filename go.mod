@@ -6,7 +6,7 @@ require (
 	github.com/charmbracelet/bubbletea v0.26.4
 	github.com/charmbracelet/lipgloss v0.10.0
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20240202113029-6ff29cf0473e
-	github.com/hashicorp/go-version v1.6.0
+	github.com/hashicorp/go-version v1.7.0
 	github.com/michaelquigley/figlet v0.0.0-20191015203154-054d06db54b4
 	go.uber.org/mock v0.4.0
 	golang.org/x/term v0.21.0
