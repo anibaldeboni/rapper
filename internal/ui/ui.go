@@ -20,7 +20,6 @@ var (
 	AppVersion    = "2.6.0"
 	viewPortTitle = styles.TitleStyle.Render("Execution logs")
 	logger        logs.Logger
-	ctx           context.Context
 	cancel        context.CancelFunc
 	state         = &State{}
 	csvProcessor  processor.Processor
@@ -57,44 +56,40 @@ func createSpinner() spinner.Model {
 	return s
 }
 
-func stop() {
-	cancel()
-	state.Set(Stale)
-}
-
 func operationError() logs.Message {
 	return logs.NewMessage().
 		WithIcon(styles.IconInformation).
 		WithMessage("Please wait the current operation to finish or cancel pressing ESC")
 }
 
-func setContext() {
-	ctx, cancel = context.WithCancel(context.Background())
-	state.Set(Running)
+func (m Model) Init() tea.Cmd {
+	return tea.Batch(tea.EnterAltScreen, tickCmd(), m.spinner.Tick)
 }
 
-func (this Model) Init() tea.Cmd {
-	return tea.Batch(tea.EnterAltScreen, tickCmd(), this.spinner.Tick)
-}
+func (m Model) selectItem(item Option[string]) Model {
+	var ctx context.Context
 
-func (this Model) selectItem(item Option[string]) Model {
 	if state.Get() != Running {
-		setContext()
-		csvProcessor.Do(ctx, stop, item.Value)
+		state.Set(Running)
+		ctx, cancel = csvProcessor.Do(context.Background(), item.Value)
+		go func(ctx context.Context) {
+			<-ctx.Done()
+			state.Set(Stale)
+		}(ctx)
 	} else {
 		logger.Add(operationError())
 	}
-	return this
+	return m
 }
 
-func (this Model) resizeElements(width int, height int) Model {
-	this.width = width
+func (m Model) resizeElements(width int, height int) Model {
+	m.width = width
 	headerHeight := lipgloss.Height(viewPortTitle)
-	this.filesList.SetHeight(height - headerHeight - 3)
+	m.filesList.SetHeight(height - headerHeight - 3)
 
-	logViewWidth := width - lipgloss.Width(this.filesList.View())
-	this.viewport.Height = height - headerHeight - 6
-	this.viewport.Width = logViewWidth - 2
+	logViewWidth := width - lipgloss.Width(m.filesList.View())
+	m.viewport.Height = height - headerHeight - 6
+	m.viewport.Width = logViewWidth - 2
 
-	return this
+	return m
 }

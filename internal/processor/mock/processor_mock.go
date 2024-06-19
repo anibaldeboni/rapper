@@ -40,13 +40,16 @@ func (m *MockProcessor) EXPECT() *MockProcessorMockRecorder {
 }
 
 // Do mocks base method.
-func (m *MockProcessor) Do(arg0 context.Context, arg1 func(), arg2 string) {
+func (m *MockProcessor) Do(arg0 context.Context, arg1 string) (context.Context, context.CancelFunc) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Do", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Do", arg0, arg1)
+	ret0, _ := ret[0].(context.Context)
+	ret1, _ := ret[1].(context.CancelFunc)
+	return ret0, ret1
 }
 
 // Do indicates an expected call of Do.
-func (mr *MockProcessorMockRecorder) Do(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockProcessorMockRecorder) Do(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockProcessor)(nil).Do), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockProcessor)(nil).Do), arg0, arg1)
 }

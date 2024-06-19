@@ -9,16 +9,16 @@ type State struct {
 
 type uiState int
 
-func (this *State) Set(v uiState) {
-	this.mu.Lock()
-	defer this.mu.Unlock()
-	this.current = v
+func (s *State) Set(v uiState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.current = v
 
 }
-func (this *State) Get() uiState {
-	this.mu.RLock()
-	defer this.mu.RUnlock()
-	return this.current
+func (s *State) Get() uiState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.current
 }
 
 const (

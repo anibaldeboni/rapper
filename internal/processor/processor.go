@@ -16,16 +16,16 @@ import (
 )
 
 var (
-	_           Processor = (*processorImpl)(nil)
-	reqCount    atomic.Uint64
-	errCount    atomic.Uint64
-	linesCount  atomic.Uint64
-	MAX_WORKERS = runtime.NumCPU()
+	_          Processor = (*processorImpl)(nil)
+	reqCount   atomic.Uint64
+	errCount   atomic.Uint64
+	linesCount atomic.Uint64
+	MaxWorkers = runtime.NumCPU()
 )
 
 //go:generate mockgen -destination mock/processor_mock.go github.com/anibaldeboni/rapper/internal/processor Processor
 type Processor interface {
-	Do(ctx context.Context, cancel func(), filePath string)
+	Do(ctx context.Context, filePath string) (context.Context, context.CancelFunc)
 }
 
 type csvLineMap map[string]string
@@ -49,7 +49,7 @@ func NewProcessor(cfg config.CSV, hg web.HttpGateway, logger logs.Logger, worker
 		csvConfig: cfg,
 		gateway:   hg,
 		logger:    logger,
-		workers:   utils.Clamp(workers, 1, MAX_WORKERS),
+		workers:   utils.Clamp(workers, 1, MaxWorkers),
 	}
 }
 
@@ -57,97 +57,101 @@ func NewProcessor(cfg config.CSV, hg web.HttpGateway, logger logs.Logger, worker
 // It creates a channel to receive the output from the mapCSV function and spawns multiple worker goroutines to process the output concurrently.
 // Once all the workers have finished processing, it checks if there were any requests processed and logs a message if there were any errors.
 // Finally, it resets the request, error, and lines counters and cancels the context.
-func (this *processorImpl) Do(ctx context.Context, cancel func(), filePath string) {
-	out := this.mapCSV(ctx, filePath)
+func (p *processorImpl) Do(ctx context.Context, filePath string) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(ctx)
+	rows := p.mapCSV(ctx, filePath)
 
-	if out == nil {
+	if rows == nil {
 		cancel()
-		return
+		return nil, nil
 	}
 
 	wg := &sync.WaitGroup{}
-	wg.Add(this.workers)
-	for i := 0; i < this.workers; i++ {
-		go this.worker(ctx, wg, out)
+	wg.Add(p.workers)
+	for i := 0; i < p.workers; i++ {
+		go p.worker(ctx, wg, rows)
 	}
 
 	go func() {
 		wg.Wait()
 
 		if reqCount.Load() > 0 {
-			this.logger.Add(doneMessage(errCount.Load()))
+			p.logger.Add(doneMessage(errCount.Load()))
 		}
 		reqCount.Store(0)
 		errCount.Store(0)
 		linesCount.Store(0)
 		cancel()
 	}()
+
+	return ctx, cancel
 }
 
-func (this *processorImpl) worker(ctx context.Context, wg *sync.WaitGroup, out <-chan csvLineMap) {
+func (p *processorImpl) worker(ctx context.Context, wg *sync.WaitGroup, rows <-chan csvLineMap) {
 	defer wg.Done()
 
-Processing:
-	for row := range out {
+requests:
+	for row := range rows {
 		select {
 		case <-ctx.Done():
-			this.logger.Add(cancelationMsg())
-			break Processing
+			p.logger.Add(cancelationMsg())
+			break requests
 		default:
-			response, err := this.gateway.Exec(row)
+			response, err := p.gateway.Exec(row)
 			reqCount.Add(1)
 			if err != nil {
 				errCount.Add(1)
-				this.logger.Add(requestError(err.Error()))
+				p.logger.Add(requestError(err.Error()))
 			} else if response.StatusCode != http.StatusOK {
 				errCount.Add(1)
-				this.logger.Add(httpStatusError(row, response.StatusCode))
+				p.logger.Add(httpStatusError(row, response.StatusCode))
 			}
-			this.logger.WriteToFile(&RequestLine{URL: response.URL, Status: response.StatusCode, Body: response.Body, Error: err})
+			p.logger.WriteToFile(&RequestLine{URL: response.URL, Status: response.StatusCode, Body: response.Body, Error: err})
 		}
 	}
 }
 
-func (this *processorImpl) mapCSV(ctx context.Context, filePath string) <-chan csvLineMap {
-	out := make(chan csvLineMap, this.workers)
+func (p *processorImpl) mapCSV(ctx context.Context, filePath string) <-chan csvLineMap {
+	rows := make(chan csvLineMap, p.workers)
 
-	reader, file, err := newCSVReader(filePath, csvSep(this.csvConfig))
+	reader, file, err := newCSVReader(filePath, csvSep(p.csvConfig))
 	if err != nil {
-		this.logger.Add(csvError(err.Error()))
+		p.logger.Add(csvError(err.Error()))
 		return nil
 	}
 
 	headers, err := readCSVHeaders(reader)
 	if err != nil {
-		this.logger.Add(csvError(err.Error()))
+		p.logger.Add(csvError(err.Error()))
 		return nil
 	}
 
-	indexes := buildFilteredFieldIndex(headers, this.csvConfig.Fields)
-	this.logger.Add(processingMessage(filepath.Base(filePath), this.workers))
+	indexes := buildFilteredFieldIndex(headers, p.csvConfig.Fields)
+	p.logger.Add(processingMessage(filepath.Base(filePath), p.workers))
 
 	go func() {
 		defer file.Close()
-		defer close(out)
-	Read:
+		defer close(rows)
+
+	read:
 		for {
 			select {
 			case <-ctx.Done():
-				break Read
+				break read
 			default:
 				record, err := reader.Read()
 				if err == io.EOF {
-					break Read
+					break read
 				}
 				if err != nil {
-					this.logger.Add(csvError(err.Error()))
+					p.logger.Add(csvError(err.Error()))
 					continue
 				}
 				linesCount.Add(1)
-				out <- mapRow(headers, indexes, record)
+				rows <- mapRow(headers, indexes, record)
 			}
 		}
 	}()
 
-	return out
+	return rows
 }
