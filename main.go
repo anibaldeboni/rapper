@@ -25,17 +25,16 @@ var (
 	workingDir *string
 	outputFile *string
 	workers    *int
-	updateMsg  = "is up-to-date."
-	wait       = make(chan struct{})
+	updateMsg  = make(chan string)
 )
 
 func init() {
-	go updateCheck(wait)
+	go updateCheck(updateMsg)
 	cwd, _ := os.Getwd()
 	configPath = flag.String("config", cwd, "path to directory containing a config file")
 	workingDir = flag.String("dir", cwd, "path to directory containing the CSV files")
 	outputFile = flag.String("output", "", "path to output file, including the file name")
-	workers = flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MAX_WORKERS))
+	workers = flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MaxWorkers))
 	flag.Usage = usage
 	flag.Parse()
 }
@@ -88,28 +87,27 @@ func usage() {
 	fmt.Printf("  %s [options]\n", styles.Bold(filepath.Base(os.Args[0])))
 	fmt.Println("\nOptions:")
 	flag.PrintDefaults()
-	<-wait
-	fmt.Println("\n", updateMsg)
+	fmt.Println("\n", <-updateMsg)
 }
 
-func updateCheck(wait chan struct{}) {
+func updateCheck(updateMsg chan<- string) {
 	update := versions.NewUpdateChecker(
 		web.NewHttpClient(),
 		ui.AppVersion,
 	).CheckForUpdate()
 
 	if update.HasUpdate() {
-		updateMsg = styles.IconInformation + " New version available: " + styles.Bold(update.Version()) + " (" + update.Url() + ")"
+		updateMsg <- styles.IconInformation + " New version available: " + styles.Bold(update.Version()) + " (" + update.Url() + ")"
+	} else {
+		updateMsg <- "is up-to-date."
 	}
-	wait <- struct{}{}
 }
 
 func handleExit(err ...error) {
-	var exitMsg = []string{updateMsg}
-	var exitCode int
-
 	logo.PrintAnimated()
-	<-wait
+
+	var exitMsg = []string{<-updateMsg}
+	var exitCode int
 
 	if err != nil {
 		exitCode = 1
