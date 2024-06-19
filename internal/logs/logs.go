@@ -12,18 +12,19 @@ var _ Logger = (*loggerImpl)(nil)
 
 //go:generate mockgen -destination mock/log_mock.go github.com/anibaldeboni/rapper/internal/logs Logger
 type Logger interface {
-	HasNewLogs() bool
 	Add(Message)
 	Get() []string
-	Len() int
-	WriteToFile(LogLiner)
+	WriteToFile(Line)
+}
+
+type Line interface {
+	Bytes() []byte
 }
 
 type loggerImpl struct {
 	sync.RWMutex
-	logs    []Message
-	logFile *os.File
-	count   int
+	messages []Message
+	file     *os.File
 }
 
 // NewLoggger creates a new instance of Loggger.
@@ -33,59 +34,36 @@ func NewLoggger(filePath string) Logger {
 		if file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660); err != nil {
 			logger.Add(errorMessage(err.Error()))
 		} else {
-			logger.logFile = file
+			logger.file = file
 		}
 	}
 	return &logger
 }
 
-// HasNewLogs checks if there are new logs available.
-// It returns true if there are new logs, otherwise false.
-func (this *loggerImpl) HasNewLogs() bool {
-	this.RLock()
-	defer this.RUnlock()
-	if this.count < len(this.logs) {
-		this.count = len(this.logs)
-		return true
-	}
-	return false
-}
-
 // Add appends a log message to the log manager's logs.
-func (this *loggerImpl) Add(log Message) {
-	this.Lock()
-	defer this.Unlock()
-	this.logs = append(this.logs, log)
+func (l *loggerImpl) Add(log Message) {
+	l.Lock()
+	defer l.Unlock()
+	l.messages = append(l.messages, log)
 }
 
 // Get returns all logs as a slice of strings.
-func (this *loggerImpl) Get() []string {
-	this.RLock()
-	defer this.RUnlock()
+func (l *loggerImpl) Get() []string {
+	l.RLock()
+	defer l.RUnlock()
 	var logs []string
-	for _, log := range this.logs {
+	for _, log := range l.messages {
 		logs = append(logs, log.String())
 	}
 	return logs
 }
 
-// Len returns the number of logs.
-func (this *loggerImpl) Len() int {
-	this.RLock()
-	defer this.RUnlock()
-	return len(this.logs)
-}
-
-type LogLiner interface {
-	String() []byte
-}
-
 // WriteToFile writes the given log line to the log file, if it is open.
 // If there is an error while writing to the file, an error message is added to the logger.
-func (this *loggerImpl) WriteToFile(line LogLiner) {
-	if this.logFile != nil {
-		if err := write(this.logFile, line); err != nil {
-			this.Add(errorMessage(err.Error()))
+func (l *loggerImpl) WriteToFile(line Line) {
+	if l.file != nil {
+		if err := write(l.file, line); err != nil {
+			l.Add(errorMessage(err.Error()))
 		}
 	}
 }
@@ -97,8 +75,8 @@ func errorMessage(message string) Message {
 		WithMessage(message)
 }
 
-func write(file *os.File, line LogLiner) error {
-	if _, err := file.Write(append(line.String(), '\n')); err != nil {
+func write(file *os.File, line Line) error {
+	if _, err := file.Write(append(line.Bytes(), '\n')); err != nil {
 		return fmt.Errorf("Error writing to file: %w", err)
 	}
 	return nil

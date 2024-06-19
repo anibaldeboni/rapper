@@ -65,36 +65,8 @@ func (mr *MockLoggerMockRecorder) Get() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockLogger)(nil).Get))
 }
 
-// HasNewLogs mocks base method.
-func (m *MockLogger) HasNewLogs() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HasNewLogs")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// HasNewLogs indicates an expected call of HasNewLogs.
-func (mr *MockLoggerMockRecorder) HasNewLogs() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasNewLogs", reflect.TypeOf((*MockLogger)(nil).HasNewLogs))
-}
-
-// Len mocks base method.
-func (m *MockLogger) Len() int {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Len")
-	ret0, _ := ret[0].(int)
-	return ret0
-}
-
-// Len indicates an expected call of Len.
-func (mr *MockLoggerMockRecorder) Len() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Len", reflect.TypeOf((*MockLogger)(nil).Len))
-}
-
 // WriteToFile mocks base method.
-func (m *MockLogger) WriteToFile(arg0 logs.LogLiner) {
+func (m *MockLogger) WriteToFile(arg0 logs.Line) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "WriteToFile", arg0)
 }

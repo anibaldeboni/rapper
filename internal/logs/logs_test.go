@@ -36,31 +36,11 @@ func TestGet(t *testing.T) {
 	})
 }
 
-func TestHasNewLogs(t *testing.T) {
-	t.Run("Should return true when there are new logs", func(t *testing.T) {
-		logger := logs.NewLoggger("")
-		logs := []logs.Message{
-			logs.NewMessage().WithMessage("log 1"),
-			logs.NewMessage().WithMessage("log 2"),
-			logs.NewMessage().WithMessage("log 3"),
-		}
-		for _, log := range logs {
-			logger.Add(log)
-		}
-
-		first := logger.HasNewLogs()
-		second := logger.HasNewLogs()
-
-		assert.True(t, first)
-		assert.False(t, second)
-	})
-}
-
 type testLog struct {
 	Message string `json:"message"`
 }
 
-func (this testLog) String() []byte {
+func (this testLog) Bytes() []byte {
 	return []byte("{\"message\":\"" + this.Message + "\"}")
 }
 
