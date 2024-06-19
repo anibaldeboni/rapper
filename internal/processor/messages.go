@@ -83,7 +83,7 @@ type RequestLine struct {
 	Body   []byte `json:"body"`
 }
 
-func (this RequestLine) String() []byte {
+func (this RequestLine) Bytes() []byte {
 	m, _ := json.Marshal(this)
 	return m
 }
