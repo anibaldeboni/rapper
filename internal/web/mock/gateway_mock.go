@@ -10,6 +10,7 @@
 package mock_web
 
 import (
+	context "context"
 	reflect "reflect"
 
 	web "github.com/anibaldeboni/rapper/internal/web"
@@ -40,16 +41,16 @@ func (m *MockHttpGateway) EXPECT() *MockHttpGatewayMockRecorder {
 }
 
 // Exec mocks base method.
-func (m *MockHttpGateway) Exec(arg0 map[string]string) (web.Response, error) {
+func (m *MockHttpGateway) Exec(arg0 context.Context, arg1 map[string]string) (web.Response, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exec", arg0)
+	ret := m.ctrl.Call(m, "Exec", arg0, arg1)
 	ret0, _ := ret[0].(web.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Exec indicates an expected call of Exec.
-func (mr *MockHttpGatewayMockRecorder) Exec(arg0 any) *gomock.Call {
+func (mr *MockHttpGatewayMockRecorder) Exec(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exec", reflect.TypeOf((*MockHttpGateway)(nil).Exec), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exec", reflect.TypeOf((*MockHttpGateway)(nil).Exec), arg0, arg1)
 }

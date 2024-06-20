@@ -97,16 +97,16 @@ requests:
 			p.logger.Add(cancelationMsg())
 			break requests
 		default:
-			response, err := p.gateway.Exec(row)
+			res, err := p.gateway.Exec(ctx, row)
 			reqCount.Add(1)
 			if err != nil {
 				errCount.Add(1)
 				p.logger.Add(requestError(err.Error()))
-			} else if response.StatusCode != http.StatusOK {
+			} else if res.StatusCode != http.StatusOK {
 				errCount.Add(1)
-				p.logger.Add(httpStatusError(row, response.StatusCode))
+				p.logger.Add(httpStatusError(row, res.StatusCode))
 			}
-			p.logger.WriteToFile(&RequestLine{URL: response.URL, Status: response.StatusCode, Body: response.Body, Error: err})
+			p.logger.WriteToFile(&RequestLine{URL: res.URL, Status: res.StatusCode, Body: res.Body, Error: err})
 		}
 	}
 }

@@ -70,7 +70,7 @@ func TestCheckForUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client.EXPECT().Get(gomock.Any(), gomock.Any()).Return(tt.response, tt.err).Times(1)
+			client.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(tt.response, tt.err).Times(1)
 			subject := versions.NewUpdateChecker(client, tt.version)
 			got := subject.CheckForUpdate()
 

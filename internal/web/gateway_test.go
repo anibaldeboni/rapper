@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -79,6 +80,7 @@ func TestExec(t *testing.T) {
 			httpClient := mock_web.NewMockHttpClient(ctrl)
 
 			gateway := buildGateway(t, strings.ToUpper(tt.method), httpClient)
+			ctx := context.Background()
 
 			var err error
 			var res web.Response
@@ -89,12 +91,14 @@ func TestExec(t *testing.T) {
 			}
 			switch tt.method {
 			case "Post":
-				httpClient.EXPECT().Post(url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
+				httpClient.EXPECT().Post(ctx, url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
 			case "Put":
-				httpClient.EXPECT().Put(url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
+				httpClient.EXPECT().Put(ctx, url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
+			case "Get":
+				httpClient.EXPECT().Get(ctx, url+"1", headers).Return(res, err)
 			}
 
-			res, e := gateway.Exec(variables)
+			res, e := gateway.Exec(ctx, variables)
 
 			if tt.wantErr {
 				assert.Error(t, e)

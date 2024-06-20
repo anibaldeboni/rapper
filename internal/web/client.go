@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"io"
 	"net/http"
 )
@@ -16,9 +17,9 @@ type Response struct {
 
 //go:generate mockgen -destination mock/client_mock.go github.com/anibaldeboni/rapper/internal/web HttpClient
 type HttpClient interface {
-	Put(url string, body io.Reader, headers map[string]string) (Response, error)
-	Post(url string, body io.Reader, headers map[string]string) (Response, error)
-	Get(url string, headers map[string]string) (Response, error)
+	Put(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error)
+	Post(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error)
+	Get(ctx context.Context, url string, headers map[string]string) (Response, error)
 }
 
 type httpClientImpl struct{}
@@ -27,18 +28,18 @@ func NewHttpClient() HttpClient {
 	return &httpClientImpl{}
 }
 
-func (httpClientImpl) Put(url string, body io.Reader, headers map[string]string) (Response, error) {
+func (httpClientImpl) Put(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
 	headers = buildHeaders(headers)
-	return request(http.MethodPut, url, headers, body)
+	return request(ctx, http.MethodPut, url, headers, body)
 }
 
-func (httpClientImpl) Post(url string, body io.Reader, headers map[string]string) (Response, error) {
+func (httpClientImpl) Post(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
 	headers = buildHeaders(headers)
-	return request(http.MethodPost, url, headers, body)
+	return request(ctx, http.MethodPost, url, headers, body)
 }
 
-func (httpClientImpl) Get(url string, headers map[string]string) (Response, error) {
-	return request(http.MethodGet, url, headers, nil)
+func (httpClientImpl) Get(ctx context.Context, url string, headers map[string]string) (Response, error) {
+	return request(ctx, http.MethodGet, url, headers, nil)
 }
 
 func addHeaders(headers map[string]string, request *http.Request) {
@@ -55,8 +56,8 @@ func buildHeaders(m2 map[string]string) map[string]string {
 	return m1
 }
 
-func request(method string, url string, headers map[string]string, body io.Reader) (Response, error) {
-	req, err := http.NewRequest(method, url, body)
+func request(ctx context.Context, method string, url string, headers map[string]string, body io.Reader) (Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return Response{}, err
 	}

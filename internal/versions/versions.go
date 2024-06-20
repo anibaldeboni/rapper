@@ -1,6 +1,7 @@
 package versions
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/anibaldeboni/rapper/internal/web"
@@ -63,7 +64,7 @@ func NewUpdateChecker(hc web.HttpClient, currentVersion string) UpdateChecker {
 func (this updateChecker) CheckForUpdate() Update {
 	var update update
 
-	res, err := this.hc.Get(releaseUrl, headers)
+	res, err := this.hc.Get(context.Background(), releaseUrl, headers)
 	if err != nil {
 		return update
 	}

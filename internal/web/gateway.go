@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -12,7 +13,7 @@ var _ HttpGateway = (*HttpGatewayImpl)(nil)
 
 //go:generate mockgen -destination mock/gateway_mock.go github.com/anibaldeboni/rapper/internal/web HttpGateway
 type HttpGateway interface {
-	Exec(variables map[string]string) (Response, error)
+	Exec(ctx context.Context, variables map[string]string) (Response, error)
 }
 
 type HttpGatewayImpl struct {
@@ -40,23 +41,26 @@ func NewHttpGateway(token, method, urlTemplate, bodyTemplate string) HttpGateway
 		},
 	}
 }
-func (this *HttpGatewayImpl) req(url string, body io.Reader, headers map[string]string) (Response, error) {
-	if this.Method == http.MethodPost {
-		return this.Client.Post(url, body, headers)
+func (hg *HttpGatewayImpl) req(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
+	switch hg.Method {
+	case http.MethodGet:
+		return hg.Client.Get(ctx, url, headers)
+	case http.MethodPost:
+		return hg.Client.Post(ctx, url, body, headers)
+	case http.MethodPut:
+		return hg.Client.Put(ctx, url, body, headers)
+	default:
+		return Response{}, errors.New("method not supported")
 	}
-	if this.Method == http.MethodPut {
-		return this.Client.Put(url, body, headers)
-	}
-	return Response{}, errors.New("method not supported")
 }
 
 // Exec executes the request with the given variables to fill the body and url templates.
-func (this *HttpGatewayImpl) Exec(variables map[string]string) (Response, error) {
-	header := map[string]string{"Authorization": "Bearer " + this.Token}
-	uri := RenderTemplate(this.Templates.Url, variables).String()
-	body := RenderTemplate(this.Templates.Body, variables)
+func (hg *HttpGatewayImpl) Exec(ctx context.Context, variables map[string]string) (Response, error) {
+	header := map[string]string{"Authorization": "Bearer " + hg.Token}
+	uri := RenderTemplate(hg.Templates.Url, variables).String()
+	body := RenderTemplate(hg.Templates.Body, variables)
 
-	return this.req(uri, body, header)
+	return hg.req(ctx, uri, body, header)
 }
 
 func NewTemplate(name string, templ string) *template.Template {

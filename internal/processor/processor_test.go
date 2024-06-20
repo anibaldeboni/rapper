@@ -16,13 +16,13 @@ func TestProcessor_Do(t *testing.T) {
 	t.Run("Should send a request for each csv line", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-
+		ctx := context.Background()
 		wg := sync.WaitGroup{}
 		wg.Add(2)
 		gatewayMock := mock_web.NewMockHttpGateway(ctrl)
 		gatewayMock.EXPECT().
-			Exec(gomock.Any()).
-			Do(func(arg0 interface{}) {
+			Exec(gomock.Any(), gomock.Any()).
+			Do(func(arg0, arg1 any) {
 				wg.Done()
 			}).Times(2)
 		loggerMock := mock_log.NewMockLogger(ctrl)
@@ -35,7 +35,7 @@ func TestProcessor_Do(t *testing.T) {
 
 		p := NewProcessor(config.CSV{Fields: []string{"header1", "header2"}, Separator: ","}, gatewayMock, loggerMock, 1)
 
-		p.Do(context.Background(), tempFile.Name())
+		p.Do(ctx, tempFile.Name())
 		wg.Wait()
 	})
 
@@ -47,8 +47,8 @@ func TestProcessor_Do(t *testing.T) {
 		wg.Add(1)
 		gatewayMock := mock_web.NewMockHttpGateway(ctrl)
 		gatewayMock.EXPECT().
-			Exec(map[string]string{"header1": "value1"}).
-			Do(func(arg0 any) {
+			Exec(gomock.Any(), map[string]string{"header1": "value1"}).
+			Do(func(arg0, arg1 any) {
 				wg.Done()
 			}).Times(1)
 		loggerMock := mock_log.NewMockLogger(ctrl)

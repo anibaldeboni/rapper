@@ -10,6 +10,7 @@
 package mock_web
 
 import (
+	context "context"
 	io "io"
 	reflect "reflect"
 
@@ -41,46 +42,46 @@ func (m *MockHttpClient) EXPECT() *MockHttpClientMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockHttpClient) Get(arg0 string, arg1 map[string]string) (web.Response, error) {
+func (m *MockHttpClient) Get(arg0 context.Context, arg1 string, arg2 map[string]string) (web.Response, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", arg0, arg1)
+	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2)
 	ret0, _ := ret[0].(web.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockHttpClientMockRecorder) Get(arg0, arg1 any) *gomock.Call {
+func (mr *MockHttpClientMockRecorder) Get(arg0, arg1, arg2 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockHttpClient)(nil).Get), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockHttpClient)(nil).Get), arg0, arg1, arg2)
 }
 
 // Post mocks base method.
-func (m *MockHttpClient) Post(arg0 string, arg1 io.Reader, arg2 map[string]string) (web.Response, error) {
+func (m *MockHttpClient) Post(arg0 context.Context, arg1 string, arg2 io.Reader, arg3 map[string]string) (web.Response, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Post", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Post", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(web.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Post indicates an expected call of Post.
-func (mr *MockHttpClientMockRecorder) Post(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockHttpClientMockRecorder) Post(arg0, arg1, arg2, arg3 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Post", reflect.TypeOf((*MockHttpClient)(nil).Post), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Post", reflect.TypeOf((*MockHttpClient)(nil).Post), arg0, arg1, arg2, arg3)
 }
 
 // Put mocks base method.
-func (m *MockHttpClient) Put(arg0 string, arg1 io.Reader, arg2 map[string]string) (web.Response, error) {
+func (m *MockHttpClient) Put(arg0 context.Context, arg1 string, arg2 io.Reader, arg3 map[string]string) (web.Response, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Put", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Put", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(web.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Put indicates an expected call of Put.
-func (mr *MockHttpClientMockRecorder) Put(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockHttpClientMockRecorder) Put(arg0, arg1, arg2, arg3 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockHttpClient)(nil).Put), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockHttpClient)(nil).Put), arg0, arg1, arg2, arg3)
 }
