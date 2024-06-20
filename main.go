@@ -14,8 +14,8 @@ import (
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui"
 	"github.com/anibaldeboni/rapper/internal/ui/logo"
+	"github.com/anibaldeboni/rapper/internal/updates"
 	"github.com/anibaldeboni/rapper/internal/utils"
-	"github.com/anibaldeboni/rapper/internal/versions"
 	"github.com/anibaldeboni/rapper/internal/web"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -91,13 +91,8 @@ func usage() {
 }
 
 func updateCheck(updateMsg chan<- string) {
-	update := versions.NewUpdateChecker(
-		web.NewHttpClient(),
-		ui.AppVersion,
-	).CheckForUpdate()
-
-	if update.HasUpdate() {
-		updateMsg <- styles.IconInformation + " New version available: " + styles.Bold(update.Version()) + " (" + update.Url() + ")"
+	if details, hasUpdate := updates.CheckFor(ui.AppVersion); hasUpdate {
+		updateMsg <- styles.IconInformation + " New version available: " + styles.Bold(details.Version) + " (" + details.Url + ")"
 	} else {
 		updateMsg <- "is up-to-date."
 	}
