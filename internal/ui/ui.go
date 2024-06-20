@@ -70,18 +70,23 @@ func (m Model) selectItem(item Option[string]) Model {
 	var ctx context.Context
 
 	if state.Get() != Running {
-		state.Set(Running)
+		state.Set(Stale)
 		ctx, cancel = csvProcessor.Do(context.Background(), item.Value)
-		go func(ctx context.Context) {
-			<-ctx.Done()
-			state.Set(Stale)
-		}(ctx)
+		if ctx != nil {
+			state.Set(Running)
+			waitCompletion(ctx)
+		}
 	} else {
 		logger.Add(operationError())
 	}
 	return m
 }
-
+func waitCompletion(ctx context.Context) {
+	go func() {
+		<-ctx.Done()
+		state.Set(Stale)
+	}()
+}
 func (m Model) resizeElements(width int, height int) Model {
 	m.width = width
 	headerHeight := lipgloss.Height(viewPortTitle)

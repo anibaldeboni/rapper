@@ -50,7 +50,7 @@ func (hg *HttpGatewayImpl) req(ctx context.Context, url string, body io.Reader, 
 	case http.MethodPut:
 		return hg.Client.Put(ctx, url, body, headers)
 	default:
-		return Response{}, errors.New("method not supported")
+		return Response{}, errors.New("method not supported: " + hg.Method)
 	}
 }
 
