@@ -41,40 +41,40 @@ func TestWeightedRandom(t *testing.T) {
 func TestClamp(t *testing.T) {
 	t.Run("Should return the minimum value when the value is less than the minimum", func(t *testing.T) {
 		value := 5
-		min := 10
-		max := 20
+		minN := 10
+		maxN := 20
 
-		result := utils.Clamp(value, min, max)
+		result := utils.Clamp(value, minN, maxN)
 
-		assert.Equal(t, min, result)
+		assert.Equal(t, minN, result)
 	})
 
 	t.Run("Should return the maximum value when the value is greater than the maximum", func(t *testing.T) {
 		value := 25
-		min := 10
-		max := 20
+		minN := 10
+		maxN := 20
 
-		result := utils.Clamp(value, min, max)
+		result := utils.Clamp(value, minN, maxN)
 
-		assert.Equal(t, max, result)
+		assert.Equal(t, maxN, result)
 	})
 
 	t.Run("Should return the original value when the value is within the range", func(t *testing.T) {
 		value := 15
-		min := 10
-		max := 20
+		minN := 10
+		maxN := 20
 
-		result := utils.Clamp(value, min, max)
+		result := utils.Clamp(value, minN, maxN)
 
 		assert.Equal(t, value, result)
 	})
 
 	t.Run("Should return the given string when it's length is between minimum and maximum", func(t *testing.T) {
 		value := "abc"
-		min := "ab"
-		max := "abcd"
+		minN := "ab"
+		maxN := "abcd"
 
-		result := utils.Clamp(value, min, max)
+		result := utils.Clamp(value, minN, maxN)
 
 		assert.Equal(t, value, result)
 	})
