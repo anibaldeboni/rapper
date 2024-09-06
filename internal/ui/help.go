@@ -23,10 +23,10 @@ func createHelp() help.Model {
 	help.Styles.ShortKey = styles.HelpKeyStyle
 	help.Styles.ShortDesc = styles.HelpDescStyle
 	help.Styles.ShortSeparator = styles.HelpSepStyle
-	help.Styles.Ellipsis = styles.HelpSepStyle.Copy()
-	help.Styles.FullKey = styles.HelpKeyStyle.Copy()
-	help.Styles.FullDesc = styles.HelpDescStyle.Copy()
-	help.Styles.FullSeparator = styles.HelpSepStyle.Copy()
+	help.Styles.Ellipsis = styles.HelpSepStyle
+	help.Styles.FullKey = styles.HelpKeyStyle
+	help.Styles.FullDesc = styles.HelpDescStyle
+	help.Styles.FullSeparator = styles.HelpSepStyle
 
 	return help
 }
