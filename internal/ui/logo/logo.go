@@ -114,7 +114,7 @@ func horizontalColoring(str string, grad colorgrad.Gradient) string {
 		colorized = append(
 			colorized,
 			lipgloss.NewStyle().
-				Foreground(lipgloss.Color(color.Hex())).
+				Foreground(lipgloss.Color(color.HexString())).
 				Render(line),
 		)
 	}
@@ -134,7 +134,7 @@ func diagonalColoring(str string, grad colorgrad.Gradient) string {
 		for j, char := range chars {
 			color := grad.At(step * float64(i+j))
 			chars[j] = lipgloss.NewStyle().
-				Foreground(lipgloss.Color(color.Hex())).
+				Foreground(lipgloss.Color(color.HexString())).
 				Render(char)
 		}
 		colorized = append(colorized, strings.Join(chars, ""))
