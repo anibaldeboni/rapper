@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 )
 
-func RandomInt(max int) int64 {
-	return Intn(int64(max))
+func RandomInt(n int) int64 {
+	return Intn(int64(n))
 }
 
 // WeightedRandom selects a random value from a map of values based on their weights.
@@ -37,8 +37,8 @@ again:
 	return chosen
 }
 
-func Intn(max int64) int64 {
-	nBig, err := rand.Int(rand.Reader, big.NewInt(max))
+func Intn(n int64) int64 {
+	nBig, err := rand.Int(rand.Reader, big.NewInt(n))
 	if err != nil {
 		panic(err)
 	}
@@ -82,12 +82,12 @@ func FindFiles(dir string, f ...string) ([]string, error) {
 // If the value is less than the minimum, it returns the minimum value.
 // If the value is greater than the maximum, it returns the maximum value.
 // Otherwise, it returns the original value.
-func Clamp[T cmp.Ordered](value, min, max T) T {
-	if value < min {
-		return min
+func Clamp[T cmp.Ordered](value, minN, maxN T) T {
+	if value < minN {
+		return minN
 	}
-	if value > max {
-		return max
+	if value > maxN {
+		return maxN
 	}
 	return value
 }
