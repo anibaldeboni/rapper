@@ -8,6 +8,7 @@ import (
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/assets"
 	"github.com/anibaldeboni/rapper/internal/utils"
+	"github.com/ccoveille/go-safecast"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mazznoer/colorgrad"
 	"github.com/michaelquigley/figlet/figletlib"
@@ -124,8 +125,11 @@ func horizontalColoring(str string, grad colorgrad.Gradient) string {
 
 func diagonalColoring(str string, grad colorgrad.Gradient) string {
 	lines := strings.Split(str, "\n")
-	numVerticals := len(lines) + len(lines[0]) - 1
-	grad = grad.Sharp(uint(numVerticals), 0)
+	numVerticals, err := safecast.ToUint(len(lines) + len(lines[0]) - 1)
+	if err != nil {
+		numVerticals = 2
+	}
+	grad = grad.Sharp(numVerticals, 0)
 	step := 1.0 / float64(numVerticals)
 
 	var colorized []string
