@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/anibaldeboni/rapper/internal/styles"
+	"github.com/ccoveille/go-safecast"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
 )
@@ -40,11 +41,14 @@ func (this Model) View() string {
 		spinner = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("205")).Render("∙∙∙")
 	}
-
+	helpEmptySpace, err := safecast.ToUint(this.width - width(appTag) - width(spinner))
+	if err != nil {
+		helpEmptySpace = 0
+	}
 	help := lipgloss.NewStyle().
 		Width(this.width - width(appTag) - width(spinner) - 4).
 		PaddingLeft(1).
-		Render(truncate.StringWithTail(this.help.View(keys), uint(this.width-width(appTag)-width(spinner)), "…"))
+		Render(truncate.StringWithTail(this.help.View(keys), helpEmptySpace, "…"))
 
 	statusbar := lipgloss.JoinHorizontal(
 		lipgloss.Left,

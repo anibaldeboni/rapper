@@ -16,8 +16,7 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: Run linters
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-          skip-pkg-cache: true
-          skip-build-cache: true
+          skip-cache: true
