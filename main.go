@@ -54,6 +54,11 @@ func main() {
 		cfg.Payload.Template,
 	)
 
+	if cfg.Workers > 0 {
+		w := utils.Clamp(cfg.Workers, 1, processor.MaxWorkers)
+		workers = &w
+	}
+
 	csvProcessor := processor.NewProcessor(
 		cfg.CSV,
 		hg,

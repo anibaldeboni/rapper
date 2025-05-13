@@ -15,9 +15,10 @@ type CSV struct {
 }
 
 type AppConfig struct {
-	Token  string `yaml:"token"`
-	ApiUrl string `yaml:"url"`
-	Path   struct {
+	Token   string `yaml:"token"`
+	ApiUrl  string `yaml:"url"`
+	Workers int    `yaml:"workers"`
+	Path    struct {
 		Method   string `yaml:"method"`
 		Template string `yaml:"template"`
 	} `yaml:"path"`
