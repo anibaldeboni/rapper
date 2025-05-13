@@ -19,10 +19,10 @@ type Option func(*Config)
 
 type Config struct {
 	Style           *lipgloss.Style
-	Gradient        colorgrad.Gradient
 	ColoringPattern func(string, colorgrad.Gradient) string
 	Font            *figletlib.Font
 	Text            string
+	Gradient        colorgrad.Gradient
 }
 
 var (

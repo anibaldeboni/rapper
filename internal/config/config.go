@@ -10,8 +10,8 @@ import (
 )
 
 type CSV struct {
-	Fields    []string `yaml:"fields"`
 	Separator string   `yaml:"separator"`
+	Fields    []string `yaml:"fields"`
 }
 
 type AppConfig struct {

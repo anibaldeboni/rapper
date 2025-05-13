@@ -31,9 +31,9 @@ type Processor interface {
 type csvLineMap map[string]string
 
 type processorImpl struct {
-	csvConfig config.CSV
 	gateway   web.HttpGateway
 	logger    logs.Logger
+	csvConfig config.CSV
 	workers   int
 }
 

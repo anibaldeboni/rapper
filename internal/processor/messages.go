@@ -77,10 +77,10 @@ func workersMsg(workers int) string {
 }
 
 type RequestLine struct {
-	URL    string `json:"url"`
-	Status int    `json:"status"`
 	Error  error  `json:"error"`
+	URL    string `json:"url"`
 	Body   []byte `json:"body"`
+	Status int    `json:"status"`
 }
 
 func (this RequestLine) Bytes() []byte {

@@ -9,10 +9,10 @@ import (
 var _ HttpClient = (*httpClientImpl)(nil)
 
 type Response struct {
-	URL        string
-	StatusCode int
 	Headers    http.Header
+	URL        string
 	Body       []byte
+	StatusCode int
 }
 
 //go:generate mockgen -destination mock/client_mock.go github.com/anibaldeboni/rapper/internal/web HttpClient

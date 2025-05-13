@@ -22,9 +22,9 @@ type Line interface {
 }
 
 type loggerImpl struct {
-	sync.RWMutex
-	messages []Message
 	file     *os.File
+	messages []Message
+	sync.RWMutex
 }
 
 // NewLoggger creates a new instance of Loggger.

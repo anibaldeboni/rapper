@@ -17,13 +17,13 @@ type HttpGateway interface {
 }
 
 type HttpGatewayImpl struct {
-	Token     string
-	Method    string
 	Client    HttpClient
 	Templates struct {
 		Url  *template.Template
 		Body *template.Template
 	}
+	Token  string
+	Method string
 }
 
 // NewHttpGateway creates a new HttpGateway.

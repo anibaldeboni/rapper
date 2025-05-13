@@ -17,8 +17,8 @@ var (
 )
 
 type Option[T comparable] struct {
-	Title string
 	Value T
+	Title string
 }
 
 func (Option[T]) FilterValue() string { return "" }
