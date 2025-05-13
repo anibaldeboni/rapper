@@ -20,6 +20,8 @@ type HttpClient interface {
 	Put(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error)
 	Post(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error)
 	Get(ctx context.Context, url string, headers map[string]string) (Response, error)
+	Delete(ctx context.Context, url string, headers map[string]string) (Response, error)
+	Patch(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error)
 }
 
 type httpClientImpl struct{}
@@ -40,6 +42,16 @@ func (httpClientImpl) Post(ctx context.Context, url string, body io.Reader, head
 
 func (httpClientImpl) Get(ctx context.Context, url string, headers map[string]string) (Response, error) {
 	return request(ctx, http.MethodGet, url, headers, nil)
+}
+
+func (httpClientImpl) Delete(ctx context.Context, url string, headers map[string]string) (Response, error) {
+	headers = buildHeaders(headers)
+	return request(ctx, http.MethodDelete, url, headers, nil)
+}
+
+func (httpClientImpl) Patch(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
+	headers = buildHeaders(headers)
+	return request(ctx, http.MethodPatch, url, headers, body)
 }
 
 func addHeaders(headers map[string]string, request *http.Request) {

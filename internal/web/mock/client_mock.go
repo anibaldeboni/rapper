@@ -41,6 +41,21 @@ func (m *MockHttpClient) EXPECT() *MockHttpClientMockRecorder {
 	return m.recorder
 }
 
+// Delete mocks base method.
+func (m *MockHttpClient) Delete(arg0 context.Context, arg1 string, arg2 map[string]string) (web.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", arg0, arg1, arg2)
+	ret0, _ := ret[0].(web.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockHttpClientMockRecorder) Delete(arg0, arg1, arg2 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockHttpClient)(nil).Delete), arg0, arg1, arg2)
+}
+
 // Get mocks base method.
 func (m *MockHttpClient) Get(arg0 context.Context, arg1 string, arg2 map[string]string) (web.Response, error) {
 	m.ctrl.T.Helper()
@@ -54,6 +69,21 @@ func (m *MockHttpClient) Get(arg0 context.Context, arg1 string, arg2 map[string]
 func (mr *MockHttpClientMockRecorder) Get(arg0, arg1, arg2 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockHttpClient)(nil).Get), arg0, arg1, arg2)
+}
+
+// Patch mocks base method.
+func (m *MockHttpClient) Patch(arg0 context.Context, arg1 string, arg2 io.Reader, arg3 map[string]string) (web.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Patch", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(web.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Patch indicates an expected call of Patch.
+func (mr *MockHttpClientMockRecorder) Patch(arg0, arg1, arg2, arg3 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Patch", reflect.TypeOf((*MockHttpClient)(nil).Patch), arg0, arg1, arg2, arg3)
 }
 
 // Post mocks base method.
