@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20240202113029-6ff29cf0473e
 	github.com/hashicorp/go-version v1.7.0
 	github.com/michaelquigley/figlet v0.0.0-20191015203154-054d06db54b4
-	go.uber.org/mock v0.4.0
+	go.uber.org/mock v0.5.2
 	golang.org/x/term v0.32.0
 )
 
