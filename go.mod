@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/ccoveille/go-safecast v1.6.1
-	github.com/charmbracelet/bubbletea v1.1.1
+	github.com/charmbracelet/bubbletea v1.3.5
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20240202113029-6ff29cf0473e
 	github.com/hashicorp/go-version v1.7.0
@@ -29,7 +29,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 )
 
