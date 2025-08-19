@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20240202113029-6ff29cf0473e
 	github.com/hashicorp/go-version v1.7.0
 	github.com/michaelquigley/figlet v0.0.0-20191015203154-054d06db54b4
-	go.uber.org/mock v0.5.2
+	go.uber.org/mock v0.6.0
 	golang.org/x/term v0.32.0
 )
 
@@ -29,7 +29,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 )
 
