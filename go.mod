@@ -1,6 +1,6 @@
 module github.com/anibaldeboni/rapper
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/ccoveille/go-safecast v1.6.1
@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/go-version v1.7.0
 	github.com/michaelquigley/figlet v0.0.0-20191015203154-054d06db54b4
 	go.uber.org/mock v0.5.2
-	golang.org/x/term v0.32.0
+	golang.org/x/term v0.36.0
 )
 
 require (
@@ -45,6 +45,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3
-	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1
 )
