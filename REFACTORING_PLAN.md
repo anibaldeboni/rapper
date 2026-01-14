@@ -101,7 +101,10 @@ csvProcessor := processor.NewProcessor(cfg, gateway, logger, *workers)
 - [ ] Adicionar view de "Settings" na TUI
 - [ ] Formulário para editar URL template, body template, headers
 - [ ] Hot-reload de configuração sem restart
-- [ ] Salvar/carregar múltiplos profiles
+- [ ] Suporte a múltiplos profiles (api1.yml, production.yml, etc)
+- [ ] Descoberta automática de arquivos .yml no diretório
+- [ ] Troca de profile em runtime com Ctrl+P
+- [ ] Salvar edições no arquivo YAML correto
 
 ### 4. Workers Dinâmicos
 - [ ] Slider/input para ajustar workers em runtime
@@ -124,7 +127,8 @@ internal/
 ├── config/
 │   ├── config.go           # Estruturas de configuração
 │   ├── loader.go           # Carregamento de YAML
-│   └── manager.go          # [NOVO] Gerenciamento em runtime
+│   ├── manager.go          # [NOVO] Gerenciamento em runtime
+│   └── profile.go          # [NOVO] Gerenciamento de múltiplos profiles
 │
 ├── ui/
 │   ├── app.go              # [REFATORADO] Model principal
@@ -236,6 +240,611 @@ func (m *managerImpl) Update(cfg *Config) error {
 
     return nil
 }
+```
+
+---
+
+### 1.5. Profile Manager - Múltiplas Configurações
+
+#### Conceito
+Permitir que o usuário:
+- Descubra automaticamente todos os arquivos `.yml` no diretório de execução
+- Selecione qual profile quer usar (api1.yml, api2.yml, production.yml, etc)
+- Alterne entre profiles durante a execução
+- Edite o profile ativo na Settings View
+- Salve as alterações no arquivo YAML correto
+
+#### Estrutura de Profile
+
+```go
+// config/profile.go
+type Profile struct {
+    Name     string   // Nome do profile (ex: "api1", "production")
+    FilePath string   // Caminho do arquivo (ex: "./api1.yml")
+    Config   *Config  // Configuração carregada
+}
+
+type ProfileManager interface {
+    // Descobre todos os arquivos .yml no diretório
+    Discover(dir string) ([]Profile, error)
+
+    // Lista todos os profiles disponíveis
+    List() []Profile
+
+    // Obtém o profile ativo
+    GetActive() *Profile
+
+    // Troca o profile ativo
+    SetActive(name string) error
+
+    // Salva o profile ativo no arquivo YAML
+    Save() error
+
+    // Atualiza a configuração do profile ativo
+    UpdateActive(cfg *Config) error
+}
+
+type profileManagerImpl struct {
+    profiles     []Profile
+    activeIndex  int
+    configLoader *Loader
+    mu           sync.RWMutex
+}
+```
+
+#### Implementação - Descoberta de Profiles
+
+```go
+// config/profile.go
+func (pm *profileManagerImpl) Discover(dir string) ([]Profile, error) {
+    pm.mu.Lock()
+    defer pm.mu.Unlock()
+
+    // Busca todos os arquivos .yml no diretório
+    files, err := filepath.Glob(filepath.Join(dir, "*.yml"))
+    if err != nil {
+        return nil, fmt.Errorf("failed to glob yml files: %w", err)
+    }
+
+    // Também busca .yaml
+    yamlFiles, err := filepath.Glob(filepath.Join(dir, "*.yaml"))
+    if err != nil {
+        return nil, fmt.Errorf("failed to glob yaml files: %w", err)
+    }
+
+    files = append(files, yamlFiles...)
+
+    if len(files) == 0 {
+        return nil, fmt.Errorf("no .yml or .yaml files found in %s", dir)
+    }
+
+    profiles := make([]Profile, 0, len(files))
+
+    for _, filePath := range files {
+        // Carrega o arquivo
+        cfg, err := pm.configLoader.Load(filePath)
+        if err != nil {
+            // Ignora arquivos inválidos mas loga o erro
+            log.Printf("Skipping invalid config file %s: %v", filePath, err)
+            continue
+        }
+
+        // Extrai nome do arquivo (sem extensão)
+        baseName := filepath.Base(filePath)
+        name := strings.TrimSuffix(baseName, filepath.Ext(baseName))
+
+        profiles = append(profiles, Profile{
+            Name:     name,
+            FilePath: filePath,
+            Config:   cfg,
+        })
+    }
+
+    if len(profiles) == 0 {
+        return nil, fmt.Errorf("no valid config files found")
+    }
+
+    pm.profiles = profiles
+    pm.activeIndex = 0  // Primeiro profile por padrão
+
+    return profiles, nil
+}
+
+func (pm *profileManagerImpl) List() []Profile {
+    pm.mu.RLock()
+    defer pm.mu.RUnlock()
+
+    return pm.profiles
+}
+
+func (pm *profileManagerImpl) GetActive() *Profile {
+    pm.mu.RLock()
+    defer pm.mu.RUnlock()
+
+    if pm.activeIndex < 0 || pm.activeIndex >= len(pm.profiles) {
+        return nil
+    }
+
+    return &pm.profiles[pm.activeIndex]
+}
+
+func (pm *profileManagerImpl) SetActive(name string) error {
+    pm.mu.Lock()
+    defer pm.mu.Unlock()
+
+    for i, profile := range pm.profiles {
+        if profile.Name == name {
+            pm.activeIndex = i
+            return nil
+        }
+    }
+
+    return fmt.Errorf("profile %s not found", name)
+}
+
+func (pm *profileManagerImpl) UpdateActive(cfg *Config) error {
+    pm.mu.Lock()
+    defer pm.mu.Unlock()
+
+    if pm.activeIndex < 0 || pm.activeIndex >= len(pm.profiles) {
+        return fmt.Errorf("no active profile")
+    }
+
+    pm.profiles[pm.activeIndex].Config = cfg
+    return nil
+}
+
+func (pm *profileManagerImpl) Save() error {
+    pm.mu.RLock()
+    defer pm.mu.RUnlock()
+
+    if pm.activeIndex < 0 || pm.activeIndex >= len(pm.profiles) {
+        return fmt.Errorf("no active profile")
+    }
+
+    active := &pm.profiles[pm.activeIndex]
+
+    // Serializa para YAML
+    data, err := yaml.Marshal(active.Config)
+    if err != nil {
+        return fmt.Errorf("failed to marshal config: %w", err)
+    }
+
+    // Salva no arquivo original
+    err = os.WriteFile(active.FilePath, data, 0644)
+    if err != nil {
+        return fmt.Errorf("failed to write config file: %w", err)
+    }
+
+    return nil
+}
+```
+
+#### Integração com Config Manager
+
+```go
+// config/manager.go (ATUALIZADO)
+type Manager interface {
+    Get() *Config
+    Update(cfg *Config) error
+    Save() error
+    OnChange(callback func(*Config))
+
+    // ✨ NOVO: Suporte a profiles
+    GetProfileManager() ProfileManager
+}
+
+type managerImpl struct {
+    profileMgr ProfileManager
+    listeners  []func(*Config)
+    mu         sync.RWMutex
+}
+
+func NewManager(dir string) (Manager, error) {
+    loader := NewLoader()
+    profileMgr := NewProfileManager(loader)
+
+    // Descobre profiles no diretório
+    _, err := profileMgr.Discover(dir)
+    if err != nil {
+        return nil, err
+    }
+
+    return &managerImpl{
+        profileMgr: profileMgr,
+        listeners:  make([]func(*Config), 0),
+    }, nil
+}
+
+func (m *managerImpl) Get() *Config {
+    active := m.profileMgr.GetActive()
+    if active == nil {
+        return nil
+    }
+    return active.Config
+}
+
+func (m *managerImpl) Update(cfg *Config) error {
+    if err := m.profileMgr.UpdateActive(cfg); err != nil {
+        return err
+    }
+
+    // Notifica listeners
+    m.mu.RLock()
+    defer m.mu.RUnlock()
+
+    for _, listener := range m.listeners {
+        listener(cfg)
+    }
+
+    return nil
+}
+
+func (m *managerImpl) Save() error {
+    return m.profileMgr.Save()
+}
+
+func (m *managerImpl) GetProfileManager() ProfileManager {
+    return m.profileMgr
+}
+```
+
+#### UI - Profile Selector na Settings View
+
+```go
+// ui/views/settings.go (ATUALIZADO)
+type SettingsView struct {
+    configMgr config.Manager
+
+    // Profile selector
+    profileSelector  list.Model     // ✨ NOVO: Lista de profiles
+    showingProfiles  bool           // Modal de seleção aberto?
+
+    // Form inputs
+    methodInput      textinput.Model
+    urlInput         textinput.Model
+    bodyInput        textarea.Model
+    headersEditor    *HeadersEditor
+
+    focusIndex int
+}
+
+func NewSettingsView(configMgr config.Manager) *SettingsView {
+    // Cria lista de profiles
+    profileMgr := configMgr.GetProfileManager()
+    profiles := profileMgr.List()
+
+    items := make([]list.Item, len(profiles))
+    for i, p := range profiles {
+        items[i] = profileItem{
+            name:     p.Name,
+            filePath: p.FilePath,
+            active:   i == 0, // Marca o ativo
+        }
+    }
+
+    profileList := list.New(items, list.NewDefaultDelegate(), 0, 0)
+    profileList.Title = "Select Profile"
+
+    return &SettingsView{
+        configMgr:       configMgr,
+        profileSelector: profileList,
+        showingProfiles: false,
+        // ... resto da inicialização
+    }
+}
+
+func (s *SettingsView) Update(msg tea.Msg) tea.Cmd {
+    // Se modal de profiles está aberto
+    if s.showingProfiles {
+        switch msg := msg.(type) {
+        case tea.KeyMsg:
+            switch msg.String() {
+            case "enter":
+                // Troca de profile
+                selected := s.profileSelector.SelectedItem().(profileItem)
+                return s.switchProfile(selected.name)
+
+            case "esc":
+                s.showingProfiles = false
+                return nil
+            }
+        }
+
+        // Delega para a lista
+        var cmd tea.Cmd
+        s.profileSelector, cmd = s.profileSelector.Update(msg)
+        return cmd
+    }
+
+    // Navegação normal
+    switch msg := msg.(type) {
+    case tea.KeyMsg:
+        switch msg.String() {
+        case "ctrl+p":
+            // Abre modal de profiles
+            s.showingProfiles = true
+            return nil
+
+        case "ctrl+s":
+            // Salva configuração no arquivo ativo
+            return s.saveConfig()
+
+        case "tab":
+            s.focusIndex = (s.focusIndex + 1) % 5  // Agora são 5 campos
+            s.updateFocus()
+        }
+    }
+
+    return nil
+}
+
+func (s *SettingsView) switchProfile(name string) tea.Cmd {
+    return func() tea.Msg {
+        profileMgr := s.configMgr.GetProfileManager()
+
+        if err := profileMgr.SetActive(name); err != nil {
+            return ProfileErrorMsg{err}
+        }
+
+        // Recarrega inputs com nova config
+        cfg := s.configMgr.Get()
+        s.loadConfigToInputs(cfg)
+
+        return ProfileSwitchedMsg{name: name}
+    }
+}
+
+func (s *SettingsView) saveConfig() tea.Cmd {
+    return func() tea.Msg {
+        cfg := s.configMgr.Get()
+
+        // Atualiza com valores dos inputs
+        cfg.Request.Method = s.methodInput.Value()
+        cfg.Request.URLTemplate = s.urlInput.Value()
+        cfg.Request.BodyTemplate = s.bodyInput.Value()
+        cfg.Request.Headers = s.headersEditor.headers
+
+        // Atualiza em memória
+        if err := s.configMgr.Update(cfg); err != nil {
+            return ConfigErrorMsg{err}
+        }
+
+        // Salva no arquivo YAML ativo
+        if err := s.configMgr.Save(); err != nil {
+            return ConfigErrorMsg{err}
+        }
+
+        profileMgr := s.configMgr.GetProfileManager()
+        active := profileMgr.GetActive()
+
+        return ConfigSavedMsg{
+            profileName: active.Name,
+            filePath:    active.FilePath,
+        }
+    }
+}
+
+func (s *SettingsView) Render(width, height int) string {
+    // Se modal de profiles está aberto, renderiza por cima
+    if s.showingProfiles {
+        return s.renderProfileSelector(width, height)
+    }
+
+    var b strings.Builder
+
+    // Header com profile ativo
+    profileMgr := s.configMgr.GetProfileManager()
+    active := profileMgr.GetActive()
+
+    title := fmt.Sprintf("⚙️  Settings - Profile: %s", active.Name)
+    b.WriteString(styles.TitleStyle.Render(title))
+    b.WriteString("\n\n")
+
+    b.WriteString("Method:\n")
+    b.WriteString(s.methodInput.View())
+    b.WriteString("\n\n")
+
+    b.WriteString("URL Template:\n")
+    b.WriteString(s.urlInput.View())
+    b.WriteString("\n\n")
+
+    b.WriteString("Body Template:\n")
+    b.WriteString(s.bodyInput.View())
+    b.WriteString("\n\n")
+
+    b.WriteString("Headers (press Enter to edit):\n")
+    b.WriteString(s.headersEditor.View())
+    b.WriteString("\n\n")
+
+    b.WriteString("Ctrl+P: Switch Profile | Ctrl+S: Save | Esc: Back")
+
+    return styles.AppStyle.Render(b.String())
+}
+
+func (s *SettingsView) renderProfileSelector(width, height int) string {
+    // Modal centralizado com lista de profiles
+    profileMgr := s.configMgr.GetProfileManager()
+    profiles := profileMgr.List()
+
+    var b strings.Builder
+    b.WriteString("╔═══════════════════════════════════════╗\n")
+    b.WriteString("║        Select Configuration Profile        ║\n")
+    b.WriteString("╠═══════════════════════════════════════╣\n")
+
+    for i, p := range profiles {
+        active := profileMgr.GetActive()
+        marker := " "
+        if p.Name == active.Name {
+            marker = "●"  // Bullet para o ativo
+        }
+
+        line := fmt.Sprintf("║ %s %s", marker, p.Name)
+        padding := 40 - len(line) - 1
+        line += strings.Repeat(" ", padding) + "║\n"
+        b.WriteString(line)
+    }
+
+    b.WriteString("╚═══════════════════════════════════════╝\n")
+    b.WriteString("Enter: Select | Esc: Cancel")
+
+    return lipgloss.Place(
+        width, height,
+        lipgloss.Center, lipgloss.Center,
+        lipgloss.NewStyle().
+            Border(lipgloss.RoundedBorder()).
+            BorderForeground(lipgloss.Color("#d6acff")).
+            Padding(1, 2).
+            Render(b.String()),
+    )
+}
+
+// Profile list item
+type profileItem struct {
+    name     string
+    filePath string
+    active   bool
+}
+
+func (i profileItem) FilterValue() string { return i.name }
+func (i profileItem) Title() string {
+    if i.active {
+        return "● " + i.name  // Marcador de ativo
+    }
+    return "  " + i.name
+}
+func (i profileItem) Description() string { return i.filePath }
+```
+
+#### Exemplo de Estrutura de Diretório
+
+```
+/home/user/my-project/
+├── rapper                    # Binário
+├── api1.yml                  # Profile 1 - API interna
+├── api2.yml                  # Profile 2 - API externa
+├── production.yml            # Profile 3 - Produção
+├── staging.yml               # Profile 4 - Staging
+├── data/
+│   ├── users.csv
+│   └── orders.csv
+└── output/
+    └── results.json
+```
+
+**api1.yml:**
+```yaml
+request:
+  method: POST
+  url_template: "http://localhost:8080/users/{{.id}}"
+  body_template: |
+    {"name": "{{.name}}"}
+  headers:
+    Authorization: "Bearer dev-token-123"
+    Content-Type: "application/json"
+
+csv:
+  fields: [id, name]
+  separator: ","
+
+workers: 2
+```
+
+**production.yml:**
+```yaml
+request:
+  method: POST
+  url_template: "https://api.production.com/users/{{.id}}"
+  body_template: |
+    {"name": "{{.name}}", "email": "{{.email}}"}
+  headers:
+    Authorization: "Bearer prod-token-xyz"
+    X-API-Key: "production-key"
+    Cookie: "session=abc123"
+
+csv:
+  fields: [id, name, email]
+  separator: ","
+
+workers: 8
+```
+
+#### Fluxo de Uso
+
+```
+1. Usuário inicia o app no diretório com múltiplos .yml
+   ↓
+2. ProfileManager.Discover() encontra: api1.yml, api2.yml, production.yml
+   ↓
+3. Primeiro profile (api1) é carregado automaticamente
+   ↓
+4. Usuário aperta F3 → View Settings
+   ↓
+5. Header mostra: "⚙️ Settings - Profile: api1"
+   ↓
+6. Usuário aperta Ctrl+P → Modal de profiles abre
+   ↓
+7. Lista mostra:
+      ● api1        (./api1.yml)
+        api2        (./api2.yml)
+        production  (./production.yml)
+   ↓
+8. Usuário seleciona "production" e aperta Enter
+   ↓
+9. ProfileManager.SetActive("production")
+   ↓
+10. Inputs são atualizados com config de production.yml
+   ↓
+11. Usuário edita URL template, adiciona header
+   ↓
+12. Usuário aperta Ctrl+S
+   ↓
+13. ConfigManager.Save() salva no production.yml
+   ↓
+14. Gateway recebe hot-reload com novos headers
+   ↓
+15. Próximas requisições usam nova configuração
+```
+
+#### Mensagens Tea (Tea.Msg)
+
+```go
+// ui/views/settings.go
+type ProfileSwitchedMsg struct {
+    name string
+}
+
+type ProfileErrorMsg struct {
+    err error
+}
+
+type ConfigSavedMsg struct {
+    profileName string
+    filePath    string
+}
+
+type ConfigErrorMsg struct {
+    err error
+}
+```
+
+#### Visual do Profile Selector
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│   ╔═══════════════════════════════════╗ │
+│   ║  Select Configuration Profile     ║ │
+│   ╠═══════════════════════════════════╣ │
+│   ║ ● api1           (./api1.yml)     ║ │
+│   ║   api2           (./api2.yml)     ║ │
+│   ║   production     (./production.yml)║ │
+│   ║   staging        (./staging.yml)  ║ │
+│   ╚═══════════════════════════════════╝ │
+│                                         │
+│   Enter: Select | Esc: Cancel          │
+│                                         │
+└─────────────────────────────────────────┘
 ```
 
 ---
@@ -735,6 +1344,7 @@ func (g *gatewayImpl) Exec(ctx context.Context, variables map[string]string) (Re
 ```
 ┌─────────────────────────────────────────────────────┐
 │  🎵 RAPPER - HTTP Load Testing                      │
+│  Profile: production.yml                            │
 │  ─────────────────────────────────────────────────  │
 │                                                      │
 │  [F1] Files   [F2] Logs   [F3] Settings   [F4] Workers
@@ -745,7 +1355,7 @@ func (g *gatewayImpl) Exec(ctx context.Context, variables map[string]string) (Re
 │  │                                                 │ │
 │  │   - Files:    Lista de CSVs + preview          │ │
 │  │   - Logs:     Viewport + métricas              │ │
-│  │   - Settings: Formulário de config             │ │
+│  │   - Settings: Formulário de config + Ctrl+P    │ │
 │  │   - Workers:  Slider + métricas em tempo real  │ │
 │  │                                                 │ │
 │  └────────────────────────────────────────────────┘ │
@@ -761,10 +1371,13 @@ F2 ou Ctrl+L → View Logs (durante processamento)
 F3 ou Ctrl+S → View Settings
 F4 ou Ctrl+W → View Workers
 
+Ctrl+P      → Switch Profile (abre modal de seleção)
+Ctrl+S      → Save Config (salva no arquivo YAML ativo)
+
 Tab         → Próximo campo (dentro da view)
 Shift+Tab   → Campo anterior
 Enter       → Confirmar/Selecionar
-Esc         → Voltar para view anterior
+Esc         → Voltar para view anterior / Fechar modal
 Ctrl+C      → Sair da aplicação
 ```
 
@@ -877,13 +1490,16 @@ internal/processor/
 
 | Aspecto | Antes | Depois |
 |---------|-------|--------|
-| **Configuração** | Estática (config.yml) | Dinâmica (editável na UI) |
+| **Configuração** | Estática (config.yml único) | Dinâmica (editável na UI) |
+| **Profiles** | Não suportado | Múltiplos .yml (api1, prod, staging) |
+| **Troca de Config** | Restart obrigatório | Hot-swap com Ctrl+P |
 | **Headers** | `Authorization: Bearer <token>` | `map[string]string` flexível |
 | **Workers** | Flag CLI (`--workers=4`) | Slider interativo (runtime) |
 | **Views** | 1 view (logs + lista) | 4 views (files/logs/settings/workers) |
 | **Navegação** | Apenas seleção de arquivo | F1-F4 + Tab + Esc |
 | **Hot-reload** | Não suportado | `config.Manager` com listeners |
 | **Métricas** | Apenas contadores | req/s, workers ativos, gráficos |
+| **Persistência** | Manual (editar arquivo) | Salvar na UI (Ctrl+S) |
 | **UX** | Limitada | Rica e interativa |
 
 ---
@@ -892,6 +1508,8 @@ internal/processor/
 
 ### Fase 1: Fundação (Refatoração Base)
 - [ ] Criar `config.Manager` com suporte a hot-reload
+- [ ] Criar `config.ProfileManager` para múltiplos YAMLs
+- [ ] Implementar descoberta automática de arquivos .yml
 - [ ] Atualizar `Config` para usar `headers: map[string]string`
 - [ ] Refatorar `HttpGateway` para aceitar headers flexíveis
 - [ ] Migrar `internal/styles` para `internal/ui/styles.go`
@@ -904,12 +1522,16 @@ internal/processor/
 - [ ] Atualizar `Model` principal para delegar para views
 - [ ] Adicionar key bindings para F1-F4
 
-### Fase 3: Settings View
+### Fase 3: Settings View com Profile Management
 - [ ] Criar `SettingsView` com formulário
 - [ ] Implementar `HeadersEditor` component
+- [ ] Adicionar Profile Selector modal (Ctrl+P)
+- [ ] Implementar troca de profile em runtime
+- [ ] Exibir profile ativo no header da Settings View
 - [ ] Adicionar validação de templates
 - [ ] Conectar `SettingsView` com `config.Manager`
-- [ ] Adicionar persistência de configuração
+- [ ] Implementar persistência no arquivo YAML correto
+- [ ] Testar hot-reload após troca de profile
 
 ### Fase 4: Workers Dinâmicos
 - [ ] Criar `WorkerPool` com `SetWorkers()`
@@ -921,9 +1543,11 @@ internal/processor/
 ### Fase 5: Polimento
 - [ ] Adicionar animações de transição entre views
 - [ ] Melhorar feedback visual (spinners, progress bars)
-- [ ] Adicionar profiles (salvar/carregar múltiplas configs)
+- [ ] Adicionar toast notifications (config saved, profile switched)
+- [ ] Melhorar visual do profile selector modal
 - [ ] Documentar novos recursos no README
 - [ ] Atualizar testes com novos mocks
+- [ ] Adicionar testes para ProfileManager
 
 ---
 
@@ -934,6 +1558,17 @@ internal/processor/
 func TestManager_Update(t *testing.T)
 func TestManager_OnChange_NotifiesListeners(t *testing.T)
 func TestManager_Save_PersistsToYAML(t *testing.T)
+func TestManager_GetProfileManager(t *testing.T)
+
+// config/profile_test.go
+func TestProfileManager_Discover(t *testing.T)
+func TestProfileManager_Discover_NoFiles(t *testing.T)
+func TestProfileManager_Discover_InvalidYAML(t *testing.T)
+func TestProfileManager_SetActive(t *testing.T)
+func TestProfileManager_GetActive(t *testing.T)
+func TestProfileManager_UpdateActive(t *testing.T)
+func TestProfileManager_Save(t *testing.T)
+func TestProfileManager_List(t *testing.T)
 
 // ui/navigation_test.go
 func TestNavigation_Push(t *testing.T)
@@ -941,6 +1576,9 @@ func TestNavigation_Back(t *testing.T)
 
 // ui/views/settings_test.go
 func TestSettingsView_SaveConfig(t *testing.T)
+func TestSettingsView_SwitchProfile(t *testing.T)
+func TestSettingsView_ProfileSelectorModal(t *testing.T)
+func TestSettingsView_SaveToDifferentProfile(t *testing.T)
 func TestHeadersEditor_AddHeader(t *testing.T)
 
 // processor/worker_pool_test.go
@@ -987,7 +1625,6 @@ func TestGateway_Exec_FlexibleHeaders(t *testing.T)
 
 ## 💡 Melhorias Futuras (Opcional)
 
-- [ ] **Profiles**: Salvar múltiplas configurações (prod, dev, staging)
 - [ ] **Graphs**: Gráfico de linha para req/s em tempo real
 - [ ] **Themes**: Tema claro/escuro
 - [ ] **Export**: Exportar resultados para JSON, CSV, HTML
@@ -1000,4 +1637,4 @@ func TestGateway_Exec_FlexibleHeaders(t *testing.T)
 
 **Autor:** Claude (Anthropic)
 **Data:** 2026-01-14
-**Versão:** 1.0.0
+**Versão:** 2.0.0 - Profile Management Edition
