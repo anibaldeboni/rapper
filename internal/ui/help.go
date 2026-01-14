@@ -7,14 +7,18 @@ import (
 )
 
 type keyMap struct {
-	ListUp   key.Binding
-	ListDown key.Binding
-	Help     key.Binding
-	Quit     key.Binding
-	Select   key.Binding
-	Cancel   key.Binding
-	LogUp    key.Binding
-	LogDown  key.Binding
+	ListUp      key.Binding
+	ListDown    key.Binding
+	Help        key.Binding
+	Quit        key.Binding
+	Select      key.Binding
+	Cancel      key.Binding
+	LogUp       key.Binding
+	LogDown     key.Binding
+	ViewFiles   key.Binding
+	ViewLogs    key.Binding
+	ViewSettings key.Binding
+	ViewWorkers key.Binding
 }
 
 func createHelp() help.Model {
@@ -31,11 +35,12 @@ func createHelp() help.Model {
 	return help
 }
 func (this keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{this.Select, this.Cancel, this.Quit, this.Help}
+	return []key.Binding{this.Select, this.Cancel, this.ViewFiles, this.ViewSettings, this.Quit}
 }
 
 func (this keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
+		{this.ViewFiles, this.ViewLogs, this.ViewSettings, this.ViewWorkers},
 		{this.ListUp, this.ListDown},
 		{this.LogUp, this.LogDown},
 		{this.Select, this.Cancel},
@@ -75,5 +80,21 @@ var keys = keyMap{
 	LogDown: key.NewBinding(
 		key.WithKeys("shift+down"),
 		key.WithHelp("shift + ↓", "move log down"),
+	),
+	ViewFiles: key.NewBinding(
+		key.WithKeys("f1", "ctrl+f"),
+		key.WithHelp("F1", "files"),
+	),
+	ViewLogs: key.NewBinding(
+		key.WithKeys("f2", "ctrl+l"),
+		key.WithHelp("F2", "logs"),
+	),
+	ViewSettings: key.NewBinding(
+		key.WithKeys("f3", "ctrl+s"),
+		key.WithHelp("F3", "settings"),
+	),
+	ViewWorkers: key.NewBinding(
+		key.WithKeys("f4", "ctrl+w"),
+		key.WithHelp("F4", "workers"),
 	),
 }
