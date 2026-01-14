@@ -100,9 +100,9 @@ func LoadConfig(path string) (*Config, error) {
 	return legacyConfig.ToConfig(), nil
 }
 
-// Legacy Config function for backward compatibility
+// LegacyConfig is the legacy Config function for backward compatibility
 // DEPRECATED: Use LoadConfig instead
-func Config(path string) (AppConfig, error) {
+func LegacyConfig(path string) (AppConfig, error) {
 	f, err := utils.FindFiles(path, "config.yml", "config.yaml")
 	if err != nil {
 		return AppConfig{}, fmt.Errorf("Error finding config file: %w", err)

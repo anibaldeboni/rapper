@@ -50,8 +50,8 @@ type AppModel struct {
 func NewApp(csvFiles []string, fileProcessor processor.Processor, log logs.Logger, configMgr config.Manager) *AppModel {
 	// Convert CSV files to list items
 	items := make([]list.Item, 0, len(csvFiles))
-	for _, file := range mapListOptions(csvFiles) {
-		items = append(items, file)
+	for _, file := range csvFiles {
+		items = append(items, mapFileToOption(file))
 	}
 
 	return &AppModel{

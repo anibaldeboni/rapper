@@ -8,11 +8,19 @@ import (
 
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/processor"
-	"github.com/anibaldeboni/rapper/internal/ui"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/lipgloss"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+// Option is a generic option for lists
+type Option[T comparable] struct {
+	Value T
+	Title string
+}
+
+func (Option[T]) FilterValue() string { return "" }
 
 // FilesView handles CSV file selection
 type FilesView struct {
@@ -76,6 +84,19 @@ func (v *FilesView) Cancel() {
 	}
 }
 
+// Styles for file list
+var (
+	bullet            = "⦿"
+	inactiveDot       = "⦁"
+	titleStyle        = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
+	itemStyle         = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("255"))
+	selectedItemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#d6acff"))
+	paginationStyle   = lipgloss.NewStyle().PaddingLeft(2)
+	activeDot         = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#d3d3d3", Dark: "#d3d3d3"}).SetString(bullet).Bold(true)
+	inactiveDotStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8d8d8d", Dark: "#8d8d8d"}).SetString(inactiveDot).Bold(true)
+	titleBarStyle     = lipgloss.NewStyle().PaddingBottom(1)
+)
+
 // fileItemDelegate is the delegate for rendering file list items
 type fileItemDelegate struct{}
 
@@ -83,17 +104,17 @@ func (d fileItemDelegate) Height() int                             { return 1 }
 func (d fileItemDelegate) Spacing() int                            { return 0 }
 func (d fileItemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 func (d fileItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	i, ok := listItem.(ui.Option[string])
+	i, ok := listItem.(Option[string])
 	if !ok {
 		return
 	}
 
 	str := fmt.Sprintf("%d. %s", index+1, i.Title)
 
-	fn := ui.ItemStyle.Render
+	fn := itemStyle.Render
 	if index == m.Index() {
 		fn = func(s ...string) string {
-			return ui.SelectedItemStyle.Render("> " + strings.Join(s, " "))
+			return selectedItemStyle.Render("> " + strings.Join(s, " "))
 		}
 	}
 
@@ -111,11 +132,11 @@ func createFileList(items []list.Item, title string) list.Model {
 	l.DisableQuitKeybindings()
 	l.KeyMap.CursorUp = key.NewBinding(key.WithKeys("up"))
 	l.KeyMap.CursorDown = key.NewBinding(key.WithKeys("down"))
-	l.Styles.Title = ui.TitleStyle
-	l.Styles.PaginationStyle = ui.PaginationStyle
-	l.Styles.ActivePaginationDot = ui.ActivePaginationDot
-	l.Styles.InactivePaginationDot = ui.InactivePaginationDot
-	l.Styles.TitleBar = ui.TitleBarStyle
+	l.Styles.Title = titleStyle
+	l.Styles.PaginationStyle = paginationStyle
+	l.Styles.ActivePaginationDot = activeDot
+	l.Styles.InactivePaginationDot = inactiveDotStyle
+	l.Styles.TitleBar = titleBarStyle
 
 	return l
 }

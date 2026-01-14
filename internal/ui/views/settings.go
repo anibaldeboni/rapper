@@ -2,8 +2,13 @@ package views
 
 import (
 	"github.com/anibaldeboni/rapper/internal/config"
-	"github.com/anibaldeboni/rapper/internal/ui"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	settingsTitleStyle = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
+	appStyle           = lipgloss.NewStyle().Margin(1, 1, 1, 2).Render
 )
 
 // SettingsView displays and edits configuration settings
@@ -36,7 +41,7 @@ func (v *SettingsView) Resize(width, height int) {
 func (v *SettingsView) View() string {
 	// TODO: Implement in Phase 3
 	// For now, show a placeholder
-	title := ui.TitleStyle.Render("⚙️  Settings")
+	title := settingsTitleStyle.Render("⚙️  Settings")
 	content := "\n\nSettings view will be implemented in Phase 3.\n\n"
 	content += "Features:\n"
 	content += "  • Edit URL template, body template, headers\n"
@@ -44,5 +49,5 @@ func (v *SettingsView) View() string {
 	content += "  • Save configuration (Ctrl+S)\n\n"
 	content += "Press Esc to go back."
 
-	return ui.AppStyle(title + content)
+	return appStyle(title + content)
 }

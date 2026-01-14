@@ -2,8 +2,13 @@ package views
 
 import (
 	"github.com/anibaldeboni/rapper/internal/processor"
-	"github.com/anibaldeboni/rapper/internal/ui"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	workersTitleStyle = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
+	workersAppStyle   = lipgloss.NewStyle().Margin(1, 1, 1, 2).Render
 )
 
 // WorkersView displays and controls worker pool
@@ -36,7 +41,7 @@ func (v *WorkersView) Resize(width, height int) {
 func (v *WorkersView) View() string {
 	// TODO: Implement in Phase 4
 	// For now, show a placeholder
-	title := ui.TitleStyle.Render("👷 Workers Control")
+	title := workersTitleStyle.Render("👷 Workers Control")
 	content := "\n\nWorkers view will be implemented in Phase 4.\n\n"
 	content += "Features:\n"
 	content += "  • Adjust worker count with slider\n"
@@ -44,5 +49,5 @@ func (v *WorkersView) View() string {
 	content += "  • Monitor active workers\n\n"
 	content += "Press Esc to go back."
 
-	return ui.AppStyle(title + content)
+	return workersAppStyle(title + content)
 }

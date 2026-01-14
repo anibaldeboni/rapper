@@ -4,10 +4,14 @@ import (
 	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/logs"
-	"github.com/anibaldeboni/rapper/internal/ui"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	logTitleStyle     = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
+	viewPortStyle     = lipgloss.NewStyle().PaddingTop(1).Render
 )
 
 // LogsView displays execution logs
@@ -47,7 +51,7 @@ func (v *LogsView) Resize(width, height int) {
 
 // View renders the logs view
 func (v *LogsView) View() string {
-	titleBar := ui.TitleStyle.Render(v.title)
+	titleBar := logTitleStyle.Render(v.title)
 
 	return lipgloss.NewStyle().
 		PaddingLeft(2).
@@ -55,7 +59,7 @@ func (v *LogsView) View() string {
 			lipgloss.JoinVertical(
 				lipgloss.Top,
 				titleBar,
-				ui.ViewPortStyle(v.viewport.View()),
+				viewPortStyle(v.viewport.View()),
 			),
 		)
 }

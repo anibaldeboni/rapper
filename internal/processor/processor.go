@@ -33,7 +33,7 @@ type csvLineMap map[string]string
 type processorImpl struct {
 	gateway   web.HttpGateway
 	logger    logs.Logger
-	csvConfig config.CSV
+	csvConfig config.CSVConfig
 	workers   int
 }
 
@@ -44,7 +44,7 @@ type processorImpl struct {
 // - logger: The logger.
 // - workers: The number of workers to be used.
 // It returns a pointer to the Processor interface.
-func NewProcessor(cfg config.CSV, hg web.HttpGateway, logger logs.Logger, workers int) Processor {
+func NewProcessor(cfg config.CSVConfig, hg web.HttpGateway, logger logs.Logger, workers int) Processor {
 	return &processorImpl{
 		csvConfig: cfg,
 		gateway:   hg,

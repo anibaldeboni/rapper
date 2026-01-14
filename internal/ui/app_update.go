@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/anibaldeboni/rapper/internal/ui/views"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -89,7 +90,7 @@ func (m AppModel) updateCurrentView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Handle file selection
 		if key.Matches(msg, keys.Select) {
 			item := m.filesView.SelectedItem()
-			if opt, ok := item.(Option[string]); ok {
+			if opt, ok := item.(views.Option[string]); ok {
 				return m.selectFile(opt.Value), nil
 			}
 		}

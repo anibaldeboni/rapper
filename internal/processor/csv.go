@@ -58,7 +58,7 @@ func buildFilteredFieldIndex(csvHeaders []string, fieldsToFilter []string) map[s
 	return indexes
 }
 
-func csvSep(cfg config.CSV) rune {
+func csvSep(cfg config.CSVConfig) rune {
 	sep := strings.Trim(cfg.Separator, " ")
 	if utils.IsZero(sep) {
 		sep = ","
