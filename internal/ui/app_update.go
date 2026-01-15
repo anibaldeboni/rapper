@@ -201,10 +201,10 @@ func (m AppModel) waitCompletion(ctx context.Context) {
 func (m AppModel) resizeViews() {
 	// Calculate available height for content
 	// Subtract:
+	// - 1 line for header (help bar)
 	// - 1 line for status bar
 	// - 2 lines for AppStyle margins (top + bottom)
-	// - Reserve space for help when expanded (if needed)
-	availableHeight := m.height - 3
+	availableHeight := m.height - 4
 
 	// Ensure minimum height
 	if availableHeight < 10 {

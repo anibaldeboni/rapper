@@ -9,6 +9,9 @@ import (
 )
 
 func (m AppModel) View() string {
+	// Render header with contextual help
+	header := m.renderHeader()
+
 	// Render based on current view
 	var content string
 
@@ -29,10 +32,11 @@ func (m AppModel) View() string {
 	// Render status bar
 	statusBar := m.renderStatusBar()
 
-	// Join toasts (if any), content, and status bar
+	// Join all elements: header, toasts (if any), content, and status bar
 	if toasts != "" {
 		app := lipgloss.JoinVertical(
 			lipgloss.Top,
+			header,
 			toasts,
 			content,
 			statusBar,
@@ -40,9 +44,10 @@ func (m AppModel) View() string {
 		return AppStyle(app)
 	}
 
-	// Join content and status bar
+	// Join header, content and status bar
 	app := lipgloss.JoinVertical(
 		lipgloss.Top,
+		header,
 		content,
 		statusBar,
 	)
@@ -76,11 +81,42 @@ func (m AppModel) renderLogsView() string {
 	return m.logsView.View()
 }
 
+// renderHeader renders the contextual help bar at the top
+func (m AppModel) renderHeader() string {
+	// Get contextual keymap for current view
+	contextualKeys := getContextualKeyMap(m.nav.Current())
+
+	// Discrete style for help bar
+	helpBarStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		Background(lipgloss.Color("235")).
+		Padding(0, 1)
+
+	helpText := m.help.View(contextualKeys)
+
+	// Truncate if needed
+	maxWidth := m.width - 4
+	helpEmptySpace, err := safecast.ToUint(maxWidth)
+	if err != nil {
+		helpEmptySpace = 0
+	}
+
+	truncatedHelp := truncate.StringWithTail(helpText, helpEmptySpace, "…")
+
+	return helpBarStyle.Width(m.width).Render(truncatedHelp)
+}
+
+// renderStatusBar renders the simplified status bar at the bottom
 func (m AppModel) renderStatusBar() string {
 	width := lipgloss.Width
 
 	// App tag
 	appTag := LogoStyle(fmt.Sprintf("%s@%s", AppName, AppVersion))
+
+	// Current view indicator
+	viewName := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#d6acff")).
+		Render(fmt.Sprintf(" [%s] ", m.nav.Current().String()))
 
 	// Spinner or idle indicator
 	var spinner string
@@ -92,31 +128,20 @@ func (m AppModel) renderStatusBar() string {
 			Render("∙∙∙")
 	}
 
-	// Current view indicator
-	viewName := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#d6acff")).
-		Render(fmt.Sprintf(" [%s] ", m.nav.Current().String()))
-
-	// Get contextual keymap for current view
-	contextualKeys := getContextualKeyMap(m.nav.Current())
-
-	// Help text
-	helpEmptySpace, err := safecast.ToUint(m.width - width(appTag) - width(spinner) - width(viewName) - 4)
-	if err != nil {
-		helpEmptySpace = 0
+	// Calculate spacing to push spinner to the right
+	spacing := m.width - width(appTag) - width(viewName) - width(spinner) - 4
+	if spacing < 0 {
+		spacing = 0
 	}
 
-	helpText := lipgloss.NewStyle().
-		Width(m.width - width(appTag) - width(spinner) - width(viewName) - 4).
-		PaddingLeft(1).
-		Render(truncate.StringWithTail(m.help.View(contextualKeys), helpEmptySpace, "…"))
+	spacer := lipgloss.NewStyle().Width(spacing).Render("")
 
 	// Join all status bar elements
 	return lipgloss.JoinHorizontal(
 		lipgloss.Left,
 		appTag,
 		viewName,
-		helpText,
+		spacer,
 		spinner,
 	)
 }
