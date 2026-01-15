@@ -97,6 +97,9 @@ func (m AppModel) renderStatusBar() string {
 		Foreground(lipgloss.Color("#d6acff")).
 		Render(fmt.Sprintf(" [%s] ", m.nav.Current().String()))
 
+	// Get contextual keymap for current view
+	contextualKeys := getContextualKeyMap(m.nav.Current())
+
 	// Help text
 	helpEmptySpace, err := safecast.ToUint(m.width - width(appTag) - width(spinner) - width(viewName) - 4)
 	if err != nil {
@@ -106,7 +109,7 @@ func (m AppModel) renderStatusBar() string {
 	helpText := lipgloss.NewStyle().
 		Width(m.width - width(appTag) - width(spinner) - width(viewName) - 4).
 		PaddingLeft(1).
-		Render(truncate.StringWithTail(m.help.View(keys), helpEmptySpace, "…"))
+		Render(truncate.StringWithTail(m.help.View(contextualKeys), helpEmptySpace, "…"))
 
 	// Join all status bar elements
 	return lipgloss.JoinHorizontal(
