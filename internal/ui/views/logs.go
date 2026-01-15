@@ -10,8 +10,7 @@ import (
 )
 
 var (
-	logTitleStyle     = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
-	viewPortStyle     = lipgloss.NewStyle().PaddingTop(1).Render
+	logTitleStyle = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
 )
 
 // LogsView displays execution logs
@@ -55,11 +54,12 @@ func (v *LogsView) View() string {
 
 	return lipgloss.NewStyle().
 		PaddingLeft(2).
+		PaddingTop(1).
 		Render(
 			lipgloss.JoinVertical(
 				lipgloss.Top,
 				titleBar,
-				viewPortStyle(v.viewport.View()),
+				v.viewport.View(),
 			),
 		)
 }

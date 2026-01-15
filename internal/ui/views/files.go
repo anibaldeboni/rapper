@@ -20,6 +20,8 @@ type Option[T comparable] struct {
 	Title string
 }
 
+var fileTitleStyle = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true).Render
+
 func (Option[T]) FilterValue() string { return "" }
 
 // FilesView handles CSV file selection
@@ -30,16 +32,18 @@ type FilesView struct {
 	cancel    context.CancelFunc
 	width     int
 	height    int
+	title     string
 }
 
 // NewFilesView creates a new FilesView
 func NewFilesView(csvFiles []list.Item, processor processor.Processor, logger logs.Logger) *FilesView {
-	l := createFileList(csvFiles, "Choose a file")
+	l := createFileList(csvFiles)
 
 	return &FilesView{
 		list:      l,
 		processor: processor,
 		logger:    logger,
+		title:     "Select a CSV file to process",
 	}
 }
 
@@ -59,7 +63,16 @@ func (v *FilesView) Resize(width, height int) {
 
 // View renders the files view
 func (v *FilesView) View() string {
-	return v.list.View()
+	return lipgloss.NewStyle().
+		PaddingLeft(2).
+		PaddingTop(1).
+		Render(
+			lipgloss.JoinVertical(
+				lipgloss.Top,
+				fileTitleStyle(v.title),
+				v.list.View(),
+			),
+		)
 }
 
 // SelectedItem returns the currently selected file
@@ -89,7 +102,7 @@ var (
 	bullet            = "⦿"
 	inactiveDot       = "⦁"
 	titleStyle        = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(8).Foreground(lipgloss.Color("255"))
+	itemStyle         = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("255"))
 	selectedItemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#d6acff"))
 	paginationStyle   = lipgloss.NewStyle().PaddingLeft(2)
 	activeDot         = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#d3d3d3", Dark: "#d3d3d3"}).SetString(bullet).Bold(true)
@@ -122,9 +135,8 @@ func (d fileItemDelegate) Render(w io.Writer, m list.Model, index int, listItem 
 }
 
 // createFileList creates a list model for file selection
-func createFileList(items []list.Item, title string) list.Model {
+func createFileList(items []list.Item) list.Model {
 	l := list.New(items, fileItemDelegate{}, 0, 0)
-	l.Title = title
 	l.InfiniteScrolling = true
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
