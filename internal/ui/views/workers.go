@@ -204,10 +204,6 @@ func (v *WorkersView) View() string {
 		b.WriteString("\n\n")
 	}
 
-	// Help text
-	help := helpStyle.Render("←/→ or -/+: Adjust workers • Esc: Back")
-	b.WriteString(help)
-
 	return workersAppStyle.Render(b.String())
 }
 

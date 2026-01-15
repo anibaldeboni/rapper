@@ -315,10 +315,7 @@ func (v *SettingsView) Resize(width, height int) {
 
 	// Adjust textarea heights based on available height
 	// Reserve space for: header(3) + labels(6) + help(3) + margins(4) = ~16 lines
-	availableForTextareas := height - 16
-	if availableForTextareas < 8 {
-		availableForTextareas = 8
-	}
+	availableForTextareas := max(height-16, 8)
 
 	// Distribute height: body gets 60%, headers gets 40%
 	bodyHeight := (availableForTextareas * 6) / 10
@@ -329,13 +326,7 @@ func (v *SettingsView) Resize(width, height int) {
 		bodyHeight = 10
 	}
 
-	headersHeight := availableForTextareas - bodyHeight
-	if headersHeight < 2 {
-		headersHeight = 2
-	}
-	if headersHeight > 8 {
-		headersHeight = 8
-	}
+	headersHeight := min(max(availableForTextareas-bodyHeight, 2), 8)
 
 	v.bodyInput.SetHeight(bodyHeight)
 	v.headersInput.SetHeight(headersHeight)
@@ -384,9 +375,9 @@ func (v *SettingsView) View() string {
 	b.WriteString("\n\n")
 
 	// Help text
-	help := "Tab/Shift+Tab: Switch fields • Ctrl+S: Save • Ctrl+P: Switch profile • Esc: Back"
+	var help string
 	if v.modified {
-		help += " • ⚠️  Unsaved changes"
+		help = "⚠️  Unsaved changes"
 	}
 	b.WriteString(helpStyle.Render(help))
 

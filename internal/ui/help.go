@@ -7,22 +7,24 @@ import (
 )
 
 type keyMap struct {
-	ListUp       key.Binding
-	ListDown     key.Binding
-	Help         key.Binding
-	Quit         key.Binding
-	Select       key.Binding
-	Cancel       key.Binding
-	LogUp        key.Binding
-	LogDown      key.Binding
-	ViewFiles    key.Binding
-	ViewLogs     key.Binding
-	ViewSettings key.Binding
-	ViewWorkers  key.Binding
-	Save         key.Binding
-	Profile      key.Binding
-	WorkerInc    key.Binding
-	WorkerDec    key.Binding
+	ListUp              key.Binding
+	ListDown            key.Binding
+	Help                key.Binding
+	Quit                key.Binding
+	Select              key.Binding
+	Cancel              key.Binding
+	LogUp               key.Binding
+	LogDown             key.Binding
+	ViewFiles           key.Binding
+	ViewLogs            key.Binding
+	ViewSettings        key.Binding
+	ViewWorkers         key.Binding
+	Save                key.Binding
+	Profile             key.Binding
+	WorkerInc           key.Binding
+	WorkerDec           key.Binding
+	SwitchFieldForward  key.Binding
+	SwitchFieldBackward key.Binding
 }
 
 func createHelp() help.Model {
@@ -211,6 +213,14 @@ var keys = keyMap{
 		key.WithKeys("left", "-"),
 		key.WithHelp("←/-", "decrease"),
 	),
+	SwitchFieldForward: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "next field"),
+	),
+	SwitchFieldBackward: key.NewBinding(
+		key.WithKeys("shift+tab"),
+		key.WithHelp("shift+tab", "prev field"),
+	),
 }
 
 // globalKeyMap shows only global navigation keys (for header)
@@ -240,55 +250,6 @@ func getGlobalKeyMap() help.KeyMap {
 		ViewSettings: keys.ViewSettings,
 		ViewWorkers:  keys.ViewWorkers,
 		Quit:         keys.Quit,
-	}
-}
-
-// getContextualKeyMap returns the appropriate keymap based on the current view (for status bar)
-func getContextualKeyMap(view View) help.KeyMap {
-	switch view {
-	case ViewFiles:
-		return filesKeyMap{
-			Select:       keys.Select,
-			Cancel:       keys.Cancel,
-			ViewFiles:    keys.ViewFiles,
-			ViewLogs:     keys.ViewLogs,
-			ViewSettings: keys.ViewSettings,
-			ViewWorkers:  keys.ViewWorkers,
-			Quit:         keys.Quit,
-		}
-	case ViewLogs:
-		return logsKeyMap{
-			LogUp:        keys.LogUp,
-			LogDown:      keys.LogDown,
-			ViewFiles:    keys.ViewFiles,
-			ViewLogs:     keys.ViewLogs,
-			ViewSettings: keys.ViewSettings,
-			ViewWorkers:  keys.ViewWorkers,
-			Quit:         keys.Quit,
-		}
-	case ViewSettings:
-		return settingsKeyMap{
-			Save:         keys.Save,
-			Profile:      keys.Profile,
-			Cancel:       keys.Cancel,
-			ViewFiles:    keys.ViewFiles,
-			ViewLogs:     keys.ViewLogs,
-			ViewSettings: keys.ViewSettings,
-			ViewWorkers:  keys.ViewWorkers,
-			Quit:         keys.Quit,
-		}
-	case ViewWorkers:
-		return workersKeyMap{
-			WorkerInc:    keys.WorkerInc,
-			WorkerDec:    keys.WorkerDec,
-			ViewFiles:    keys.ViewFiles,
-			ViewLogs:     keys.ViewLogs,
-			ViewSettings: keys.ViewSettings,
-			ViewWorkers:  keys.ViewWorkers,
-			Quit:         keys.Quit,
-		}
-	default:
-		return keys
 	}
 }
 
@@ -322,9 +283,11 @@ func (k logsViewKeyMap) FullHelp() [][]key.Binding {
 
 // settingsViewKeyMap shows only settings view specific keys
 type settingsViewKeyMap struct {
-	Save    key.Binding
-	Profile key.Binding
-	Cancel  key.Binding
+	Save                key.Binding
+	Profile             key.Binding
+	Cancel              key.Binding
+	SwitchFieldForward  key.Binding
+	SwitchFieldBackward key.Binding
 }
 
 func (k settingsViewKeyMap) ShortHelp() []key.Binding {
@@ -332,7 +295,7 @@ func (k settingsViewKeyMap) ShortHelp() []key.Binding {
 }
 
 func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Save, k.Profile, k.Cancel}}
+	return [][]key.Binding{{k.SwitchFieldForward, k.SwitchFieldBackward, k.Save, k.Profile, k.Cancel}}
 }
 
 // workersViewKeyMap shows only workers view specific keys
@@ -364,9 +327,11 @@ func getViewSpecificKeyMap(view View) help.KeyMap {
 		}
 	case ViewSettings:
 		return settingsViewKeyMap{
-			Save:    keys.Save,
-			Profile: keys.Profile,
-			Cancel:  keys.Cancel,
+			Save:                keys.Save,
+			Profile:             keys.Profile,
+			Cancel:              keys.Cancel,
+			SwitchFieldForward:  keys.SwitchFieldForward,
+			SwitchFieldBackward: keys.SwitchFieldBackward,
 		}
 	case ViewWorkers:
 		return workersViewKeyMap{
@@ -378,4 +343,3 @@ func getViewSpecificKeyMap(view View) help.KeyMap {
 		return globalKeyMap{}
 	}
 }
-

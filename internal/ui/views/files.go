@@ -10,8 +10,8 @@ import (
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/lipgloss"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // Option is a generic option for lists
@@ -89,7 +89,7 @@ var (
 	bullet            = "⦿"
 	inactiveDot       = "⦁"
 	titleStyle        = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("255"))
+	itemStyle         = lipgloss.NewStyle().PaddingLeft(8).Foreground(lipgloss.Color("255"))
 	selectedItemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#d6acff"))
 	paginationStyle   = lipgloss.NewStyle().PaddingLeft(2)
 	activeDot         = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#d3d3d3", Dark: "#d3d3d3"}).SetString(bullet).Bold(true)
