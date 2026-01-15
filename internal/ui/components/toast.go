@@ -1,6 +1,7 @@
 package components
 
 import (
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
@@ -26,14 +27,14 @@ type Toast struct {
 
 // ToastManager manages a queue of toast notifications
 type ToastManager struct {
-	toasts   []Toast
+	toasts    []Toast
 	maxToasts int
 }
 
 // NewToastManager creates a new ToastManager
 func NewToastManager() *ToastManager {
 	return &ToastManager{
-		toasts:   make([]Toast, 0),
+		toasts:    make([]Toast, 0),
 		maxToasts: 3,
 	}
 }
@@ -105,13 +106,13 @@ func (tm *ToastManager) Render(width int) string {
 		return ""
 	}
 
-	var rendered string
+	var rendered strings.Builder
 
 	for _, toast := range tm.toasts {
-		rendered += renderToast(toast, width) + "\n"
+		rendered.WriteString(renderToast(toast, width))
 	}
 
-	return rendered
+	return rendered.String()
 }
 
 // renderToast renders a single toast notification
@@ -121,8 +122,8 @@ func renderToast(toast Toast, width int) string {
 
 	baseStyle := lipgloss.NewStyle().
 		Padding(0, 1).
-		MarginBottom(1).
-		MaxWidth(width - 4)
+		// MarginBottom(1).
+		MarginTop(1)
 
 	switch toast.Type {
 	case ToastSuccess:
