@@ -101,7 +101,7 @@ func (tm *ToastManager) HasActive() bool {
 }
 
 // Render renders all active toasts
-func (tm *ToastManager) Render(width int) string {
+func (tm *ToastManager) Render() string {
 	if !tm.HasActive() {
 		return ""
 	}
@@ -109,20 +109,20 @@ func (tm *ToastManager) Render(width int) string {
 	var rendered strings.Builder
 
 	for _, toast := range tm.toasts {
-		rendered.WriteString(renderToast(toast, width))
+		rendered.WriteString(renderToast(toast))
 	}
 
 	return rendered.String()
 }
 
 // renderToast renders a single toast notification
-func renderToast(toast Toast, width int) string {
+func renderToast(toast Toast) string {
 	var icon string
 	var style lipgloss.Style
 
 	baseStyle := lipgloss.NewStyle().
 		Padding(0, 1).
-		// MarginBottom(1).
+		MarginLeft(1).
 		MarginTop(1)
 
 	switch toast.Type {

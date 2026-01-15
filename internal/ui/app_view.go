@@ -27,7 +27,7 @@ func (m AppModel) View() string {
 	}
 
 	// Render toasts if any
-	toasts := m.toastMgr.Render(m.width)
+	toasts := m.toastMgr.Render()
 
 	// Render status bar
 	statusBar := m.renderStatusBar()
@@ -37,8 +37,15 @@ func (m AppModel) View() string {
 		app := lipgloss.JoinVertical(
 			lipgloss.Top,
 			header,
-			toasts,
-			content,
+			lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				content,
+				lipgloss.PlaceHorizontal(
+					lipgloss.Width(toasts),
+					lipgloss.Right,
+					toasts,
+				),
+			),
 			statusBar,
 		)
 		return AppStyle(app)
