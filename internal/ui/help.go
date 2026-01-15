@@ -35,7 +35,7 @@ func createHelp() help.Model {
 	return help
 }
 func (this keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{this.Select, this.Cancel, this.ViewFiles, this.ViewSettings, this.Quit}
+	return []key.Binding{this.Select, this.Cancel, this.ViewFiles, this.ViewLogs, this.ViewSettings, this.ViewWorkers, this.Quit}
 }
 
 func (this keyMap) FullHelp() [][]key.Binding {
