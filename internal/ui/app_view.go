@@ -56,25 +56,7 @@ func (m AppModel) View() string {
 }
 
 func (m AppModel) renderFilesView() string {
-	// Show files list on the left
-	filesWidget := m.filesView.View()
-
-	// Show logs on the right if processing is running or complete
-	var logsWidget string
-	if m.state.Get() == Running || m.state.Get() == Stale {
-		logsWidget = m.logsView.View()
-	}
-
-	// Join horizontally if we have logs
-	if logsWidget != "" {
-		return lipgloss.JoinHorizontal(
-			lipgloss.Left,
-			filesWidget,
-			logsWidget,
-		)
-	}
-
-	return filesWidget
+	return m.filesView.View()
 }
 
 func (m AppModel) renderLogsView() string {
@@ -120,10 +102,7 @@ func (m AppModel) renderStatusBar() string {
 	helpText := m.help.View(viewSpecificKeys)
 
 	// Truncate help text if needed
-	availableWidth := m.width - lipgloss.Width(viewName) - 10
-	if availableWidth < 0 {
-		availableWidth = 0
-	}
+	availableWidth := max(m.width-lipgloss.Width(viewName)-10, 0)
 	helpEmptySpace, err := safecast.ToUint(availableWidth)
 	if err != nil {
 		helpEmptySpace = 0
@@ -146,10 +125,7 @@ func (m AppModel) renderStatusBar() string {
 	}
 
 	// Calculate spacing to push spinner to the right
-	spacing := m.width - width(viewName) - width(contextHelp) - width(spinner) - 4
-	if spacing < 0 {
-		spacing = 0
-	}
+	spacing := max(m.width-width(viewName)-width(contextHelp)-width(spinner)-4, 0)
 
 	spacer := lipgloss.NewStyle().Width(spacing).Render("")
 

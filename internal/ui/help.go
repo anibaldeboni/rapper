@@ -174,12 +174,12 @@ var keys = keyMap{
 		key.WithHelp("q", "quit"),
 	),
 	LogUp: key.NewBinding(
-		key.WithKeys("shift+up"),
-		key.WithHelp("shift+↑", "scroll up"),
+		key.WithKeys("up"),
+		key.WithHelp("↑", "scroll up"),
 	),
 	LogDown: key.NewBinding(
-		key.WithKeys("shift+down"),
-		key.WithHelp("shift+↓", "scroll down"),
+		key.WithKeys("down"),
+		key.WithHelp("↓", "scroll down"),
 	),
 	ViewFiles: key.NewBinding(
 		key.WithKeys("f1", "ctrl+f"),

@@ -32,6 +32,7 @@ var (
 	LogoStyle     = lipgloss.NewStyle().
 			Background(lipgloss.Color("#F25D94")).
 			Foreground(lipgloss.Color("#ffffff")).
+			Bold(true).
 			Padding(0, 1).
 			Render
 	HelpKeyStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{

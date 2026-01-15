@@ -44,7 +44,7 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 func (v *LogsView) Resize(width, height int) {
 	v.width = width
 	v.height = height
-	v.viewport.Width = width - 4
+	v.viewport.Width = width
 	v.viewport.Height = height - 6
 }
 
@@ -59,6 +59,7 @@ func (v *LogsView) View() string {
 			lipgloss.JoinVertical(
 				lipgloss.Top,
 				titleBar,
+				"",
 				v.viewport.View(),
 			),
 		)
