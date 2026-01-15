@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -81,16 +80,22 @@ func (pm *profileManagerImpl) Discover(dir string) ([]Profile, error) {
 	profiles := make([]Profile, 0, len(files))
 
 	for _, filePath := range files {
+		// Extract filename to check if it should be skipped
+		baseName := filepath.Base(filePath)
+
+		// Skip hidden files (starting with .) and known non-profile config files
+		if strings.HasPrefix(baseName, ".") {
+			continue
+		}
+
 		// Load the configuration file
 		cfg, err := pm.configLoader.Load(filePath)
 		if err != nil {
-			// Skip invalid files but log the error
-			log.Printf("Skipping invalid config file %s: %v", filePath, err)
+			// Silently skip invalid files (they might be config files for other tools)
 			continue
 		}
 
 		// Extract profile name from filename (without extension)
-		baseName := filepath.Base(filePath)
 		name := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 
 		profiles = append(profiles, Profile{
