@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/config"
+	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -51,10 +52,6 @@ type SettingsView struct {
 	// Profile selector
 	showProfileSelector bool
 	profileListIndex    int
-
-	// Method selector
-	showMethodSelector  bool
-	methodSelectorIndex int
 
 	// State
 	modified bool
@@ -293,40 +290,6 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 
-		// If method selector is open, handle its navigation
-		if v.showMethodSelector {
-			methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
-			switch msg.String() {
-			case "up", "k":
-				v.methodSelectorIndex--
-				if v.methodSelectorIndex < 0 {
-					v.methodSelectorIndex = len(methods) - 1
-				}
-				return nil
-
-			case "down", "j":
-				v.methodSelectorIndex++
-				if v.methodSelectorIndex >= len(methods) {
-					v.methodSelectorIndex = 0
-				}
-				return nil
-
-			case "enter":
-				// Select method
-				if v.methodSelectorIndex >= 0 && v.methodSelectorIndex < len(methods) {
-					v.methodInput.SetValue(methods[v.methodSelectorIndex])
-					v.modified = true
-				}
-				v.showMethodSelector = false
-				return nil
-
-			case "esc", tea.KeyEscape.String():
-				v.showMethodSelector = false
-				return nil
-			}
-			return nil
-		}
-
 		// Handle keyboard shortcuts
 		switch {
 		case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+s"))):
@@ -342,20 +305,6 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			for i, name := range profiles {
 				if name == activeProfile {
 					v.profileListIndex = i
-					break
-				}
-			}
-			return nil
-
-		case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+m"))):
-			// Toggle method selector
-			v.showMethodSelector = !v.showMethodSelector
-			// Set initial selection to current method
-			methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
-			currentMethod := v.methodInput.Value()
-			for i, method := range methods {
-				if method == currentMethod {
-					v.methodSelectorIndex = i
 					break
 				}
 			}
@@ -425,44 +374,38 @@ func (v *SettingsView) Resize(width, height int) {
 	v.width = width
 	v.height = height
 
-	// Adjust input widths
-	inputWidth := width - 8 // Account for margins and labels
-	if inputWidth > 120 {
-		inputWidth = 120
-	}
-	if inputWidth < 40 {
-		inputWidth = 40
-	}
+	// // Adjust input widths
+	// inputWidth := width - 8 // Account for margins and labels
+	// if inputWidth > 120 {
+	// 	inputWidth = 120
+	// }
+	// if inputWidth < 40 {
+	// 	inputWidth = 40
+	// }
 
-	v.urlInput.Width = inputWidth
-	v.methodInput.Width = min(inputWidth, 30)
-	v.bodyInput.SetWidth(inputWidth)
-	v.headersInput.SetWidth(inputWidth)
-	v.csvFieldsInput.SetWidth(inputWidth)
+	// v.urlInput.Width = inputWidth
+	// v.methodInput.Width = min(inputWidth, 30)
+	// v.bodyInput.SetWidth(inputWidth)
+	// v.headersInput.SetWidth(inputWidth)
+	// v.csvFieldsInput.SetWidth(inputWidth)
 
-	// Adjust textarea heights based on available height
-	// Reserve space for: header(3) + labels(10) + help(3) + margins(4) = ~20 lines
-	availableForTextareas := max(height-20, 10)
+	// // Adjust textarea heights based on available height
+	// // Reserve space for: header(3) + labels(10) + help(3) + margins(4) = ~20 lines
+	// availableForTextareas := max(height-20, 10)
 
-	// Distribute height: body gets 40%, headers gets 30%, csvFields gets 30%
-	bodyHeight := max((availableForTextareas*4)/10, 3)
-	if bodyHeight > 8 {
-		bodyHeight = 8
-	}
+	// // Distribute height: body gets 40%, headers gets 30%, csvFields gets 30%
+	// bodyHeight := min(max((availableForTextareas*4)/10, 3), 8)
 
-	headersHeight := max((availableForTextareas*3)/10, 2)
-	if headersHeight > 6 {
-		headersHeight = 6
-	}
+	// headersHeight := min(max((availableForTextareas*3)/10, 2), 6)
 
-	csvFieldsHeight := max(availableForTextareas-bodyHeight-headersHeight, 3)
-	if csvFieldsHeight > 6 {
-		csvFieldsHeight = 6
-	}
+	// csvFieldsHeight := max(availableForTextareas-bodyHeight-headersHeight, 3)
+	// if csvFieldsHeight > 6 {
+	// 	csvFieldsHeight = 6
+	// }
 
-	v.bodyInput.SetHeight(bodyHeight)
-	v.headersInput.SetHeight(headersHeight)
-	v.csvFieldsInput.SetHeight(csvFieldsHeight)
+	// v.bodyInput.SetHeight(bodyHeight)
+	// v.headersInput.SetHeight(headersHeight)
+	// v.csvFieldsInput.SetHeight(csvFieldsHeight)
 }
 
 // View renders the settings view
@@ -535,11 +478,6 @@ func (v *SettingsView) View() string {
 	b.WriteString(helpStyle.Render(help))
 
 	baseView := settingsAppStyle.Render(b.String())
-
-	// Show method selector modal if active
-	if v.showMethodSelector {
-		return v.renderWithMethodSelector(baseView)
-	}
 
 	// Show profile selector modal if active
 	if v.showProfileSelector {
@@ -651,108 +589,6 @@ func (v *SettingsView) renderWithProfileSelector(baseView string) string {
 	return overlayStyle.Render(centeredModal)
 }
 
-// renderWithMethodSelector renders the method selector modal overlay
-func (v *SettingsView) renderWithMethodSelector(baseView string) string {
-	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
-	currentMethod := v.methodInput.Value()
-
-	// Build method list
-	var methodList strings.Builder
-
-	// Styles for method items
-	selectedStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("205")).
-		Bold(true)
-
-	activeTagStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("40")).
-		Bold(true)
-
-	normalStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255"))
-
-	for i, method := range methods {
-		var line string
-		isActive := method == currentMethod
-		isSelected := i == v.methodSelectorIndex
-
-		// Add selection indicator
-		if isSelected {
-			line = "▶ "
-		} else {
-			line = "  "
-		}
-
-		// Add method name with style
-		if isSelected {
-			line += selectedStyle.Render(method)
-		} else {
-			line += normalStyle.Render(method)
-		}
-
-		// Add active badge
-		if isActive {
-			line += " " + activeTagStyle.Render("●")
-		}
-
-		methodList.WriteString(line)
-		methodList.WriteString("\n")
-	}
-
-	// Modal styles with enhanced visual appeal
-	modalTitleStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("62")).
-		Foreground(lipgloss.Color("230")).
-		Padding(0, 2).
-		Bold(true).
-		Align(lipgloss.Center)
-
-	modalBoxStyle := lipgloss.NewStyle().
-		Border(lipgloss.DoubleBorder()).
-		BorderForeground(lipgloss.Color("99")).
-		Padding(2, 3).
-		Background(lipgloss.Color("235")).
-		Width(40)
-
-	modalHelpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Align(lipgloss.Center).
-		Italic(true)
-
-	overlayStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("0")).
-		Padding(0, 0)
-
-	// Build modal content
-	modalTitle := modalTitleStyle.Render("🌐 Select HTTP Method")
-	separator := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render(strings.Repeat("─", 34))
-	modalHelp := modalHelpStyle.Render("↑/↓: Navigate • Enter: Select • Esc: Cancel")
-
-	modalContent := fmt.Sprintf("%s\n\n%s\n%s\n%s",
-		modalTitle,
-		methodList.String(),
-		separator,
-		modalHelp)
-
-	modal := modalBoxStyle.Render(modalContent)
-
-	// Simple overlay - place modal in center
-	centeredModal := lipgloss.Place(
-		v.width,
-		v.height,
-		lipgloss.Center,
-		lipgloss.Center,
-		modal,
-		lipgloss.WithWhitespaceChars(" "),
-		lipgloss.WithWhitespaceForeground(lipgloss.Color("0")),
-	)
-
-	// Layer modal over base view
-	return overlayStyle.Render(centeredModal)
-}
-
 // getActiveProfileName returns the name of the active profile
 func (v *SettingsView) getActiveProfileName() string {
 	profileMgr := v.configMgr.GetProfileManager()
@@ -784,37 +620,19 @@ func (v *SettingsView) getProfiles() []string {
 	return names
 }
 
-// ConfigSavedMsg is sent when configuration is successfully saved
-type ConfigSavedMsg struct{}
-
-// ConfigSaveErrorMsg is sent when configuration save fails
-type ConfigSaveErrorMsg struct {
-	Err error
-}
-
-// ProfileSwitchedMsg is sent when profile is successfully switched
-type ProfileSwitchedMsg struct {
-	ProfileName string
-}
-
-// ProfileSwitchErrorMsg is sent when profile switch fails
-type ProfileSwitchErrorMsg struct {
-	Err error
-}
-
 // switchProfile switches to a different profile and reloads the configuration
 func (v *SettingsView) switchProfile(name string) tea.Cmd {
 	profileMgr := v.configMgr.GetProfileManager()
 	if profileMgr == nil {
 		return func() tea.Msg {
-			return ProfileSwitchErrorMsg{Err: fmt.Errorf("profile manager not available")}
+			return msgs.ProfileSwitchErrorMsg{Err: fmt.Errorf("profile manager not available")}
 		}
 	}
 
 	// Switch the active profile
 	if err := profileMgr.SetActive(name); err != nil {
 		return func() tea.Msg {
-			return ProfileSwitchErrorMsg{Err: err}
+			return msgs.ProfileSwitchErrorMsg{Err: err}
 		}
 	}
 
@@ -823,7 +641,7 @@ func (v *SettingsView) switchProfile(name string) tea.Cmd {
 	v.modified = false
 
 	return func() tea.Msg {
-		return ProfileSwitchedMsg{ProfileName: name}
+		return msgs.ProfileSwitchedMsg{ProfileName: name}
 	}
 }
 
@@ -831,11 +649,11 @@ func (v *SettingsView) switchProfile(name string) tea.Cmd {
 func (v *SettingsView) saveConfigCmd() tea.Cmd {
 	if err := v.saveConfig(); err != nil {
 		return func() tea.Msg {
-			return ConfigSaveErrorMsg{Err: err}
+			return msgs.ConfigSaveErrorMsg{Err: err}
 		}
 	}
 
 	return func() tea.Msg {
-		return ConfigSavedMsg{}
+		return msgs.ConfigSavedMsg{}
 	}
 }

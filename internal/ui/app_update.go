@@ -61,10 +61,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.nav.Back()
 			}
 			return m, nil
-
-		case key.Matches(msg, keys.Help):
-			m.help.ShowAll = !m.help.ShowAll
-			return m, nil
 		}
 
 		// Delegate to current view

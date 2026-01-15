@@ -9,7 +9,6 @@ import (
 type keyMap struct {
 	ListUp              key.Binding
 	ListDown            key.Binding
-	Help                key.Binding
 	Quit                key.Binding
 	Select              key.Binding
 	Cancel              key.Binding
@@ -41,113 +40,6 @@ func createHelp() help.Model {
 	return help
 }
 
-// filesKeyMap shows keys available in Files view
-type filesKeyMap struct {
-	Select       key.Binding
-	Cancel       key.Binding
-	ViewFiles    key.Binding
-	ViewLogs     key.Binding
-	ViewSettings key.Binding
-	ViewWorkers  key.Binding
-	Quit         key.Binding
-}
-
-func (k filesKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Select, k.Cancel, k.ViewFiles, k.ViewLogs, k.ViewSettings, k.ViewWorkers, k.Quit}
-}
-
-func (k filesKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Select, k.Cancel},
-		{k.ViewFiles, k.ViewLogs, k.ViewSettings, k.ViewWorkers},
-		{k.Quit},
-	}
-}
-
-// logsKeyMap shows keys available in Logs view
-type logsKeyMap struct {
-	LogUp        key.Binding
-	LogDown      key.Binding
-	ViewFiles    key.Binding
-	ViewLogs     key.Binding
-	ViewSettings key.Binding
-	ViewWorkers  key.Binding
-	Quit         key.Binding
-}
-
-func (k logsKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.LogUp, k.LogDown, k.ViewFiles, k.ViewLogs, k.ViewSettings, k.ViewWorkers, k.Quit}
-}
-
-func (k logsKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.LogUp, k.LogDown},
-		{k.ViewFiles, k.ViewLogs, k.ViewSettings, k.ViewWorkers},
-		{k.Quit},
-	}
-}
-
-// settingsKeyMap shows keys available in Settings view
-type settingsKeyMap struct {
-	Save         key.Binding
-	Profile      key.Binding
-	Cancel       key.Binding
-	ViewFiles    key.Binding
-	ViewLogs     key.Binding
-	ViewSettings key.Binding
-	ViewWorkers  key.Binding
-	Quit         key.Binding
-}
-
-func (k settingsKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Save, k.Profile, k.Cancel, k.ViewFiles, k.ViewLogs, k.ViewSettings, k.ViewWorkers, k.Quit}
-}
-
-func (k settingsKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Save, k.Profile, k.Cancel},
-		{k.ViewFiles, k.ViewLogs, k.ViewSettings, k.ViewWorkers},
-		{k.Quit},
-	}
-}
-
-// workersKeyMap shows keys available in Workers view
-type workersKeyMap struct {
-	WorkerInc    key.Binding
-	WorkerDec    key.Binding
-	ViewFiles    key.Binding
-	ViewLogs     key.Binding
-	ViewSettings key.Binding
-	ViewWorkers  key.Binding
-	Quit         key.Binding
-}
-
-func (k workersKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.WorkerInc, k.WorkerDec, k.ViewFiles, k.ViewLogs, k.ViewSettings, k.ViewWorkers, k.Quit}
-}
-
-func (k workersKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.WorkerInc, k.WorkerDec},
-		{k.ViewFiles, k.ViewLogs, k.ViewSettings, k.ViewWorkers},
-		{k.Quit},
-	}
-}
-
-func (this keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{this.Select, this.Cancel, this.ViewFiles, this.ViewLogs, this.ViewSettings, this.ViewWorkers, this.Quit}
-}
-
-func (this keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{this.ViewFiles, this.ViewLogs, this.ViewSettings, this.ViewWorkers},
-		{this.ListUp, this.ListDown},
-		{this.LogUp, this.LogDown},
-		{this.Select, this.Cancel},
-		{this.Help, this.Quit},
-	}
-}
-
 var keys = keyMap{
 	ListUp: key.NewBinding(
 		key.WithKeys("up"),
@@ -164,10 +56,6 @@ var keys = keyMap{
 	Cancel: key.NewBinding(
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "back"),
-	),
-	Help: key.NewBinding(
-		key.WithKeys("?"),
-		key.WithHelp("?", "help"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("q"),
@@ -291,7 +179,7 @@ type settingsViewKeyMap struct {
 }
 
 func (k settingsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Save, k.Profile, k.Cancel}
+	return []key.Binding{k.SwitchFieldForward, k.SwitchFieldBackward, k.Save, k.Profile, k.Cancel}
 }
 
 func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
@@ -329,7 +217,6 @@ func getViewSpecificKeyMap(view View) help.KeyMap {
 		return settingsViewKeyMap{
 			Save:                keys.Save,
 			Profile:             keys.Profile,
-			Cancel:              keys.Cancel,
 			SwitchFieldForward:  keys.SwitchFieldForward,
 			SwitchFieldBackward: keys.SwitchFieldBackward,
 		}
