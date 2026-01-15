@@ -30,9 +30,10 @@ func NewLogsView(logger logs.Logger) *LogsView {
 	vp := viewport.New(60, 20)
 
 	return &LogsView{
-		viewport: vp,
-		logger:   logger,
-		title:    "Execution logs",
+		viewport:   vp,
+		logger:     logger,
+		title:      "Execution logs",
+		autoScroll: true,
 	}
 }
 
