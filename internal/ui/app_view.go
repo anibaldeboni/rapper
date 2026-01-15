@@ -81,10 +81,10 @@ func (m AppModel) renderLogsView() string {
 	return m.logsView.View()
 }
 
-// renderHeader renders the contextual help bar at the top
+// renderHeader renders the global navigation help bar at the top
 func (m AppModel) renderHeader() string {
-	// Get contextual keymap for current view
-	contextualKeys := getContextualKeyMap(m.nav.Current())
+	// Get global keymap (F1-F4, q)
+	globalKeys := getGlobalKeyMap()
 
 	// Discrete style for help bar
 	helpBarStyle := lipgloss.NewStyle().
@@ -92,7 +92,7 @@ func (m AppModel) renderHeader() string {
 		Background(lipgloss.Color("235")).
 		Padding(0, 1)
 
-	helpText := m.help.View(contextualKeys)
+	helpText := m.help.View(globalKeys)
 
 	// Truncate if needed
 	maxWidth := m.width - 4
@@ -106,7 +106,7 @@ func (m AppModel) renderHeader() string {
 	return helpBarStyle.Width(m.width).Render(truncatedHelp)
 }
 
-// renderStatusBar renders the simplified status bar at the bottom
+// renderStatusBar renders the status bar with view-specific commands at the bottom
 func (m AppModel) renderStatusBar() string {
 	width := lipgloss.Width
 
@@ -117,6 +117,26 @@ func (m AppModel) renderStatusBar() string {
 	viewName := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#d6acff")).
 		Render(fmt.Sprintf(" [%s] ", m.nav.Current().String()))
+
+	// Get view-specific commands
+	viewSpecificKeys := getViewSpecificKeyMap(m.nav.Current())
+	helpText := m.help.View(viewSpecificKeys)
+
+	// Truncate help text if needed
+	availableWidth := m.width - width(appTag) - width(viewName) - 10
+	if availableWidth < 0 {
+		availableWidth = 0
+	}
+	helpEmptySpace, err := safecast.ToUint(availableWidth)
+	if err != nil {
+		helpEmptySpace = 0
+	}
+	truncatedHelp := truncate.StringWithTail(helpText, helpEmptySpace, "…")
+
+	contextHelp := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		PaddingLeft(1).
+		Render(truncatedHelp)
 
 	// Spinner or idle indicator
 	var spinner string
@@ -129,7 +149,7 @@ func (m AppModel) renderStatusBar() string {
 	}
 
 	// Calculate spacing to push spinner to the right
-	spacing := m.width - width(appTag) - width(viewName) - width(spinner) - 4
+	spacing := m.width - width(appTag) - width(viewName) - width(contextHelp) - width(spinner) - 4
 	if spacing < 0 {
 		spacing = 0
 	}
@@ -141,6 +161,7 @@ func (m AppModel) renderStatusBar() string {
 		lipgloss.Left,
 		appTag,
 		viewName,
+		contextHelp,
 		spacer,
 		spinner,
 	)
