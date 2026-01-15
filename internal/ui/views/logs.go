@@ -33,7 +33,7 @@ func NewLogsView(logger logs.Logger) *LogsView {
 	v := &LogsView{
 		viewport:   vp,
 		logger:     logger,
-		title:      "Execution logs",
+		title:      "📝 Execution logs",
 		autoScroll: true,
 	}
 	// Load initial logs

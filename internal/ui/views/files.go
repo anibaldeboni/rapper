@@ -35,7 +35,7 @@ func NewFilesView(csvFiles []list.Item) *FilesView {
 
 	return &FilesView{
 		list:  l,
-		title: "Select a CSV file to process",
+		title: "👀 Select a CSV file to process",
 	}
 }
 
