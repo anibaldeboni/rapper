@@ -116,7 +116,7 @@ func (m AppModel) renderStatusBar() string {
 
 	// Spinner or idle indicator
 	var spinner string
-	if m.state.Get() == Running {
+	if m.processor.GetMetrics().IsProcessing {
 		spinner = m.spinner.View()
 	} else {
 		spinner = lipgloss.NewStyle().

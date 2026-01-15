@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"sync"
 
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
@@ -26,7 +27,6 @@ type AppModel struct {
 	nav *Navigation
 
 	// State
-	state     *State
 	logger    logs.Logger
 	processor processor.Processor
 	configMgr config.Manager
@@ -38,14 +38,15 @@ type AppModel struct {
 	workersView  *views.WorkersView
 
 	// Common UI elements
-	help        help.Model
-	spinner     spinner.Model
-	toastMgr    *components.ToastManager
-	width       int
-	height      int
+	help     help.Model
+	spinner  spinner.Model
+	toastMgr *components.ToastManager
+	width    int
+	height   int
 
 	// Context for cancellation
-	cancel context.CancelFunc
+	cancel   context.CancelFunc
+	cancelMu *sync.RWMutex
 }
 
 // NewApp creates a new AppModel with multi-view support
@@ -58,17 +59,17 @@ func NewApp(csvFiles []string, fileProcessor processor.Processor, log logs.Logge
 
 	return &AppModel{
 		nav:          NewNavigation(),
-		state:        &State{},
 		logger:       log,
 		processor:    fileProcessor,
 		configMgr:    configMgr,
-		filesView:    views.NewFilesView(items, fileProcessor, log),
+		filesView:    views.NewFilesView(items),
 		logsView:     views.NewLogsView(log),
 		settingsView: views.NewSettingsView(configMgr),
 		workersView:  views.NewWorkersView(fileProcessor),
 		help:         createHelp(),
 		spinner:      createSpinner(),
 		toastMgr:     components.NewToastManager(),
+		cancelMu:     &sync.RWMutex{},
 	}
 }
 

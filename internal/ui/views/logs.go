@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/logs"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -15,11 +16,13 @@ var (
 
 // LogsView displays execution logs
 type LogsView struct {
-	viewport viewport.Model
-	logger   logs.Logger
-	title    string
-	width    int
-	height   int
+	viewport     viewport.Model
+	logger       logs.Logger
+	title        string
+	width        int
+	height       int
+	isProcessing bool
+	autoScroll   bool
 }
 
 // NewLogsView creates a new LogsView
@@ -36,6 +39,36 @@ func NewLogsView(logger logs.Logger) *LogsView {
 // Update handles messages for the logs view
 func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		// User scrolled manually - disable auto-scroll
+		if key.Matches(msg, key.NewBinding(key.WithKeys("up", "down", "pgup", "pgdown", "home"))) {
+			v.autoScroll = false
+		}
+		// Re-enable auto-scroll if user explicitly goes to bottom
+		if key.Matches(msg, key.NewBinding(key.WithKeys("end"))) {
+			v.autoScroll = true
+		}
+
+		if key.Matches(msg, key.NewBinding(key.WithKeys("up"))) {
+			v.ScrollUp(1)
+		}
+		if key.Matches(msg, key.NewBinding(key.WithKeys("down"))) {
+			v.ScrollDown(1)
+		}
+		if key.Matches(msg, key.NewBinding(key.WithKeys("pgup"))) {
+			v.ScrollUp(v.height)
+		}
+		if key.Matches(msg, key.NewBinding(key.WithKeys("pgdown"))) {
+			v.ScrollDown(v.height)
+		}
+		if key.Matches(msg, key.NewBinding(key.WithKeys("home"))) {
+			v.viewport.GotoTop()
+		}
+		if key.Matches(msg, key.NewBinding(key.WithKeys("end"))) {
+			v.viewport.GotoBottom()
+		}
+	}
 	v.viewport, cmd = v.viewport.Update(msg)
 	return cmd
 }
@@ -65,11 +98,21 @@ func (v *LogsView) View() string {
 		)
 }
 
-// UpdateContent updates the viewport content with latest logs
-func (v *LogsView) UpdateContent() {
+// UpdateLogs updates the viewport content with latest logs and auto-scrolls if processing
+func (v *LogsView) UpdateLogs() {
 	content := strings.Join(v.logger.Get(), "\n")
 	v.viewport.SetContent(content)
-	v.viewport.GotoBottom()
+	if v.isProcessing && v.autoScroll {
+		v.viewport.GotoBottom()
+	}
+}
+
+// SetProcessing updates the processing state
+func (v *LogsView) SetProcessing(isProcessing bool) {
+	v.isProcessing = isProcessing
+	if isProcessing {
+		v.autoScroll = true
+	}
 }
 
 // ScrollUp scrolls the viewport up

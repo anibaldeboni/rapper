@@ -1,13 +1,10 @@
 package views
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/anibaldeboni/rapper/internal/logs"
-	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -26,24 +23,19 @@ func (Option[T]) FilterValue() string { return "" }
 
 // FilesView handles CSV file selection
 type FilesView struct {
-	list      list.Model
-	processor processor.Processor
-	logger    logs.Logger
-	cancel    context.CancelFunc
-	width     int
-	height    int
-	title     string
+	list   list.Model
+	width  int
+	height int
+	title  string
 }
 
 // NewFilesView creates a new FilesView
-func NewFilesView(csvFiles []list.Item, processor processor.Processor, logger logs.Logger) *FilesView {
+func NewFilesView(csvFiles []list.Item) *FilesView {
 	l := createFileList(csvFiles)
 
 	return &FilesView{
-		list:      l,
-		processor: processor,
-		logger:    logger,
-		title:     "Select a CSV file to process",
+		list:  l,
+		title: "Select a CSV file to process",
 	}
 }
 
@@ -78,23 +70,6 @@ func (v *FilesView) View() string {
 // SelectedItem returns the currently selected file
 func (v *FilesView) SelectedItem() list.Item {
 	return v.list.SelectedItem()
-}
-
-// StartProcessing starts processing the selected file
-func (v *FilesView) StartProcessing(ctx context.Context, filePath string) (context.Context, context.CancelFunc) {
-	return v.processor.Do(ctx, filePath)
-}
-
-// SetCancel sets the cancel function for the current operation
-func (v *FilesView) SetCancel(cancel context.CancelFunc) {
-	v.cancel = cancel
-}
-
-// Cancel cancels the current operation
-func (v *FilesView) Cancel() {
-	if v.cancel != nil {
-		v.cancel()
-	}
 }
 
 // Styles for file list

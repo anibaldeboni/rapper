@@ -24,8 +24,10 @@ var (
 // focusable fields
 const (
 	urlField = iota
+	methodField
 	bodyField
 	headersField
+	csvFieldsField
 	maxFields
 )
 
@@ -36,9 +38,11 @@ type SettingsView struct {
 	height    int
 
 	// Form fields
-	urlInput     textinput.Model
-	bodyInput    textarea.Model
-	headersInput textarea.Model
+	urlInput       textinput.Model
+	methodInput    textinput.Model
+	bodyInput      textarea.Model
+	headersInput   textarea.Model
+	csvFieldsInput textarea.Model
 
 	// Focus management
 	focused   int
@@ -47,6 +51,10 @@ type SettingsView struct {
 	// Profile selector
 	showProfileSelector bool
 	profileListIndex    int
+
+	// Method selector
+	showMethodSelector  bool
+	methodSelectorIndex int
 
 	// State
 	modified bool
@@ -60,6 +68,13 @@ func NewSettingsView(configMgr config.Manager) *SettingsView {
 	urlInput.CharLimit = 500
 	urlInput.Width = 80
 	urlInput.Prompt = ""
+
+	// Create method input
+	methodInput := textinput.New()
+	methodInput.Placeholder = "POST"
+	methodInput.CharLimit = 10
+	methodInput.Width = 20
+	methodInput.Prompt = ""
 
 	// Create body textarea
 	bodyInput := textarea.New()
@@ -78,13 +93,25 @@ Authorization: Bearer {{.token}}`
 	headersInput.SetWidth(80)
 	headersInput.ShowLineNumbers = false
 
+	// Create CSV fields textarea
+	csvFieldsInput := textarea.New()
+	csvFieldsInput.Placeholder = `id
+name
+email`
+	csvFieldsInput.CharLimit = 1000
+	csvFieldsInput.SetHeight(4)
+	csvFieldsInput.SetWidth(80)
+	csvFieldsInput.ShowLineNumbers = false
+
 	v := &SettingsView{
-		configMgr:    configMgr,
-		urlInput:     urlInput,
-		bodyInput:    bodyInput,
-		headersInput: headersInput,
-		focused:      urlField,
-		focusable:    []int{urlField, bodyField, headersField},
+		configMgr:      configMgr,
+		urlInput:       urlInput,
+		methodInput:    methodInput,
+		bodyInput:      bodyInput,
+		headersInput:   headersInput,
+		csvFieldsInput: csvFieldsInput,
+		focused:        urlField,
+		focusable:      []int{urlField, methodField, bodyField, headersField, csvFieldsField},
 	}
 
 	// Load current configuration
@@ -104,6 +131,14 @@ func (v *SettingsView) loadConfig() {
 	}
 
 	v.urlInput.SetValue(cfg.Request.URLTemplate)
+
+	// Set method (default to POST if empty)
+	method := cfg.Request.Method
+	if method == "" {
+		method = "POST"
+	}
+	v.methodInput.SetValue(method)
+
 	v.bodyInput.SetValue(cfg.Request.BodyTemplate)
 
 	// Convert headers map to string
@@ -112,6 +147,9 @@ func (v *SettingsView) loadConfig() {
 		headerLines = append(headerLines, fmt.Sprintf("%s: %s", key, value))
 	}
 	v.headersInput.SetValue(strings.Join(headerLines, "\n"))
+
+	// Convert CSV fields slice to string
+	v.csvFieldsInput.SetValue(strings.Join(cfg.CSV.Fields, "\n"))
 }
 
 // parseHeaders converts headers string to map
@@ -136,6 +174,21 @@ func parseHeaders(headersText string) map[string]string {
 	return headers
 }
 
+// parseCSVFields converts CSV fields string to slice
+func parseCSVFields(fieldsText string) []string {
+	var fields []string
+	lines := strings.Split(fieldsText, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			fields = append(fields, line)
+		}
+	}
+
+	return fields
+}
+
 // saveConfig saves the current form values to configuration
 func (v *SettingsView) saveConfig() error {
 	cfg := v.configMgr.Get()
@@ -145,8 +198,10 @@ func (v *SettingsView) saveConfig() error {
 
 	// Update config from form fields
 	cfg.Request.URLTemplate = v.urlInput.Value()
+	cfg.Request.Method = v.methodInput.Value()
 	cfg.Request.BodyTemplate = v.bodyInput.Value()
 	cfg.Request.Headers = parseHeaders(v.headersInput.Value())
+	cfg.CSV.Fields = parseCSVFields(v.csvFieldsInput.Value())
 
 	// Update and save
 	if err := v.configMgr.Update(cfg); err != nil {
@@ -164,16 +219,22 @@ func (v *SettingsView) saveConfig() error {
 // updateFocus updates the focus state of all inputs
 func (v *SettingsView) updateFocus() {
 	v.urlInput.Blur()
+	v.methodInput.Blur()
 	v.bodyInput.Blur()
 	v.headersInput.Blur()
+	v.csvFieldsInput.Blur()
 
 	switch v.focused {
 	case urlField:
 		v.urlInput.Focus()
+	case methodField:
+		v.methodInput.Focus()
 	case bodyField:
 		v.bodyInput.Focus()
 	case headersField:
 		v.headersInput.Focus()
+	case csvFieldsField:
+		v.csvFieldsInput.Focus()
 	}
 }
 
@@ -225,8 +286,42 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 				v.showProfileSelector = false
 				return nil
 
-			case "esc":
+			case "esc", tea.KeyEscape.String():
 				v.showProfileSelector = false
+				return nil
+			}
+			return nil
+		}
+
+		// If method selector is open, handle its navigation
+		if v.showMethodSelector {
+			methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
+			switch msg.String() {
+			case "up", "k":
+				v.methodSelectorIndex--
+				if v.methodSelectorIndex < 0 {
+					v.methodSelectorIndex = len(methods) - 1
+				}
+				return nil
+
+			case "down", "j":
+				v.methodSelectorIndex++
+				if v.methodSelectorIndex >= len(methods) {
+					v.methodSelectorIndex = 0
+				}
+				return nil
+
+			case "enter":
+				// Select method
+				if v.methodSelectorIndex >= 0 && v.methodSelectorIndex < len(methods) {
+					v.methodInput.SetValue(methods[v.methodSelectorIndex])
+					v.modified = true
+				}
+				v.showMethodSelector = false
+				return nil
+
+			case "esc", tea.KeyEscape.String():
+				v.showMethodSelector = false
 				return nil
 			}
 			return nil
@@ -247,6 +342,20 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			for i, name := range profiles {
 				if name == activeProfile {
 					v.profileListIndex = i
+					break
+				}
+			}
+			return nil
+
+		case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+m"))):
+			// Toggle method selector
+			v.showMethodSelector = !v.showMethodSelector
+			// Set initial selection to current method
+			methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
+			currentMethod := v.methodInput.Value()
+			for i, method := range methods {
+				if method == currentMethod {
+					v.methodSelectorIndex = i
 					break
 				}
 			}
@@ -275,6 +384,14 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 		}
 		cmds = append(cmds, cmd)
 
+	case methodField:
+		oldValue = v.methodInput.Value()
+		v.methodInput, cmd = v.methodInput.Update(msg)
+		if v.methodInput.Value() != oldValue {
+			v.modified = true
+		}
+		cmds = append(cmds, cmd)
+
 	case bodyField:
 		oldValue = v.bodyInput.Value()
 		v.bodyInput, cmd = v.bodyInput.Update(msg)
@@ -287,6 +404,14 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 		oldValue = v.headersInput.Value()
 		v.headersInput, cmd = v.headersInput.Update(msg)
 		if v.headersInput.Value() != oldValue {
+			v.modified = true
+		}
+		cmds = append(cmds, cmd)
+
+	case csvFieldsField:
+		oldValue = v.csvFieldsInput.Value()
+		v.csvFieldsInput, cmd = v.csvFieldsInput.Update(msg)
+		if v.csvFieldsInput.Value() != oldValue {
 			v.modified = true
 		}
 		cmds = append(cmds, cmd)
@@ -310,26 +435,34 @@ func (v *SettingsView) Resize(width, height int) {
 	}
 
 	v.urlInput.Width = inputWidth
+	v.methodInput.Width = min(inputWidth, 30)
 	v.bodyInput.SetWidth(inputWidth)
 	v.headersInput.SetWidth(inputWidth)
+	v.csvFieldsInput.SetWidth(inputWidth)
 
 	// Adjust textarea heights based on available height
-	// Reserve space for: header(3) + labels(6) + help(3) + margins(4) = ~16 lines
-	availableForTextareas := max(height-16, 8)
+	// Reserve space for: header(3) + labels(10) + help(3) + margins(4) = ~20 lines
+	availableForTextareas := max(height-20, 10)
 
-	// Distribute height: body gets 60%, headers gets 40%
-	bodyHeight := (availableForTextareas * 6) / 10
-	if bodyHeight < 3 {
-		bodyHeight = 3
-	}
-	if bodyHeight > 10 {
-		bodyHeight = 10
+	// Distribute height: body gets 40%, headers gets 30%, csvFields gets 30%
+	bodyHeight := max((availableForTextareas*4)/10, 3)
+	if bodyHeight > 8 {
+		bodyHeight = 8
 	}
 
-	headersHeight := min(max(availableForTextareas-bodyHeight, 2), 8)
+	headersHeight := max((availableForTextareas*3)/10, 2)
+	if headersHeight > 6 {
+		headersHeight = 6
+	}
+
+	csvFieldsHeight := max(availableForTextareas-bodyHeight-headersHeight, 3)
+	if csvFieldsHeight > 6 {
+		csvFieldsHeight = 6
+	}
 
 	v.bodyInput.SetHeight(bodyHeight)
 	v.headersInput.SetHeight(headersHeight)
+	v.csvFieldsInput.SetHeight(csvFieldsHeight)
 }
 
 // View renders the settings view
@@ -354,6 +487,16 @@ func (v *SettingsView) View() string {
 	b.WriteString(v.urlInput.View())
 	b.WriteString("\n\n")
 
+	// Method field
+	methodLabel := labelStyle.Render("Method:")
+	if v.focused == methodField {
+		methodLabel = focusedStyle.Render("▶ Method:")
+	}
+	b.WriteString(methodLabel)
+	b.WriteString("\n")
+	b.WriteString(v.methodInput.View())
+	b.WriteString("\n\n")
+
 	// Body field
 	bodyLabel := labelStyle.Render("Body Template:")
 	if v.focused == bodyField {
@@ -374,6 +517,16 @@ func (v *SettingsView) View() string {
 	b.WriteString(v.headersInput.View())
 	b.WriteString("\n\n")
 
+	// CSV Fields field
+	csvFieldsLabel := labelStyle.Render("CSV Fields (one per line):")
+	if v.focused == csvFieldsField {
+		csvFieldsLabel = focusedStyle.Render("▶ CSV Fields (one per line):")
+	}
+	b.WriteString(csvFieldsLabel)
+	b.WriteString("\n")
+	b.WriteString(v.csvFieldsInput.View())
+	b.WriteString("\n\n")
+
 	// Help text
 	var help string
 	if v.modified {
@@ -382,6 +535,11 @@ func (v *SettingsView) View() string {
 	b.WriteString(helpStyle.Render(help))
 
 	baseView := settingsAppStyle.Render(b.String())
+
+	// Show method selector modal if active
+	if v.showMethodSelector {
+		return v.renderWithMethodSelector(baseView)
+	}
 
 	// Show profile selector modal if active
 	if v.showProfileSelector {
@@ -473,6 +631,108 @@ func (v *SettingsView) renderWithProfileSelector(baseView string) string {
 	modalContent := fmt.Sprintf("%s\n\n%s\n\n%s\n%s",
 		modalTitle,
 		profileList.String(),
+		separator,
+		modalHelp)
+
+	modal := modalBoxStyle.Render(modalContent)
+
+	// Simple overlay - place modal in center
+	centeredModal := lipgloss.Place(
+		v.width,
+		v.height,
+		lipgloss.Center,
+		lipgloss.Center,
+		modal,
+		lipgloss.WithWhitespaceChars(" "),
+		lipgloss.WithWhitespaceForeground(lipgloss.Color("0")),
+	)
+
+	// Layer modal over base view
+	return overlayStyle.Render(centeredModal)
+}
+
+// renderWithMethodSelector renders the method selector modal overlay
+func (v *SettingsView) renderWithMethodSelector(baseView string) string {
+	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
+	currentMethod := v.methodInput.Value()
+
+	// Build method list
+	var methodList strings.Builder
+
+	// Styles for method items
+	selectedStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("205")).
+		Bold(true)
+
+	activeTagStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("40")).
+		Bold(true)
+
+	normalStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255"))
+
+	for i, method := range methods {
+		var line string
+		isActive := method == currentMethod
+		isSelected := i == v.methodSelectorIndex
+
+		// Add selection indicator
+		if isSelected {
+			line = "▶ "
+		} else {
+			line = "  "
+		}
+
+		// Add method name with style
+		if isSelected {
+			line += selectedStyle.Render(method)
+		} else {
+			line += normalStyle.Render(method)
+		}
+
+		// Add active badge
+		if isActive {
+			line += " " + activeTagStyle.Render("●")
+		}
+
+		methodList.WriteString(line)
+		methodList.WriteString("\n")
+	}
+
+	// Modal styles with enhanced visual appeal
+	modalTitleStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("62")).
+		Foreground(lipgloss.Color("230")).
+		Padding(0, 2).
+		Bold(true).
+		Align(lipgloss.Center)
+
+	modalBoxStyle := lipgloss.NewStyle().
+		Border(lipgloss.DoubleBorder()).
+		BorderForeground(lipgloss.Color("99")).
+		Padding(2, 3).
+		Background(lipgloss.Color("235")).
+		Width(40)
+
+	modalHelpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		Align(lipgloss.Center).
+		Italic(true)
+
+	overlayStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("0")).
+		Padding(0, 0)
+
+	// Build modal content
+	modalTitle := modalTitleStyle.Render("🌐 Select HTTP Method")
+	separator := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Render(strings.Repeat("─", 34))
+	modalHelp := modalHelpStyle.Render("↑/↓: Navigate • Enter: Select • Esc: Cancel")
+
+	modalContent := fmt.Sprintf("%s\n\n%s\n%s\n%s",
+		modalTitle,
+		methodList.String(),
 		separator,
 		modalHelp)
 
