@@ -6,6 +6,7 @@ import (
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/processor"
+	"github.com/anibaldeboni/rapper/internal/ui/components"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
@@ -37,10 +38,11 @@ type AppModel struct {
 	workersView  *views.WorkersView
 
 	// Common UI elements
-	help    help.Model
-	spinner spinner.Model
-	width   int
-	height  int
+	help        help.Model
+	spinner     spinner.Model
+	toastMgr    *components.ToastManager
+	width       int
+	height      int
 
 	// Context for cancellation
 	cancel context.CancelFunc
@@ -66,6 +68,7 @@ func NewApp(csvFiles []string, fileProcessor processor.Processor, log logs.Logge
 		workersView:  views.NewWorkersView(fileProcessor),
 		help:         createHelp(),
 		spinner:      createSpinner(),
+		toastMgr:     components.NewToastManager(),
 	}
 }
 

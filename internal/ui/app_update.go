@@ -11,6 +11,24 @@ import (
 
 type tickMsg time.Time
 
+// ConfigSavedMsg is sent when configuration is successfully saved
+type ConfigSavedMsg struct{}
+
+// ConfigSaveErrorMsg is sent when configuration save fails
+type ConfigSaveErrorMsg struct {
+	Err error
+}
+
+// ProfileSwitchedMsg is sent when profile is successfully switched
+type ProfileSwitchedMsg struct {
+	ProfileName string
+}
+
+// ProfileSwitchErrorMsg is sent when profile switch fails
+type ProfileSwitchErrorMsg struct {
+	Err error
+}
+
 func tickCmd() tea.Cmd {
 	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
 		return tickMsg(t)
@@ -78,12 +96,31 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.spinner, spinCmd = m.spinner.Update(msg)
 		cmds = append(cmds, spinCmd, tickCmd())
 
+		// Update toast manager (remove expired toasts)
+		m.toastMgr.Update()
+
 		// Forward tick to WorkersView for metrics updates
 		if m.nav.Current() == ViewWorkers {
 			// Convert tickMsg to views.TickMsg
 			workersCmd := m.workersView.Update(views.TickMsg(msg))
 			cmds = append(cmds, workersCmd)
 		}
+
+	case ConfigSavedMsg:
+		m.toastMgr.Success("Configuration saved successfully")
+		return m, nil
+
+	case ConfigSaveErrorMsg:
+		m.toastMgr.Error("Failed to save configuration: " + msg.Err.Error())
+		return m, nil
+
+	case ProfileSwitchedMsg:
+		m.toastMgr.Success("Switched to profile: " + msg.ProfileName)
+		return m, nil
+
+	case ProfileSwitchErrorMsg:
+		m.toastMgr.Error("Failed to switch profile: " + msg.Err.Error())
+		return m, nil
 	}
 
 	return m, tea.Batch(cmds...)

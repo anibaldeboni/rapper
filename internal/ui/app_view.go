@@ -23,8 +23,22 @@ func (m AppModel) View() string {
 		content = m.workersView.View()
 	}
 
+	// Render toasts if any
+	toasts := m.toastMgr.Render(m.width)
+
 	// Render status bar
 	statusBar := m.renderStatusBar()
+
+	// Join toasts (if any), content, and status bar
+	if toasts != "" {
+		app := lipgloss.JoinVertical(
+			lipgloss.Top,
+			toasts,
+			content,
+			statusBar,
+		)
+		return AppStyle(app)
+	}
 
 	// Join content and status bar
 	app := lipgloss.JoinVertical(

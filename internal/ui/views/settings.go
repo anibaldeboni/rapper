@@ -219,9 +219,8 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			case "enter":
 				// Switch to selected profile
 				if v.profileListIndex >= 0 && v.profileListIndex < len(profiles) {
-					if err := v.switchProfile(profiles[v.profileListIndex]); err != nil {
-						// TODO: Show error toast
-					}
+					v.showProfileSelector = false
+					return v.switchProfile(profiles[v.profileListIndex])
 				}
 				v.showProfileSelector = false
 				return nil
@@ -237,12 +236,7 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 		switch {
 		case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+s"))):
 			// Save configuration
-			if err := v.saveConfig(); err != nil {
-				// TODO: Show error toast
-				return nil
-			}
-			// TODO: Show success toast
-			return nil
+			return v.saveConfigCmd()
 
 		case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+p"))):
 			// Toggle profile selector
@@ -382,39 +376,88 @@ func (v *SettingsView) View() string {
 // renderWithProfileSelector renders the profile selector modal overlay
 func (v *SettingsView) renderWithProfileSelector(baseView string) string {
 	profiles := v.getProfiles()
+	activeProfile := v.getActiveProfileName()
 
 	// Build profile list
 	var profileList strings.Builder
+
+	// Styles for profile items
+	selectedStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("205")).
+		Bold(true)
+
+	activeTagStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("40")).
+		Bold(true)
+
+	normalStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255"))
+
 	for i, name := range profiles {
-		if i == v.profileListIndex {
-			profileList.WriteString(selectedItemStyle.Render(fmt.Sprintf("▶ %s", name)))
+		var line string
+		isActive := name == activeProfile
+		isSelected := i == v.profileListIndex
+
+		// Add selection indicator
+		if isSelected {
+			line = "▶ "
 		} else {
-			profileList.WriteString(itemStyle.Render(fmt.Sprintf("  %s", name)))
+			line = "  "
 		}
+
+		// Add profile name with style
+		if isSelected {
+			line += selectedStyle.Render(name)
+		} else {
+			line += normalStyle.Render(name)
+		}
+
+		// Add active badge
+		if isActive {
+			line += " " + activeTagStyle.Render("●")
+		}
+
+		profileList.WriteString(line)
 		profileList.WriteString("\n")
 	}
 
-	// Modal styles
+	// Modal styles with enhanced visual appeal
 	modalTitleStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("62")).
 		Foreground(lipgloss.Color("230")).
-		Padding(0, 1).
-		Bold(true)
+		Padding(0, 2).
+		Bold(true).
+		Align(lipgloss.Center)
 
 	modalBoxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
-		Padding(1, 2).
-		Background(lipgloss.Color("235"))
+		Border(lipgloss.DoubleBorder()).
+		BorderForeground(lipgloss.Color("99")).
+		Padding(2, 3).
+		Background(lipgloss.Color("235")).
+		Width(50)
+
+	modalHelpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		Align(lipgloss.Center).
+		Italic(true)
 
 	overlayStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("0")).
 		Padding(0, 0)
 
 	// Build modal content
-	modalTitle := modalTitleStyle.Render("📋 Select Profile")
-	modalHelp := helpStyle.Render("↑/↓: Navigate • Enter: Select • Esc: Cancel")
-	modalContent := fmt.Sprintf("%s\n\n%s\n%s", modalTitle, profileList.String(), modalHelp)
+	modalTitle := modalTitleStyle.Render("📋 Switch Profile")
+	separator := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Render(strings.Repeat("─", 44))
+	modalHelp := modalHelpStyle.Render("↑/↓: Navigate • Enter: Select • Esc: Cancel")
+
+	modalContent := fmt.Sprintf("%s\n\n%s\n\n%s\n%s",
+		modalTitle,
+		profileList.String(),
+		separator,
+		modalHelp)
+
 	modal := modalBoxStyle.Render(modalContent)
 
 	// Simple overlay - place modal in center
@@ -463,21 +506,58 @@ func (v *SettingsView) getProfiles() []string {
 	return names
 }
 
+// ConfigSavedMsg is sent when configuration is successfully saved
+type ConfigSavedMsg struct{}
+
+// ConfigSaveErrorMsg is sent when configuration save fails
+type ConfigSaveErrorMsg struct {
+	Err error
+}
+
+// ProfileSwitchedMsg is sent when profile is successfully switched
+type ProfileSwitchedMsg struct {
+	ProfileName string
+}
+
+// ProfileSwitchErrorMsg is sent when profile switch fails
+type ProfileSwitchErrorMsg struct {
+	Err error
+}
+
 // switchProfile switches to a different profile and reloads the configuration
-func (v *SettingsView) switchProfile(name string) error {
+func (v *SettingsView) switchProfile(name string) tea.Cmd {
 	profileMgr := v.configMgr.GetProfileManager()
 	if profileMgr == nil {
-		return fmt.Errorf("profile manager not available")
+		return func() tea.Msg {
+			return ProfileSwitchErrorMsg{Err: fmt.Errorf("profile manager not available")}
+		}
 	}
 
 	// Switch the active profile
 	if err := profileMgr.SetActive(name); err != nil {
-		return err
+		return func() tea.Msg {
+			return ProfileSwitchErrorMsg{Err: err}
+		}
 	}
 
 	// Reload configuration from the new profile
 	v.loadConfig()
 	v.modified = false
 
-	return nil
+	return func() tea.Msg {
+		return ProfileSwitchedMsg{ProfileName: name}
+	}
+}
+
+// saveConfigCmd saves the configuration and returns a command
+func (v *SettingsView) saveConfigCmd() tea.Cmd {
+	if err := v.saveConfig(); err != nil {
+		return func() tea.Msg {
+			return ConfigSaveErrorMsg{Err: err}
+		}
+	}
+
+	return func() tea.Msg {
+		return ConfigSavedMsg{}
+	}
 }
