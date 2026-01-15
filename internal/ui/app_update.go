@@ -4,51 +4,15 @@ import (
 	"context"
 	"time"
 
-	"github.com/anibaldeboni/rapper/internal/processor"
+	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type tickMsg time.Time
-
-// ConfigSavedMsg is sent when configuration is successfully saved
-type ConfigSavedMsg struct{}
-
-// ConfigSaveErrorMsg is sent when configuration save fails
-type ConfigSaveErrorMsg struct {
-	Err error
-}
-
-// ProfileSwitchedMsg is sent when profile is successfully switched
-type ProfileSwitchedMsg struct {
-	ProfileName string
-}
-
-// ProfileSwitchErrorMsg is sent when profile switch fails
-type ProfileSwitchErrorMsg struct {
-	Err error
-}
-
-// ProcessingStartedMsg is sent when file processing begins
-type ProcessingStartedMsg struct {
-	FilePath string
-}
-
-// ProcessingStoppedMsg is sent when processing completes or is cancelled
-type ProcessingStoppedMsg struct {
-	Success bool
-	Err     error
-}
-
-// ProcessingProgressMsg is sent periodically during processing with metrics
-type ProcessingProgressMsg struct {
-	Metrics processor.Metrics
-}
-
 func tickCmd() tea.Cmd {
 	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
-		return tickMsg(t)
+		return msgs.TickMsg(t)
 	})
 }
 
@@ -112,10 +76,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resizeViews()
 		return m, nil
 
-	case tickMsg:
-		// Update logs content
-		m.logsView.UpdateLogs()
-
+	case msgs.TickMsg:
 		// Update spinner
 		var spinCmd tea.Cmd
 		m.spinner, spinCmd = m.spinner.Update(msg)
@@ -124,18 +85,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update toast manager (remove expired toasts)
 		m.toastMgr.Update()
 
-		// Send progress message if processing
+		// Send progress message to LogsView if processing
 		m.cancelMu.RLock()
 		hasCancel := m.cancel != nil
 		m.cancelMu.RUnlock()
 
 		if hasCancel {
-			metrics := m.processor.GetMetrics()
-			progressCmd := func() tea.Msg {
-				return ProcessingProgressMsg{Metrics: metrics}
-			}
-			logsCmd := m.logsView.Update(ProcessingProgressMsg{Metrics: metrics})
-			cmds = append(cmds, progressCmd, logsCmd)
+			// Forward progress message to LogsView to update content
+			logsCmd := m.logsView.Update(msgs.ProcessingProgressMsg{Metrics: m.processor.GetMetrics()})
+			cmds = append(cmds, logsCmd)
 		}
 
 		// Forward tick to WorkersView for metrics updates
@@ -145,41 +103,39 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, workersCmd)
 		}
 
-	case ProcessingStartedMsg:
-		m.logsView.SetProcessing(true)
-		return m, nil
+	case msgs.ProcessingStartedMsg:
+		cmd := m.logsView.Update(msg)
+		return m, cmd
 
-	case ProcessingStoppedMsg:
+	case msgs.ProcessingStoppedMsg:
 		// Clear cancel function
 		m.cancelMu.Lock()
 		m.cancel = nil
 		m.cancelMu.Unlock()
 
-		m.logsView.SetProcessing(false)
+		// Forward message to LogsView
+		logsCmd := m.logsView.Update(msg)
+
 		if msg.Err != nil {
 			m.toastMgr.Error("Processing failed: " + msg.Err.Error())
 		} else if msg.Success {
 			m.toastMgr.Success("Processing completed successfully")
 		}
-		return m, nil
+		return m, logsCmd
 
-	case ProcessingProgressMsg:
-		// Progress is already handled in tickMsg
-		return m, nil
-
-	case ConfigSavedMsg:
+	case msgs.ConfigSavedMsg:
 		m.toastMgr.Success("Configuration saved successfully")
 		return m, nil
 
-	case ConfigSaveErrorMsg:
+	case msgs.ConfigSaveErrorMsg:
 		m.toastMgr.Error("Failed to save configuration: " + msg.Err.Error())
 		return m, nil
 
-	case ProfileSwitchedMsg:
+	case msgs.ProfileSwitchedMsg:
 		m.toastMgr.Success("Switched to profile: " + msg.ProfileName)
 		return m, nil
 
-	case ProfileSwitchErrorMsg:
+	case msgs.ProfileSwitchErrorMsg:
 		m.toastMgr.Error("Failed to switch profile: " + msg.Err.Error())
 		return m, nil
 	}
@@ -241,7 +197,7 @@ func (m AppModel) selectFile(filePath string) (AppModel, tea.Cmd) {
 		// Return batch of commands: emit ProcessingStartedMsg and wait for completion
 		return m, tea.Batch(
 			func() tea.Msg {
-				return ProcessingStartedMsg{FilePath: filePath}
+				return msgs.ProcessingStartedMsg{FilePath: filePath}
 			},
 			m.waitCompletion(ctx),
 		)
@@ -257,7 +213,7 @@ func (m *AppModel) waitCompletion(ctx context.Context) tea.Cmd {
 		// Check if it was cancelled or completed successfully
 		err := ctx.Err()
 		success := err == nil || err == context.Canceled
-		return ProcessingStoppedMsg{
+		return msgs.ProcessingStoppedMsg{
 			Success: success,
 			Err:     nil,
 		}
