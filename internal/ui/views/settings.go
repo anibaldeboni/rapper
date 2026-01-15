@@ -312,6 +312,33 @@ func (v *SettingsView) Resize(width, height int) {
 	v.urlInput.Width = inputWidth
 	v.bodyInput.SetWidth(inputWidth)
 	v.headersInput.SetWidth(inputWidth)
+
+	// Adjust textarea heights based on available height
+	// Reserve space for: header(3) + labels(6) + help(3) + margins(4) = ~16 lines
+	availableForTextareas := height - 16
+	if availableForTextareas < 8 {
+		availableForTextareas = 8
+	}
+
+	// Distribute height: body gets 60%, headers gets 40%
+	bodyHeight := (availableForTextareas * 6) / 10
+	if bodyHeight < 3 {
+		bodyHeight = 3
+	}
+	if bodyHeight > 10 {
+		bodyHeight = 10
+	}
+
+	headersHeight := availableForTextareas - bodyHeight
+	if headersHeight < 2 {
+		headersHeight = 2
+	}
+	if headersHeight > 8 {
+		headersHeight = 8
+	}
+
+	v.bodyInput.SetHeight(bodyHeight)
+	v.headersInput.SetHeight(headersHeight)
 }
 
 // View renders the settings view

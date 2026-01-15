@@ -199,8 +199,20 @@ func (m AppModel) waitCompletion(ctx context.Context) {
 }
 
 func (m AppModel) resizeViews() {
-	m.filesView.Resize(m.width/2, m.height)
-	m.logsView.Resize(m.width/2, m.height)
-	m.settingsView.Resize(m.width, m.height)
-	m.workersView.Resize(m.width, m.height)
+	// Calculate available height for content
+	// Subtract:
+	// - 1 line for status bar
+	// - 2 lines for AppStyle margins (top + bottom)
+	// - Reserve space for help when expanded (if needed)
+	availableHeight := m.height - 3
+
+	// Ensure minimum height
+	if availableHeight < 10 {
+		availableHeight = 10
+	}
+
+	m.filesView.Resize(m.width/2, availableHeight)
+	m.logsView.Resize(m.width/2, availableHeight)
+	m.settingsView.Resize(m.width, availableHeight)
+	m.workersView.Resize(m.width, availableHeight)
 }
