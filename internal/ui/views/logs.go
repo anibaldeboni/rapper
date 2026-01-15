@@ -98,7 +98,7 @@ func (v *LogsView) Resize(width, height int) {
 	v.width = width
 	v.height = height
 	v.viewport.Width = width
-	v.viewport.Height = height - 6
+	v.viewport.Height = height - 3
 }
 
 // View renders the logs view
