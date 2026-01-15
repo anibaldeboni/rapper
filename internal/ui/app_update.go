@@ -77,6 +77,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var spinCmd tea.Cmd
 		m.spinner, spinCmd = m.spinner.Update(msg)
 		cmds = append(cmds, spinCmd, tickCmd())
+
+		// Forward tick to WorkersView for metrics updates
+		if m.nav.Current() == ViewWorkers {
+			// Convert tickMsg to views.TickMsg
+			workersCmd := m.workersView.Update(views.TickMsg(msg))
+			cmds = append(cmds, workersCmd)
+		}
 	}
 
 	return m, tea.Batch(cmds...)
