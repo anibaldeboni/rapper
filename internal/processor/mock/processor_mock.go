@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	processor "github.com/anibaldeboni/rapper/internal/processor"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -20,6 +21,7 @@ import (
 type MockProcessor struct {
 	ctrl     *gomock.Controller
 	recorder *MockProcessorMockRecorder
+	isgomock struct{}
 }
 
 // MockProcessorMockRecorder is the mock recorder for MockProcessor.
@@ -40,16 +42,56 @@ func (m *MockProcessor) EXPECT() *MockProcessorMockRecorder {
 }
 
 // Do mocks base method.
-func (m *MockProcessor) Do(arg0 context.Context, arg1 string) (context.Context, context.CancelFunc) {
+func (m *MockProcessor) Do(ctx context.Context, filePath string) (context.Context, context.CancelFunc) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Do", arg0, arg1)
+	ret := m.ctrl.Call(m, "Do", ctx, filePath)
 	ret0, _ := ret[0].(context.Context)
 	ret1, _ := ret[1].(context.CancelFunc)
 	return ret0, ret1
 }
 
 // Do indicates an expected call of Do.
-func (mr *MockProcessorMockRecorder) Do(arg0, arg1 any) *gomock.Call {
+func (mr *MockProcessorMockRecorder) Do(ctx, filePath any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockProcessor)(nil).Do), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockProcessor)(nil).Do), ctx, filePath)
+}
+
+// GetMetrics mocks base method.
+func (m *MockProcessor) GetMetrics() processor.Metrics {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMetrics")
+	ret0, _ := ret[0].(processor.Metrics)
+	return ret0
+}
+
+// GetMetrics indicates an expected call of GetMetrics.
+func (mr *MockProcessorMockRecorder) GetMetrics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetrics", reflect.TypeOf((*MockProcessor)(nil).GetMetrics))
+}
+
+// GetWorkerCount mocks base method.
+func (m *MockProcessor) GetWorkerCount() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWorkerCount")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// GetWorkerCount indicates an expected call of GetWorkerCount.
+func (mr *MockProcessorMockRecorder) GetWorkerCount() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWorkerCount", reflect.TypeOf((*MockProcessor)(nil).GetWorkerCount))
+}
+
+// SetWorkers mocks base method.
+func (m *MockProcessor) SetWorkers(n int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetWorkers", n)
+}
+
+// SetWorkers indicates an expected call of SetWorkers.
+func (mr *MockProcessorMockRecorder) SetWorkers(n any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetWorkers", reflect.TypeOf((*MockProcessor)(nil).SetWorkers), n)
 }
