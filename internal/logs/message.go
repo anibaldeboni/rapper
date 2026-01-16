@@ -21,30 +21,30 @@ type messageImpl struct {
 	icon    string
 }
 
-func (this *messageImpl) String() string {
+func (m *messageImpl) String() string {
 	var icon, kind string
-	if this.kind != "" {
-		kind = fmt.Sprintf("[%s] ", styles.Bold(this.kind))
+	if m.kind != "" {
+		kind = fmt.Sprintf("[%s] ", styles.Bold(m.kind))
 	}
-	if this.icon != "" {
-		icon = this.icon + " "
+	if m.icon != "" {
+		icon = m.icon + " "
 	}
-	return icon + kind + this.message
+	return icon + kind + m.message
 }
 
-func (this *messageImpl) WithIcon(icon string) Message {
-	this.icon = icon
-	return this
+func (m *messageImpl) WithIcon(icon string) Message {
+	m.icon = icon
+	return m
 }
 
-func (this *messageImpl) WithKind(kind string) Message {
-	this.kind = kind
-	return this
+func (m *messageImpl) WithKind(kind string) Message {
+	m.kind = kind
+	return m
 }
 
-func (this *messageImpl) WithMessage(message string) Message {
-	this.message = message
-	return this
+func (m *messageImpl) WithMessage(message string) Message {
+	m.message = message
+	return m
 }
 
 func NewMessage() Message {

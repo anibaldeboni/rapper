@@ -18,13 +18,12 @@ var (
 
 // LogsView displays execution logs
 type LogsView struct {
-	viewport     viewport.Model
-	logger       logs.Logger
-	title        string
-	width        int
-	height       int
-	isProcessing bool
-	autoScroll   bool
+	viewport   viewport.Model
+	logger     logs.Logger
+	title      string
+	width      int
+	height     int
+	autoScroll bool
 }
 
 // NewLogsView creates a new LogsView

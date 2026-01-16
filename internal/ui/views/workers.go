@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -143,7 +144,7 @@ func (v *WorkersView) View() string {
 
 	// Total requests
 	totalLabel := metricLabelStyle.Render("Total Requests:")
-	totalValue := metricValueStyle.Render(fmt.Sprintf("%d", v.lastMetrics.TotalRequests))
+	totalValue := metricValueStyle.Render(strconv.FormatUint(v.lastMetrics.TotalRequests, 10))
 	b.WriteString(totalLabel)
 	b.WriteString(" ")
 	b.WriteString(totalValue)
@@ -151,7 +152,8 @@ func (v *WorkersView) View() string {
 
 	// Success requests
 	successLabel := metricLabelStyle.Render("✓ Success:")
-	successValue := metricValueStyle.Copy().Foreground(lipgloss.Color("40")).Render(fmt.Sprintf("%d", v.lastMetrics.SuccessRequests))
+	successStyle := metricValueStyle.Foreground(lipgloss.Color("40"))
+	successValue := successStyle.Render(strconv.FormatUint(v.lastMetrics.SuccessRequests, 10))
 	b.WriteString(successLabel)
 	b.WriteString(" ")
 	b.WriteString(successValue)
@@ -161,7 +163,8 @@ func (v *WorkersView) View() string {
 	errorLabel := metricLabelStyle.Render("✗ Errors:")
 	var errorValue string
 	if v.lastMetrics.ErrorRequests > 0 {
-		errorValue = metricValueStyle.Copy().Foreground(lipgloss.Color("196")).Render(fmt.Sprintf("%d", v.lastMetrics.ErrorRequests))
+		errorStyle := metricValueStyle.Foreground(lipgloss.Color("196"))
+		errorValue = errorStyle.Render(strconv.FormatUint(v.lastMetrics.ErrorRequests, 10))
 	} else {
 		errorValue = metricValueStyle.Render("0")
 	}
@@ -172,7 +175,7 @@ func (v *WorkersView) View() string {
 
 	// Lines processed
 	linesLabel := metricLabelStyle.Render("Lines Processed:")
-	linesValue := metricValueStyle.Render(fmt.Sprintf("%d", v.lastMetrics.LinesProcessed))
+	linesValue := metricValueStyle.Render(strconv.FormatUint(v.lastMetrics.LinesProcessed, 10))
 	b.WriteString(linesLabel)
 	b.WriteString(" ")
 	b.WriteString(linesValue)
@@ -188,7 +191,7 @@ func (v *WorkersView) View() string {
 
 	// Active workers
 	activeWorkersLabel := metricLabelStyle.Render("Active Workers:")
-	activeWorkersValue := metricValueStyle.Render(fmt.Sprintf("%d", v.lastMetrics.ActiveWorkers))
+	activeWorkersValue := metricValueStyle.Render(strconv.Itoa(v.lastMetrics.ActiveWorkers))
 	b.WriteString(activeWorkersLabel)
 	b.WriteString(" ")
 	b.WriteString(activeWorkersValue)

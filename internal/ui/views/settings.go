@@ -1,6 +1,7 @@
 package views
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -396,7 +397,7 @@ func (v *SettingsView) View() string {
 			lipgloss.JoinHorizontal(
 				lipgloss.Left,
 				settingsTitleStyle.Render("⚙️ Settings"),
-				profileBadgeStyle.Render(fmt.Sprintf("📋 %s", v.getActiveProfileName())),
+				profileBadgeStyle.Render("📋 "+v.getActiveProfileName()),
 			),
 		),
 		v.renderInput(urlField, "URL template:", v.urlInput),
@@ -565,7 +566,7 @@ func (v *SettingsView) switchProfile(name string) tea.Cmd {
 	profileMgr := v.configMgr.GetProfileManager()
 	if profileMgr == nil {
 		return func() tea.Msg {
-			return msgs.ProfileSwitchErrorMsg{Err: fmt.Errorf("profile manager not available")}
+			return msgs.ProfileSwitchErrorMsg{Err: errors.New("profile manager not available")}
 		}
 	}
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -106,7 +107,7 @@ func (pm *profileManagerImpl) Discover(dir string) ([]Profile, error) {
 	}
 
 	if len(profiles) == 0 {
-		return nil, fmt.Errorf("no valid config files found")
+		return nil, errors.New("no valid config files found")
 	}
 
 	pm.profiles = profiles
@@ -160,7 +161,7 @@ func (pm *profileManagerImpl) UpdateActive(cfg *Config) error {
 	defer pm.mu.Unlock()
 
 	if pm.activeIndex < 0 || pm.activeIndex >= len(pm.profiles) {
-		return fmt.Errorf("no active profile")
+		return errors.New("no active profile")
 	}
 
 	pm.profiles[pm.activeIndex].Config = cfg
@@ -173,7 +174,7 @@ func (pm *profileManagerImpl) Save() error {
 	defer pm.mu.RUnlock()
 
 	if pm.activeIndex < 0 || pm.activeIndex >= len(pm.profiles) {
-		return fmt.Errorf("no active profile")
+		return errors.New("no active profile")
 	}
 
 	active := &pm.profiles[pm.activeIndex]

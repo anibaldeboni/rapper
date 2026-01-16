@@ -12,12 +12,12 @@ import (
 func TestGet(t *testing.T) {
 	t.Run("Should return all logs", func(t *testing.T) {
 		logger := logs.NewLoggger("")
-		var expectedLogs []string
 		logs := []logs.Message{
 			logs.NewMessage().WithMessage("log 1"),
 			logs.NewMessage().WithMessage("log 2"),
 			logs.NewMessage().WithMessage("log 3"),
 		}
+		expectedLogs := make([]string, 0, len(logs))
 		for _, log := range logs {
 			logger.Add(log)
 			expectedLogs = append(expectedLogs, log.String())
@@ -40,8 +40,8 @@ type testLog struct {
 	Message string `json:"message"`
 }
 
-func (this testLog) Bytes() []byte {
-	return []byte("{\"message\":\"" + this.Message + "\"}")
+func (t testLog) Bytes() []byte {
+	return []byte("{\"message\":\"" + t.Message + "\"}")
 }
 
 func TestWriteToFile(t *testing.T) {

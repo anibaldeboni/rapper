@@ -14,7 +14,7 @@ type Figlets map[string][]byte
 func LoadAllFiglets() (Figlets, error) {
 	files, err := figlets.ReadDir("figlets")
 	if err != nil {
-		return nil, fmt.Errorf("Error reading figlet files: %w", err)
+		return nil, fmt.Errorf("error reading figlet files: %w", err)
 	}
 
 	var figletMap = make(map[string][]byte)

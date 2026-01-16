@@ -16,11 +16,11 @@ import (
 
 func buildGateway(t *testing.T, client *mock_web.MockHttpClient, method string) *web.HttpGatewayImpl {
 	t.Helper()
-	
+
 	gateway := &web.HttpGatewayImpl{
 		Client: client,
 	}
-	
+
 	// Initialize the gateway with proper configuration
 	err := gateway.UpdateConfig(method, "api.site.domain/{{.id}}", `{ "key": "{{.value}}" }`, map[string]string{"Authorization": "Bearer auth-token"})
 	if err != nil {
@@ -75,32 +75,32 @@ func TestExec(t *testing.T) {
 			defer ctrl.Finish()
 			httpClient := mock_web.NewMockHttpClient(ctrl)
 
-		gateway := buildGateway(t, httpClient, tt.method)
-		ctx := context.Background()
+			gateway := buildGateway(t, httpClient, tt.method)
+			ctx := context.Background()
 
-		var err error
-		var res web.Response
-		if tt.wantErr {
-			err = errors.New("error")
-		} else {
-			res = successResponse
-		}
-		switch tt.method {
-		case http.MethodPost:
-			httpClient.EXPECT().Post(ctx, url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
-		case http.MethodPut:
-			httpClient.EXPECT().Put(ctx, url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
-		}
+			var err error
+			var res web.Response
+			if tt.wantErr {
+				err = errors.New("error")
+			} else {
+				res = successResponse
+			}
+			switch tt.method {
+			case http.MethodPost:
+				httpClient.EXPECT().Post(ctx, url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
+			case http.MethodPut:
+				httpClient.EXPECT().Put(ctx, url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
+			}
 
-		res, e := gateway.Exec(ctx, variables)
+			res, e := gateway.Exec(ctx, variables)
 
-		if tt.wantErr {
-			assert.Error(t, e)
-			assert.Zero(t, res)
-		} else {
-			assert.NoError(t, e)
-			assert.NotZero(t, res)
-		}
+			if tt.wantErr {
+				assert.Error(t, e)
+				assert.Zero(t, res)
+			} else {
+				assert.NoError(t, e)
+				assert.NotZero(t, res)
+			}
 
 		})
 	}

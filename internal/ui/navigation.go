@@ -4,10 +4,10 @@ package ui
 type View int
 
 const (
-	ViewFiles View = iota // File selection view
-	ViewLogs              // Execution logs view
-	ViewSettings          // Configuration settings view
-	ViewWorkers           // Workers control view
+	ViewFiles    View = iota // File selection view
+	ViewLogs                 // Execution logs view
+	ViewSettings             // Configuration settings view
+	ViewWorkers              // Workers control view
 )
 
 // Navigation manages view navigation with history

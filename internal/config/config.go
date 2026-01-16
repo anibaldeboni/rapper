@@ -72,10 +72,10 @@ func (ac *AppConfig) ToConfig() *Config {
 func LoadConfig(path string) (*Config, error) {
 	f, err := utils.FindFiles(path, "config.yml", "config.yaml")
 	if err != nil {
-		return nil, fmt.Errorf("Error finding config file: %w", err)
+		return nil, fmt.Errorf("error finding config file: %w", err)
 	}
 	if len(f) == 0 {
-		return nil, fmt.Errorf("Could not find config.yml or config.yaml in %s", styles.Bold(path))
+		return nil, fmt.Errorf("could not find config.yml or config.yaml in %s", styles.Bold(path))
 	}
 
 	file, err := os.ReadFile(f[0])
@@ -105,10 +105,10 @@ func LoadConfig(path string) (*Config, error) {
 func LegacyConfig(path string) (AppConfig, error) {
 	f, err := utils.FindFiles(path, "config.yml", "config.yaml")
 	if err != nil {
-		return AppConfig{}, fmt.Errorf("Error finding config file: %w", err)
+		return AppConfig{}, fmt.Errorf("error finding config file: %w", err)
 	}
 	if len(f) == 0 {
-		return AppConfig{}, fmt.Errorf("Could not find config.yml or config.yaml in %s", styles.Bold(path))
+		return AppConfig{}, fmt.Errorf("could not find config.yml or config.yaml in %s", styles.Bold(path))
 	}
 
 	file, err := os.ReadFile(f[0])

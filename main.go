@@ -43,13 +43,14 @@ func main() {
 	// Create config manager (supports multi-profile)
 	configMgr, err := config.NewManager(*configPath)
 	if err != nil {
-		handleExit(fmt.Errorf("Could not read config file: %w", err))
+		handleExit(fmt.Errorf("could not read config file: %w", err))
 	}
 
 	// Get active configuration
 	cfg := configMgr.Get()
 	if cfg == nil {
-		handleExit(fmt.Errorf("No active configuration found"))
+		handleExit(errors.New("no active configuration found"))
+		return // handleExit calls os.Exit, but this helps the linter
 	}
 
 	logger := logs.NewLoggger(*outputFile)
@@ -62,7 +63,7 @@ func main() {
 		cfg.Request.Headers,
 	)
 	if err != nil {
-		handleExit(fmt.Errorf("Could not create HTTP gateway: %w", err))
+		handleExit(fmt.Errorf("could not create HTTP gateway: %w", err))
 	}
 
 	// Use workers from config if available, otherwise use flag
@@ -80,7 +81,7 @@ func main() {
 
 	// Register config change listener to update gateway
 	configMgr.OnChange(func(newCfg *config.Config) {
-		hg.UpdateConfig(
+		_ = hg.UpdateConfig(
 			newCfg.Request.Method,
 			newCfg.Request.URLTemplate,
 			newCfg.Request.BodyTemplate,
@@ -90,17 +91,17 @@ func main() {
 
 	filePaths, err := utils.FindFiles(*workingDir, "*.csv")
 	if err != nil {
-		handleExit(fmt.Errorf("Could not execute file scan in %s: %w", styles.Bold(*workingDir), err))
+		handleExit(fmt.Errorf("could not execute file scan in %s: %w", styles.Bold(*workingDir), err))
 	}
 	if len(filePaths) == 0 {
-		handleExit(fmt.Errorf("No CSV files found in %s", styles.Bold(*workingDir)))
+		handleExit(fmt.Errorf("no CSV files found in %s", styles.Bold(*workingDir)))
 	}
 
 	// Use new AppModel with multi-view support
 	tui := ui.NewApp(filePaths, csvProcessor, logger, configMgr)
 
 	if _, err := tea.NewProgram(tui).Run(); err != nil {
-		handleExit(fmt.Errorf("Could not run the program: %w", err))
+		handleExit(fmt.Errorf("could not run the program: %w", err))
 	}
 
 	handleExit()

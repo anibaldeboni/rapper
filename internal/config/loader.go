@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -52,16 +53,16 @@ func (l *Loader) Load(filePath string) (*Config, error) {
 // validateConfig validates the configuration structure
 func (l *Loader) validateConfig(cfg *Config) error {
 	if cfg.Request.Method == "" {
-		return fmt.Errorf("request.method is required")
+		return errors.New("request.method is required")
 	}
 	if cfg.Request.URLTemplate == "" {
-		return fmt.Errorf("request.url_template is required")
+		return errors.New("request.url_template is required")
 	}
 	if len(cfg.CSV.Fields) == 0 {
-		return fmt.Errorf("csv.fields is required")
+		return errors.New("csv.fields is required")
 	}
 	if cfg.Workers < 0 {
-		return fmt.Errorf("workers must be >= 0")
+		return errors.New("workers must be >= 0")
 	}
 	return nil
 }

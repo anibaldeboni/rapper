@@ -51,7 +51,7 @@ func (l *loggerImpl) Add(log Message) {
 func (l *loggerImpl) Get() []string {
 	l.RLock()
 	defer l.RUnlock()
-	var logs []string
+	logs := make([]string, 0, len(l.messages))
 	for _, log := range l.messages {
 		logs = append(logs, log.String())
 	}
@@ -77,7 +77,7 @@ func errorMessage(message string) Message {
 
 func write(file *os.File, line Line) error {
 	if _, err := file.Write(append(line.Bytes(), '\n')); err != nil {
-		return fmt.Errorf("Error writing to file: %w", err)
+		return fmt.Errorf("error writing to file: %w", err)
 	}
 	return nil
 }

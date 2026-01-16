@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/styles"
@@ -32,15 +34,20 @@ func csvError(message string) logs.Message {
 }
 
 func mapResponse(record map[string]string, status int) string {
-	var result string
 	keys := maps.Keys(record)
 	slices.Sort(keys)
-	for _, key := range keys {
-		result += fmt.Sprintf("%s: %s ", styles.Bold(key), record[key])
-	}
-	result += fmt.Sprintf("status: %s", styles.Pink(fmt.Sprint(status)))
 
-	return result
+	var builder strings.Builder
+	for _, key := range keys {
+		builder.WriteString(styles.Bold(key))
+		builder.WriteString(": ")
+		builder.WriteString(record[key])
+		builder.WriteString(" ")
+	}
+	builder.WriteString("status: ")
+	builder.WriteString(styles.Pink(strconv.Itoa(status)))
+
+	return builder.String()
 }
 func httpStatusError(record map[string]string, status int) logs.Message {
 	return logs.NewMessage().
@@ -53,7 +60,7 @@ func doneMessage(errs uint64) logs.Message {
 	icon := styles.IconTrophy
 
 	if errs > 0 {
-		errMsg = fmt.Sprintf("%s errors", styles.Pink(fmt.Sprint(errs)))
+		errMsg = styles.Pink(strconv.FormatUint(errs, 10)) + " errors"
 		icon = styles.IconError
 	}
 
@@ -83,7 +90,7 @@ type RequestLine struct {
 	Status int    `json:"status"`
 }
 
-func (this RequestLine) Bytes() []byte {
-	m, _ := json.Marshal(this)
+func (r RequestLine) Bytes() []byte {
+	m, _ := json.Marshal(r)
 	return m
 }
