@@ -35,7 +35,7 @@ type ToastManager struct {
 func NewToastManager() *ToastManager {
 	return &ToastManager{
 		toasts:    make([]Toast, 0),
-		maxToasts: 3,
+		maxToasts: 5,
 	}
 }
 
