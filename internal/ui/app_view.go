@@ -38,10 +38,18 @@ func (m AppModel) View() string {
 				m.renderHeader(),
 				lipgloss.JoinHorizontal(
 					lipgloss.Top,
-					content,
-					lipgloss.PlaceHorizontal(
-						lipgloss.Width(content),
+					lipgloss.Place(
+						(m.width/2)-2,
+						m.height-4,
+						lipgloss.Left,
+						lipgloss.Top,
+						content,
+					),
+					lipgloss.Place(
+						(m.width/2)-2,
+						m.height-4,
 						lipgloss.Right,
+						lipgloss.Top,
 						toasts,
 					),
 				),

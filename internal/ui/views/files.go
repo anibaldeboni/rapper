@@ -24,16 +24,14 @@ type FilesView struct {
 	list   list.Model
 	width  int
 	height int
-	title  string
 }
 
 // NewFilesView creates a new FilesView
 func NewFilesView(csvFiles []list.Item) *FilesView {
 	l := createFileList(csvFiles)
-
+	l.Title = "👀 Select a CSV file to process"
 	return &FilesView{
-		list:  l,
-		title: "👀 Select a CSV file to process",
+		list: l,
 	}
 }
 
@@ -48,24 +46,12 @@ func (v *FilesView) Update(msg tea.Msg) tea.Cmd {
 func (v *FilesView) Resize(width, height int) {
 	v.width = width
 	v.height = height
+	v.list.SetWidth((width / 4) * 3)
 }
 
 // View renders the files view
 func (v *FilesView) View() string {
-	return lipgloss.NewStyle().
-		MarginLeft(2).
-		MarginTop(1).
-		Render(
-			lipgloss.PlaceVertical(
-				v.height-1,
-				lipgloss.Left,
-				lipgloss.JoinVertical(
-					lipgloss.Top,
-					titleStyle.Render(v.title),
-					v.list.View(),
-				),
-			),
-		)
+	return v.list.View()
 }
 
 // SelectedItem returns the currently selected file
@@ -77,10 +63,10 @@ func (v *FilesView) SelectedItem() list.Item {
 var (
 	bullet            = "⦿"
 	inactiveDot       = "⦁"
-	titleStyle        = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("255"))
-	selectedItemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#d6acff"))
-	paginationStyle   = lipgloss.NewStyle().PaddingLeft(2)
+	titleStyle        = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Margin(1, 2).Bold(true)
+	itemStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
+	selectedItemStyle = lipgloss.NewStyle().MarginLeft(2).Foreground(lipgloss.Color("#d6acff"))
+	paginationStyle   = lipgloss.NewStyle().MarginLeft(2)
 	activeDot         = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#d3d3d3", Dark: "#d3d3d3"}).SetString(bullet).Bold(true)
 	inactiveDotStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8d8d8d", Dark: "#8d8d8d"}).SetString(inactiveDot).Bold(true)
 )
@@ -111,7 +97,7 @@ func (d fileItemDelegate) Render(w io.Writer, m list.Model, index int, listItem 
 
 // createFileList creates a list model for file selection
 func createFileList(items []list.Item) list.Model {
-	l := list.New(items, fileItemDelegate{}, 0, 0)
+	l := list.New(items, fileItemDelegate{}, 60, 0)
 	l.InfiniteScrolling = true
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
@@ -122,7 +108,7 @@ func createFileList(items []list.Item) list.Model {
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.ActivePaginationDot = activeDot
 	l.Styles.InactivePaginationDot = inactiveDotStyle
-	// l.Styles.TitleBar = titleBarStyle
+	l.Styles.TitleBar = titleStyle
 
 	return l
 }
