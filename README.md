@@ -2,7 +2,7 @@
 
   <p align="left">
   <img alt="GitHub License" src="https://img.shields.io/github/license/anibaldeboni/rapper?logo=gnu">
-  <a href="https://github.com/anibaldeboni/rapper/actions/workflows/master.yml" rel="nofollow">
+  <a href="https://github.com/anibaldeboni/rapper/actions/workflows/ci.yml" rel="nofollow">
     <img src="https://img.shields.io/github/actions/workflow/status/anibaldeboni/rapper/master.yml?branch=master&logo=Github" alt="Build" />
   </a>
   <img alt="GitHub language count" src="https://img.shields.io/github/languages/count/anibaldeboni/rapper?logo=go">
@@ -70,26 +70,26 @@ The instructions above move the binary to `~./local/bin` with the name `rapper` 
 Prior to running `rapper` you must set a `config.yml` structure is as follow:
 
 ```yaml
-token: "JWT of your application"
-path:
-  method: PUT # HTTP method you wish to be used in requests (currently supports PUT and POST)
-  template: https://api.myapp.io/users/{{.id}} # the variables are replaced by the corresponding csv values
-payload: # a json template to be filled with variables extracted from the CSV
-  template: |
-    {
-      "address": {
-        "street": "{{.street_name}}", # the variables are replaced by the corresponding csv values
-        "number": "{{.house_number}}",
-        "city": "{{.city}}"
-      }
-    }
+request:
+    method: POST
+    url_template: http://localhost:8080/api/users/{{.id}}
+    body_template: |
+        {
+          "name": "{{.name}}",
+          "email": "{{.email}}"
+        }
+    headers:
+        Authorization: Bearer dev-token-123456
+        Content-Type: application/json
+        Cookie: SESSID=1234
+        X-API-Version: v1
 csv:
-  fields: # The fields you want to use from the CSV, if none will use all
-    - id
-    - street_number
-    - house_number
-    - city
-  separator: "," # the separator used in the CSV, if not specified will use comma
+    separator: ','
+    fields:
+        - id
+        - name
+        - email
+workers: 2
 ```
 
 Have in mind that when a request fails all variables selected in `csv` field will be used to form the error message, so select all variables you need to form the url and payload and any other that is relevant to identify problems when an error occur
@@ -97,13 +97,12 @@ Have in mind that when a request fails all variables selected in `csv` field wil
 ## Keyboard Shortcuts
 
 ### Global Navigation
-- `Ctrl+F`: Switch to Files view
-- `Ctrl+L`: Switch to Logs view
-- `Ctrl+T`: Switch to Settings view
-- `Ctrl+W`: Switch to Workers view
-- `Esc`: Go back / Cancel operation
-- `Ctrl+C` / `q`: Quit application
-- `?`: Toggle help
+- `F1`: Switch to Files view
+- `F2`: Switch to Logs view
+- `F3`: Switch to Settings view
+- `F4`: Switch to Workers view
+- `Ctrl+C`: Cancel operation
+- `q`: Quit application
 
 ### Settings View
 - `Tab` / `Shift+Tab`: Navigate between form fields
@@ -114,19 +113,17 @@ Have in mind that when a request fails all variables selected in `csv` field wil
 - `Enter`: Select profile (when profile selector is open)
 
 ### Workers View
-- `←` / `→` or `h` / `l`: Decrease/increase worker count
+- `←` / `→`: Decrease/increase worker count
 - `-` / `+`: Decrease/increase worker count
 
 ### Files & Logs View
-- `↑` / `↓`: Navigate file list / Scroll logs
-- `Enter`: Select file for processing
-- `Esc`: Cancel processing (Files view only)
+- `↑` / `↓` / `←` / `→`: Navigate file list / Scroll logs
 
 ## Usage
 
 All options are available via `rapper -h`
 
-You may run `rapper` directly in a directory containing a `config.yml` or `config.yaml` and CSV files to process. Or setting the options:
+You may run `rapper` directly in a directory containing a valid `config.yml` and CSV files to process. Or setting the options:
 
 ```shell
   -config string
