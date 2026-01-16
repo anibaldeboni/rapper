@@ -98,15 +98,13 @@ func (v *LogsView) Resize(width, height int) {
 
 // View renders the logs view
 func (v *LogsView) View() string {
-	titleBar := logTitleStyle.Render(v.title)
-
 	return lipgloss.NewStyle().
 		MarginLeft(2).
 		MarginTop(1).
 		Render(
 			lipgloss.JoinVertical(
 				lipgloss.Top,
-				titleBar,
+				logTitleStyle.Render(v.title),
 				"",
 				v.viewport.View(),
 			),

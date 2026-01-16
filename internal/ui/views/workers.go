@@ -205,7 +205,7 @@ func (v *WorkersView) View() string {
 		b.WriteString("\n\n")
 	}
 
-	return lipgloss.PlaceVertical(v.height, lipgloss.Left, workersAppStyle.Render(b.String()))
+	return workersAppStyle.Render(b.String())
 }
 
 // renderSlider renders a visual slider for worker count

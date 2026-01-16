@@ -482,7 +482,7 @@ func (v *SettingsView) View() string {
 	}
 	b.WriteString(helpStyle.Render(help))
 
-	return lipgloss.Place(v.width/2, v.height, lipgloss.Left, lipgloss.Top, settingsAppStyle.Render(b.String()))
+	return settingsAppStyle.Render(b.String())
 }
 
 // renderWithProfileSelector renders the profile selector modal overlay
