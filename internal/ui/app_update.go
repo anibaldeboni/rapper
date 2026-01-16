@@ -107,7 +107,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err != nil {
 			m.toastMgr.Error("Processing failed: " + msg.Err.Error())
 		} else if msg.Success {
-			m.toastMgr.Success("Processing completed successfully")
+			m.toastMgr.Success("Processing completed")
 		}
 		return m, logsCmd
 
