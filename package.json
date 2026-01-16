@@ -1,0 +1,14 @@
+{
+    "name": "rapper",
+    "version": "0.0.0-development",
+    "private": true,
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/your-username/rapper.git"
+    },
+    "devDependencies": {
+        "@semantic-release/changelog": "^6.0.3",
+        "@semantic-release/git": "^10.0.1",
+        "semantic-release": "^23.0.0"
+    }
+}
