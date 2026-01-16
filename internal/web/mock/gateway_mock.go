@@ -21,6 +21,7 @@ import (
 type MockHttpGateway struct {
 	ctrl     *gomock.Controller
 	recorder *MockHttpGatewayMockRecorder
+	isgomock struct{}
 }
 
 // MockHttpGatewayMockRecorder is the mock recorder for MockHttpGateway.
@@ -41,16 +42,30 @@ func (m *MockHttpGateway) EXPECT() *MockHttpGatewayMockRecorder {
 }
 
 // Exec mocks base method.
-func (m *MockHttpGateway) Exec(arg0 context.Context, arg1 map[string]string) (web.Response, error) {
+func (m *MockHttpGateway) Exec(ctx context.Context, variables map[string]string) (web.Response, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exec", arg0, arg1)
+	ret := m.ctrl.Call(m, "Exec", ctx, variables)
 	ret0, _ := ret[0].(web.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Exec indicates an expected call of Exec.
-func (mr *MockHttpGatewayMockRecorder) Exec(arg0, arg1 any) *gomock.Call {
+func (mr *MockHttpGatewayMockRecorder) Exec(ctx, variables any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exec", reflect.TypeOf((*MockHttpGateway)(nil).Exec), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exec", reflect.TypeOf((*MockHttpGateway)(nil).Exec), ctx, variables)
+}
+
+// UpdateConfig mocks base method.
+func (m *MockHttpGateway) UpdateConfig(method, urlTemplate, bodyTemplate string, headers map[string]string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateConfig", method, urlTemplate, bodyTemplate, headers)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateConfig indicates an expected call of UpdateConfig.
+func (mr *MockHttpGatewayMockRecorder) UpdateConfig(method, urlTemplate, bodyTemplate, headers any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateConfig", reflect.TypeOf((*MockHttpGateway)(nil).UpdateConfig), method, urlTemplate, bodyTemplate, headers)
 }
