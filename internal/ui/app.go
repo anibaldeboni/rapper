@@ -2,6 +2,8 @@ package ui
 
 import (
 	"context"
+	"runtime/debug"
+	"strings"
 	"sync"
 
 	"github.com/anibaldeboni/rapper/internal/config"
@@ -17,10 +19,55 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	AppName    = "rapper"
-	AppVersion = "2.6.0"
-)
+const AppName = "rapper"
+
+var AppVersion = getVersion()
+
+// getVersion extracts version information from build metadata.
+// It tries to use the module version first (works with tagged releases),
+// then falls back to VCS revision for dev builds.
+func getVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "dev"
+	}
+
+	// Try module version first (e.g., "v2.6.0" or "(devel)")
+	if info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return normalizeVersion(info.Main.Version)
+	}
+
+	// Fall back to VCS revision for dev builds
+	var revision string
+	var modified bool
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			revision = setting.Value
+		case "vcs.modified":
+			modified = setting.Value == "true"
+		}
+	}
+
+	if revision != "" {
+		// Use short commit hash (7 chars) + "-dev" suffix
+		if len(revision) > 7 {
+			revision = revision[:7]
+		}
+		if modified {
+			return revision + "-dev-dirty"
+		}
+		return revision + "-dev"
+	}
+
+	return "dev"
+}
+
+// normalizeVersion removes the "v" prefix from version strings.
+// E.g., "v2.6.0" -> "2.6.0"
+func normalizeVersion(version string) string {
+	return strings.TrimPrefix(version, "v")
+}
 
 // AppModel is the new multi-view model
 type AppModel struct {

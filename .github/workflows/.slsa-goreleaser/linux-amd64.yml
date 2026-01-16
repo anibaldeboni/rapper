@@ -32,4 +32,3 @@ binary: rapper-{{ .Os }}-{{ .Arch }}
 ldflags:
   - "-s"
   - "-w"
-  - "-X github.com/anibaldeboni/rapper/internal/ui.AppVersion={{ .Env.VERSION }}"
