@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
 	"github.com/charmbracelet/bubbles/key"
@@ -23,43 +24,34 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// Global navigation keys
 		switch {
-		case key.Matches(msg, keys.Quit):
+		case key.Matches(msg, kbind.Quit):
 			return m, tea.Quit
 
-		case key.Matches(msg, keys.ViewFiles):
+		case key.Matches(msg, kbind.ViewFiles):
 			m.nav.Set(ViewFiles)
 			return m, nil
 
-		case key.Matches(msg, keys.ViewLogs):
+		case key.Matches(msg, kbind.ViewLogs):
 			m.nav.Set(ViewLogs)
 			return m, nil
 
-		case key.Matches(msg, keys.ViewSettings):
+		case key.Matches(msg, kbind.ViewSettings):
 			m.nav.Set(ViewSettings)
 			return m, nil
 
-		case key.Matches(msg, keys.ViewWorkers):
+		case key.Matches(msg, kbind.ViewWorkers):
 			m.nav.Set(ViewWorkers)
 			return m, nil
 
-		case key.Matches(msg, keys.Cancel):
-			if m.nav.Current() == ViewFiles {
-				// Cancel running operation
-				m.cancelMu.RLock()
-				hasCancel := m.cancel != nil
-				m.cancelMu.RUnlock()
-
-				if hasCancel {
-					m.cancelMu.Lock()
-					if m.cancel != nil {
-						m.cancel()
-					}
-					m.cancelMu.Unlock()
-				}
+		case key.Matches(msg, kbind.CancelOperation):
+			if m.cancel != nil {
+				m.cancelMu.Lock()
+				m.cancel()
+				m.cancelMu.Unlock()
 			} else {
-				// Go back to previous view
-				m.nav.Back()
+				m.toastMgr.Warning("Batch processing isn't running")
 			}
+
 			return m, nil
 		}
 
@@ -69,7 +61,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.resizeViews()
+		m.broadcastResize()
 		return m, nil
 
 	case msgs.TickMsg:
@@ -145,7 +137,7 @@ func (m AppModel) updateCurrentView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.nav.Current() {
 	case ViewFiles:
 		// Handle file selection
-		if key.Matches(msg, keys.Select) {
+		if key.Matches(msg, kbind.Select) {
 			item := m.filesView.SelectedItem()
 			if opt, ok := item.(views.Option[string]); ok {
 				newModel, cmd := m.selectFile(opt.Value)
@@ -216,13 +208,7 @@ func (m *AppModel) waitCompletion(ctx context.Context) tea.Cmd {
 	}
 }
 
-func (m AppModel) resizeViews() {
-	// Calculate available height for content
-	// Subtract:
-	// - 1 line for header (help bar)
-	// - 1 line for status bar
-	// - 2 lines for AppStyle margins (top + bottom)
-	// Ensure minimum height
+func (m AppModel) broadcastResize() {
 	availableHeight := max(m.height-4, 10)
 	availableWidth := m.width - 4
 
