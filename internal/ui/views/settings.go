@@ -20,6 +20,8 @@ var (
 	labelStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Bold(true)
 	focusedStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	helpStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
+	headerStyle        = lipgloss.NewStyle().MarginBottom(1)
+	inputStyle         = lipgloss.NewStyle().MarginBottom(1)
 	profileBadgeStyle  = lipgloss.NewStyle().Background(lipgloss.Color("99")).Foreground(lipgloss.Color("230")).Padding(0, 1).MarginLeft(2)
 )
 
@@ -373,39 +375,6 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 func (v *SettingsView) Resize(width, height int) {
 	v.width = width
 	v.height = height
-
-	// // Adjust input widths
-	// inputWidth := width - 8 // Account for margins and labels
-	// if inputWidth > 120 {
-	// 	inputWidth = 120
-	// }
-	// if inputWidth < 40 {
-	// 	inputWidth = 40
-	// }
-
-	// v.urlInput.Width = inputWidth
-	// v.methodInput.Width = min(inputWidth, 30)
-	// v.bodyInput.SetWidth(inputWidth)
-	// v.headersInput.SetWidth(inputWidth)
-	// v.csvFieldsInput.SetWidth(inputWidth)
-
-	// // Adjust textarea heights based on available height
-	// // Reserve space for: header(3) + labels(10) + help(3) + margins(4) = ~20 lines
-	// availableForTextareas := max(height-20, 10)
-
-	// // Distribute height: body gets 40%, headers gets 30%, csvFields gets 30%
-	// bodyHeight := min(max((availableForTextareas*4)/10, 3), 8)
-
-	// headersHeight := min(max((availableForTextareas*3)/10, 2), 6)
-
-	// csvFieldsHeight := max(availableForTextareas-bodyHeight-headersHeight, 3)
-	// if csvFieldsHeight > 6 {
-	// 	csvFieldsHeight = 6
-	// }
-
-	// v.bodyInput.SetHeight(bodyHeight)
-	// v.headersInput.SetHeight(headersHeight)
-	// v.csvFieldsInput.SetHeight(csvFieldsHeight)
 }
 
 // View renders the settings view
@@ -415,74 +384,47 @@ func (v *SettingsView) View() string {
 		return v.renderWithProfileSelector()
 	}
 
-	var b strings.Builder
-
-	// Header with profile badge
-	profile := v.getActiveProfileName()
-	title := settingsTitleStyle.Render("⚙️ Settings")
-	profileBadge := profileBadgeStyle.Render(fmt.Sprintf("📋 %s", profile))
-	header := lipgloss.JoinHorizontal(lipgloss.Left, title, profileBadge)
-	b.WriteString(header)
-	b.WriteString("\n\n")
-
-	// URL field
-	urlLabel := labelStyle.Render("URL Template:")
-	if v.focused == urlField {
-		urlLabel = focusedStyle.Render("▶ URL Template:")
-	}
-	b.WriteString(urlLabel)
-	b.WriteString("\n")
-	b.WriteString(v.urlInput.View())
-	b.WriteString("\n\n")
-
-	// Method field
-	methodLabel := labelStyle.Render("Method:")
-	if v.focused == methodField {
-		methodLabel = focusedStyle.Render("▶ Method:")
-	}
-	b.WriteString(methodLabel)
-	b.WriteString("\n")
-	b.WriteString(v.methodInput.View())
-	b.WriteString("\n\n")
-
-	// Body field
-	bodyLabel := labelStyle.Render("Body Template:")
-	if v.focused == bodyField {
-		bodyLabel = focusedStyle.Render("▶ Body Template:")
-	}
-	b.WriteString(bodyLabel)
-	b.WriteString("\n")
-	b.WriteString(v.bodyInput.View())
-	b.WriteString("\n\n")
-
-	// Headers field
-	headersLabel := labelStyle.Render("Headers:")
-	if v.focused == headersField {
-		headersLabel = focusedStyle.Render("▶ Headers:")
-	}
-	b.WriteString(headersLabel)
-	b.WriteString("\n")
-	b.WriteString(v.headersInput.View())
-	b.WriteString("\n\n")
-
-	// CSV Fields field
-	csvFieldsLabel := labelStyle.Render("CSV Fields (one per line):")
-	if v.focused == csvFieldsField {
-		csvFieldsLabel = focusedStyle.Render("▶ CSV Fields (one per line):")
-	}
-	b.WriteString(csvFieldsLabel)
-	b.WriteString("\n")
-	b.WriteString(v.csvFieldsInput.View())
-	b.WriteString("\n\n")
-
 	// Help text
 	var help string
 	if v.modified {
 		help = "⚠️  Unsaved changes"
 	}
-	b.WriteString(helpStyle.Render(help))
 
-	return settingsAppStyle.Render(b.String())
+	content := lipgloss.JoinVertical(
+		lipgloss.Top,
+		headerStyle.Render(
+			lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				settingsTitleStyle.Render("⚙️ Settings"),
+				profileBadgeStyle.Render(fmt.Sprintf("📋 %s", v.getActiveProfileName())),
+			),
+		),
+		v.renderInput(urlField, "URL template:", v.urlInput),
+		v.renderInput(methodField, "Method:", v.methodInput),
+		v.renderTextArea(bodyField, "Body template:", v.bodyInput),
+		v.renderTextArea(headersField, "Headers:", v.headersInput),
+		v.renderTextArea(csvFieldsField, "CSV Fields (one per line):", v.csvFieldsInput),
+		helpStyle.Render(help),
+	)
+
+	return settingsAppStyle.Render(content)
+}
+func (v *SettingsView) renderTextArea(fieldIdx int, text string, input textarea.Model) string {
+	label := v.renderLabel(text, fieldIdx)
+	return inputStyle.Render(lipgloss.JoinVertical(lipgloss.Left, label, input.View()))
+}
+
+func (v *SettingsView) renderInput(fieldIdx int, text string, input textinput.Model) string {
+	label := v.renderLabel(text, fieldIdx)
+	return inputStyle.Render(lipgloss.JoinVertical(lipgloss.Left, label, input.View()))
+}
+
+// renderLabel renders a label with focus indication
+func (v *SettingsView) renderLabel(text string, fieldIdx int) string {
+	if v.focused == fieldIdx {
+		return focusedStyle.Render("▶ " + text)
+	}
+	return labelStyle.Render(text)
 }
 
 // renderWithProfileSelector renders the profile selector modal overlay
