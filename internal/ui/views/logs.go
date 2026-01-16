@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	logTitleStyle = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).MarginBottom(1).Bold(true)
+	logTitleStyle = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).MarginBottom(1).Padding(0, 1).Bold(true)
 )
 
 // LogsView displays execution logs
@@ -79,16 +79,12 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 		// Check for processing messages using reflection
 		switch msg.(type) {
 		case msgs.ProcessingStartedMsg:
-			v.isProcessing = true
 			v.autoScroll = true
-			v.updateLogs()
 		case msgs.ProcessingStoppedMsg:
-			v.isProcessing = false
-			v.updateLogs()
 		case msgs.ProcessingProgressMsg:
-			v.updateLogs()
 		}
 	}
+	v.updateLogs()
 	v.viewport, cmd = v.viewport.Update(msg)
 	return cmd
 }
@@ -119,7 +115,7 @@ func (v *LogsView) View() string {
 func (v *LogsView) updateLogs() {
 	content := strings.Join(v.logger.Get(), "\n")
 	v.viewport.SetContent(content)
-	if v.isProcessing && v.autoScroll {
+	if v.autoScroll {
 		v.viewport.GotoBottom()
 	}
 }
