@@ -89,7 +89,7 @@ func NewSettingsView(configMgr config.Manager) *SettingsView {
 	headersInput.Placeholder = `Content-Type: application/json
 Authorization: Bearer {{.token}}`
 	headersInput.CharLimit = 2000
-	headersInput.SetHeight(3)
+	headersInput.SetHeight(5)
 	// headersInput.SetWidth(80)
 	headersInput.ShowLineNumbers = false
 

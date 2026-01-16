@@ -26,6 +26,18 @@ type FilesView struct {
 	height int
 }
 
+// Styles for file list
+var (
+	bullet            = "⦿"
+	inactiveDot       = "⦁"
+	titleStyle        = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Margin(1, 2)
+	itemStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
+	selectedItemStyle = lipgloss.NewStyle().MarginLeft(2).Foreground(lipgloss.Color("#d6acff"))
+	paginationStyle   = lipgloss.NewStyle().MarginLeft(2)
+	activeDot         = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#d3d3d3", Dark: "#d3d3d3"}).SetString(bullet).Bold(true)
+	inactiveDotStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8d8d8d", Dark: "#8d8d8d"}).SetString(inactiveDot).Bold(true)
+)
+
 // NewFilesView creates a new FilesView
 func NewFilesView(csvFiles []list.Item) *FilesView {
 	l := list.New(csvFiles, fileItemDelegate{}, 60, 0)
@@ -39,7 +51,7 @@ func NewFilesView(csvFiles []list.Item) *FilesView {
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.ActivePaginationDot = activeDot
 	l.Styles.InactivePaginationDot = inactiveDotStyle
-	l.Styles.TitleBar = titleStyle
+	l.Styles.TitleBar = titleStyle.Bold(true)
 	l.Title = "👀 Select a CSV file to process"
 
 	return &FilesView{
@@ -70,18 +82,6 @@ func (v *FilesView) View() string {
 func (v *FilesView) SelectedItem() list.Item {
 	return v.list.SelectedItem()
 }
-
-// Styles for file list
-var (
-	bullet            = "⦿"
-	inactiveDot       = "⦁"
-	titleStyle        = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Margin(1, 2).Bold(true)
-	itemStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
-	selectedItemStyle = lipgloss.NewStyle().MarginLeft(2).Foreground(lipgloss.Color("#d6acff"))
-	paginationStyle   = lipgloss.NewStyle().MarginLeft(2)
-	activeDot         = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#d3d3d3", Dark: "#d3d3d3"}).SetString(bullet).Bold(true)
-	inactiveDotStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8d8d8d", Dark: "#8d8d8d"}).SetString(inactiveDot).Bold(true)
-)
 
 // fileItemDelegate is the delegate for rendering file list items
 type fileItemDelegate struct{}

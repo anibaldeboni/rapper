@@ -109,8 +109,9 @@ func (tm *ToastManager) Render() string {
 	var rendered strings.Builder
 
 	for _, toast := range tm.toasts {
+		rendered.WriteString("\n")
 		rendered.WriteString(renderToast(toast))
-		rendered.WriteString("\n\n")
+		rendered.WriteString("\n")
 	}
 
 	return rendered.String()

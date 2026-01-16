@@ -220,7 +220,7 @@ func (v *WorkersView) renderSlider() string {
 
 	var slider strings.Builder
 
-	for i := 0; i < sliderWidth; i++ {
+	for i := range sliderWidth {
 		if i == pos {
 			slider.WriteString(sliderHandleStyle.Render("●"))
 		} else if i < pos {
