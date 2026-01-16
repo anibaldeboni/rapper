@@ -73,6 +73,22 @@ var (
 	)
 	CancelOperation = key.NewBinding(
 		key.WithKeys("ctrl+c"),
-		key.WithHelp("ctrl+c", "cancel operation"),
+		key.WithHelp("ctrl+c", "kill operation"),
+	)
+	GotoBottom = key.NewBinding(
+		key.WithKeys("end"),
+		key.WithHelp("end", "go to bottom"),
+	)
+	GotoTop = key.NewBinding(
+		key.WithKeys("home"),
+		key.WithHelp("home", "go to top"),
+	)
+	PageUp = key.NewBinding(
+		key.WithKeys("pgup"),
+		key.WithHelp("pgup", "page up"),
+	)
+	PageDown = key.NewBinding(
+		key.WithKeys("pgdown"),
+		key.WithHelp("pgdown", "page down"),
 	)
 )

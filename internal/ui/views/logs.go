@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/logs"
+	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -49,26 +50,30 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, key.NewBinding(key.WithKeys("up", "down", "pgup", "pgdown", "home"))):
-			v.autoScroll = false
-		case key.Matches(msg, key.NewBinding(key.WithKeys("end"))):
-			v.autoScroll = true
-		case key.Matches(msg, key.NewBinding(key.WithKeys("up"))):
-			v.viewport.ScrollUp(1)
-		case key.Matches(msg, key.NewBinding(key.WithKeys("down"))):
-			v.viewport.ScrollDown(1)
-		case key.Matches(msg, key.NewBinding(key.WithKeys("pgup"))):
-			v.viewport.PageUp()
-		case key.Matches(msg, key.NewBinding(key.WithKeys("pgdown"))):
-			v.viewport.PageDown()
-		case key.Matches(msg, key.NewBinding(key.WithKeys("home"))):
-			v.viewport.GotoTop()
-		case key.Matches(msg, key.NewBinding(key.WithKeys("end"))):
+		case key.Matches(msg, kbind.GotoBottom):
 			v.viewport.GotoBottom()
-		case key.Matches(msg, key.NewBinding(key.WithKeys("right"))):
+			v.autoScroll = true
+		case key.Matches(msg, kbind.Up):
+			v.viewport.ScrollUp(1)
+			v.autoScroll = false
+		case key.Matches(msg, kbind.Down):
+			v.viewport.ScrollDown(1)
+			v.autoScroll = false
+		case key.Matches(msg, kbind.PageUp):
+			v.viewport.PageUp()
+			v.autoScroll = false
+		case key.Matches(msg, kbind.PageDown):
+			v.viewport.PageDown()
+			v.autoScroll = false
+		case key.Matches(msg, kbind.GotoTop):
+			v.viewport.GotoTop()
+			v.autoScroll = false
+		case key.Matches(msg, kbind.Right):
 			v.viewport.ScrollRight(1)
-		case key.Matches(msg, key.NewBinding(key.WithKeys("left"))):
+			v.autoScroll = false
+		case key.Matches(msg, kbind.Left):
 			v.viewport.ScrollLeft(1)
+			v.autoScroll = false
 		}
 	default:
 		// Check for processing messages using reflection

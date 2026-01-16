@@ -10,12 +10,12 @@ import (
 type globalKeyMap struct{}
 
 func (k globalKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.ViewFiles, kbind.ViewLogs, kbind.ViewSettings, kbind.ViewWorkers, kbind.Quit}
+	return []key.Binding{kbind.ViewFiles, kbind.ViewLogs, kbind.ViewSettings, kbind.ViewWorkers, kbind.CancelOperation, kbind.Quit}
 }
 
 func (k globalKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{kbind.ViewFiles, kbind.ViewLogs, kbind.ViewSettings, kbind.ViewWorkers, kbind.Quit},
+		{kbind.ViewFiles, kbind.ViewLogs, kbind.ViewSettings, kbind.ViewWorkers, kbind.CancelOperation, kbind.Quit},
 	}
 }
 
@@ -39,11 +39,11 @@ func (k filesViewKeyMap) FullHelp() [][]key.Binding {
 type logsViewKeyMap struct{}
 
 func (k logsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.Up, kbind.Right, kbind.Down, kbind.Left}
+	return []key.Binding{kbind.Left, kbind.Up, kbind.Down, kbind.Right}
 }
 
 func (k logsViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{kbind.Up, kbind.Right, kbind.Down, kbind.Left}}
+	return [][]key.Binding{{kbind.Left, kbind.Up, kbind.Down, kbind.Right}}
 }
 
 // settingsViewKeyMap shows only settings view specific keys
@@ -61,11 +61,11 @@ func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
 type workersViewKeyMap struct{}
 
 func (k workersViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.WorkerInc, kbind.WorkerDec}
+	return []key.Binding{kbind.WorkerDec, kbind.WorkerInc}
 }
 
 func (k workersViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{kbind.WorkerInc, kbind.WorkerDec}}
+	return [][]key.Binding{{kbind.WorkerDec, kbind.WorkerInc}}
 }
 
 // getViewSpecificKeyMap returns only view-specific keys (excluding global navigation)
