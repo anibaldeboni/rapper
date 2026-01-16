@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
+	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -28,8 +28,20 @@ type FilesView struct {
 
 // NewFilesView creates a new FilesView
 func NewFilesView(csvFiles []list.Item) *FilesView {
-	l := createFileList(csvFiles)
+	l := list.New(csvFiles, fileItemDelegate{}, 60, 0)
+	l.InfiniteScrolling = true
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false)
+	l.DisableQuitKeybindings()
+	l.KeyMap.CursorUp = kbind.Up
+	l.KeyMap.CursorDown = kbind.Down
+	l.Styles.PaginationStyle = paginationStyle
+	l.Styles.ActivePaginationDot = activeDot
+	l.Styles.InactivePaginationDot = inactiveDotStyle
+	l.Styles.TitleBar = titleStyle
 	l.Title = "👀 Select a CSV file to process"
+
 	return &FilesView{
 		list: l,
 	}
@@ -93,22 +105,4 @@ func (d fileItemDelegate) Render(w io.Writer, m list.Model, index int, listItem 
 	}
 
 	fmt.Fprint(w, fn(str))
-}
-
-// createFileList creates a list model for file selection
-func createFileList(items []list.Item) list.Model {
-	l := list.New(items, fileItemDelegate{}, 60, 0)
-	l.InfiniteScrolling = true
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
-	l.SetShowHelp(false)
-	l.DisableQuitKeybindings()
-	l.KeyMap.CursorUp = key.NewBinding(key.WithKeys("up"))
-	l.KeyMap.CursorDown = key.NewBinding(key.WithKeys("down"))
-	l.Styles.PaginationStyle = paginationStyle
-	l.Styles.ActivePaginationDot = activeDot
-	l.Styles.InactivePaginationDot = inactiveDotStyle
-	l.Styles.TitleBar = titleStyle
-
-	return l
 }
