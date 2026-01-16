@@ -32,12 +32,7 @@ func getVersion() string {
 		return "dev"
 	}
 
-	// Try module version first (e.g., "v2.6.0" or "(devel)")
-	if info.Main.Version != "" && info.Main.Version != "(devel)" {
-		return normalizeVersion(info.Main.Version)
-	}
-
-	// Fall back to VCS revision for dev builds
+	// Extract VCS information
 	var revision string
 	var modified bool
 	for _, setting := range info.Settings {
@@ -49,6 +44,14 @@ func getVersion() string {
 		}
 	}
 
+	// Check if we have a proper semantic version (not pseudo-version)
+	version := info.Main.Version
+	if version != "" && version != "(devel)" && !isPseudoVersion(version) {
+		// Clean version (e.g., "v2.6.0" -> "2.6.0")
+		return normalizeVersion(version)
+	}
+
+	// Fall back to VCS revision for dev builds
 	if revision != "" {
 		// Use short commit hash (7 chars) + "-dev" suffix
 		if len(revision) > 7 {
@@ -61,6 +64,15 @@ func getVersion() string {
 	}
 
 	return "dev"
+}
+
+// isPseudoVersion checks if a version string is a Go pseudo-version.
+// Pseudo-versions have format like "v0.0.0-20191109021931-daa7c04131f5"
+func isPseudoVersion(version string) bool {
+	// Pseudo-versions contain a timestamp (e.g., "20191109021931")
+	return strings.Contains(version, "-0.") || 
+	       strings.Contains(version, "+incompatible") ||
+	       (strings.Count(version, "-") >= 2 && len(version) > 25)
 }
 
 // normalizeVersion removes the "v" prefix from version strings.
