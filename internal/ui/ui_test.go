@@ -3,6 +3,7 @@ package ui_test
 import (
 	"testing"
 
+	manager_mock "github.com/anibaldeboni/rapper/internal/config/mock"
 	mock_log "github.com/anibaldeboni/rapper/internal/logs/mock"
 	mock_processor "github.com/anibaldeboni/rapper/internal/processor/mock"
 	"github.com/anibaldeboni/rapper/internal/ui"
@@ -18,11 +19,12 @@ func TestNewUI(t *testing.T) {
 	defer ctrl.Finish()
 	logManagerMock := mock_log.NewMockLogger(ctrl)
 	processorMock := mock_processor.NewMockProcessor(ctrl)
+	configMgrMock := manager_mock.NewMockManager(ctrl)
 
 	t.Run("When the path contains CSV files", func(t *testing.T) {
 		filePaths := []string{"../../tests/example.csv"}
 
-		c := ui.New(filePaths, processorMock, logManagerMock)
+		c := ui.NewApp(filePaths, processorMock, logManagerMock, configMgrMock)
 
 		assert.NotNil(t, c)
 	})
@@ -33,12 +35,12 @@ func TestUIQuit(t *testing.T) {
 	defer ctrl.Finish()
 	logManagerMock := mock_log.NewMockLogger(ctrl)
 	processorMock := mock_processor.NewMockProcessor(ctrl)
+	configMgrMock := manager_mock.NewMockManager(ctrl)
 
 	t.Run("Should quit when the user presses 'q'", func(t *testing.T) {
 		filePaths := []string{"../../tests/example.csv"}
 
-		m := ui.New(filePaths, processorMock, logManagerMock)
-
+		m := ui.NewApp(filePaths, processorMock, logManagerMock, configMgrMock)
 		tm := teatest.NewTestModel(
 			t, m,
 			teatest.WithInitialTermSize(300, 100),
