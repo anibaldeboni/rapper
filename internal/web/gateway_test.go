@@ -5,9 +5,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 	"testing"
-	"text/template"
 
 	"github.com/anibaldeboni/rapper/internal/web"
 	mock_web "github.com/anibaldeboni/rapper/internal/web/mock"
@@ -16,19 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func buildGateway(t *testing.T, method string, client *mock_web.MockHttpClient) *web.HttpGatewayImpl {
+func buildGateway(t *testing.T, client *mock_web.MockHttpClient) *web.HttpGatewayImpl {
 	t.Helper()
 	gateway := &web.HttpGatewayImpl{
-		Token:  "auth-token",
-		Method: method,
 		Client: client,
-		Templates: struct {
-			Url  *template.Template
-			Body *template.Template
-		}{
-			web.NewTemplate("url", "api.site.domain/{{.id}}"),
-			web.NewTemplate("body", `{ "key": "{{.value}}" }`),
-		},
 	}
 
 	return gateway
@@ -79,7 +68,7 @@ func TestExec(t *testing.T) {
 			defer ctrl.Finish()
 			httpClient := mock_web.NewMockHttpClient(ctrl)
 
-			gateway := buildGateway(t, strings.ToUpper(tt.method), httpClient)
+			gateway := buildGateway(t, httpClient)
 			ctx := context.Background()
 
 			var err error
