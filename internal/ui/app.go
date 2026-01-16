@@ -7,6 +7,7 @@ import (
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/processor"
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/components"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
 	"github.com/charmbracelet/bubbles/help"
@@ -78,6 +79,20 @@ func createSpinner() spinner.Model {
 	s.Spinner = spinner.Points
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	return s
+}
+
+func createHelp() help.Model {
+	help := help.New()
+
+	help.Styles.ShortKey = styles.HelpKeyStyle
+	help.Styles.ShortDesc = styles.HelpDescStyle
+	help.Styles.ShortSeparator = styles.HelpSepStyle
+	help.Styles.Ellipsis = styles.HelpSepStyle
+	help.Styles.FullKey = styles.HelpKeyStyle
+	help.Styles.FullDesc = styles.HelpDescStyle
+	help.Styles.FullSeparator = styles.HelpSepStyle
+
+	return help
 }
 
 func (m AppModel) Init() tea.Cmd {
