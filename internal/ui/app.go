@@ -21,12 +21,21 @@ import (
 
 const AppName = "rapper"
 
+// version can be set via ldflags during build time (e.g., -X 'github.com/anibaldeboni/rapper/internal/ui.version=1.0.0')
+var version string
+
 var AppVersion = getVersion()
 
 // getVersion extracts version information from build metadata.
-// It tries to use the module version first (works with tagged releases),
-// then falls back to VCS revision for dev builds.
+// It first checks if version was set via ldflags (e.g., by goreleaser),
+// then tries to use the module version (works with tagged releases),
+// and finally falls back to VCS revision for dev builds.
 func getVersion() string {
+	// If version was set via ldflags (by goreleaser), use it
+	if version != "" {
+		return normalizeVersion(version)
+	}
+
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return "dev"

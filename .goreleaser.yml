@@ -17,7 +17,7 @@ builds:
       - -tags=netgo
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
+      - -X github.com/anibaldeboni/rapper/internal/ui.version={{.Version}}
     goos:
       - linux
       - darwin
