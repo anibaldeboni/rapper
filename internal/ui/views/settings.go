@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/config"
+	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
@@ -256,25 +257,24 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// If profile selector is open, handle its navigation
 		if v.showProfileSelector {
 			profiles := v.getProfiles()
-			switch msg.String() {
-			case "up", "k":
+			switch {
+			case key.Matches(msg, kbind.Up):
 				v.profileListIndex--
 				if v.profileListIndex < 0 {
 					v.profileListIndex = len(profiles) - 1
 				}
 				return nil
 
-			case "down", "j":
+			case key.Matches(msg, kbind.Down):
 				v.profileListIndex++
 				if v.profileListIndex >= len(profiles) {
 					v.profileListIndex = 0
 				}
 				return nil
 
-			case "enter":
+			case key.Matches(msg, kbind.Select):
 				// Switch to selected profile
 				if v.profileListIndex >= 0 && v.profileListIndex < len(profiles) {
 					v.showProfileSelector = false
@@ -283,7 +283,7 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 				v.showProfileSelector = false
 				return nil
 
-			case "esc", tea.KeyEscape.String():
+			case key.Matches(msg, kbind.Cancel):
 				v.showProfileSelector = false
 				return nil
 			}
@@ -292,11 +292,11 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 
 		// Handle keyboard shortcuts
 		switch {
-		case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+s"))):
+		case key.Matches(msg, kbind.Save):
 			// Save configuration
 			return v.saveConfigCmd()
 
-		case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+p"))):
+		case key.Matches(msg, kbind.Profile):
 			// Toggle profile selector
 			v.showProfileSelector = !v.showProfileSelector
 			// Set initial selection to current profile
@@ -310,11 +310,11 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			}
 			return nil
 
-		case key.Matches(msg, key.NewBinding(key.WithKeys("tab"))):
+		case key.Matches(msg, kbind.NextField):
 			v.nextField()
 			return nil
 
-		case key.Matches(msg, key.NewBinding(key.WithKeys("shift+tab"))):
+		case key.Matches(msg, kbind.PrevField):
 			v.prevField()
 			return nil
 		}
@@ -410,6 +410,11 @@ func (v *SettingsView) Resize(width, height int) {
 
 // View renders the settings view
 func (v *SettingsView) View() string {
+	// Show profile selector modal if active
+	if v.showProfileSelector {
+		return v.renderWithProfileSelector()
+	}
+
 	var b strings.Builder
 
 	// Header with profile badge
@@ -476,11 +481,6 @@ func (v *SettingsView) View() string {
 		help = "⚠️  Unsaved changes"
 	}
 	b.WriteString(helpStyle.Render(help))
-
-	// Show profile selector modal if active
-	if v.showProfileSelector {
-		return v.renderWithProfileSelector()
-	}
 
 	return lipgloss.Place(v.width/2, v.height, lipgloss.Left, lipgloss.Top, settingsAppStyle.Render(b.String()))
 }

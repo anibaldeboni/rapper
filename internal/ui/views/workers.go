@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/anibaldeboni/rapper/internal/processor"
+	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -50,28 +51,28 @@ func (v *WorkersView) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, key.NewBinding(key.WithKeys("left", "h"))):
+		case key.Matches(msg, kbind.Left):
 			if v.workerCount > 1 {
 				v.workerCount--
 				v.proc.SetWorkers(v.workerCount)
 			}
 			return nil
 
-		case key.Matches(msg, key.NewBinding(key.WithKeys("right", "l"))):
+		case key.Matches(msg, kbind.Right):
 			if v.workerCount < v.maxWorkers {
 				v.workerCount++
 				v.proc.SetWorkers(v.workerCount)
 			}
 			return nil
 
-		case key.Matches(msg, key.NewBinding(key.WithKeys("-"))):
+		case key.Matches(msg, kbind.WorkerDec):
 			if v.workerCount > 1 {
 				v.workerCount--
 				v.proc.SetWorkers(v.workerCount)
 			}
 			return nil
 
-		case key.Matches(msg, key.NewBinding(key.WithKeys("+", "="))):
+		case key.Matches(msg, kbind.WorkerInc):
 			if v.workerCount < v.maxWorkers {
 				v.workerCount++
 				v.proc.SetWorkers(v.workerCount)
