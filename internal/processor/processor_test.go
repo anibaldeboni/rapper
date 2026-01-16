@@ -33,7 +33,7 @@ func TestProcessor_Do(t *testing.T) {
 		tempFile := createCsvFile(t, csvData)
 		defer os.Remove(tempFile.Name())
 
-		p := NewProcessor(config.CSV{Fields: []string{"header1", "header2"}, Separator: ","}, gatewayMock, loggerMock, 1)
+		p := NewProcessor(config.CSVConfig{Fields: []string{"header1", "header2"}, Separator: ","}, gatewayMock, loggerMock, 1)
 
 		p.Do(ctx, tempFile.Name())
 		wg.Wait()
@@ -59,7 +59,7 @@ func TestProcessor_Do(t *testing.T) {
 		tempFile := createCsvFile(t, csvData)
 		defer os.Remove(tempFile.Name())
 
-		p := NewProcessor(config.CSV{Fields: []string{"header1"}, Separator: ","}, gatewayMock, loggerMock, 1)
+		p := NewProcessor(config.CSVConfig{Fields: []string{"header1"}, Separator: ","}, gatewayMock, loggerMock, 1)
 
 		p.Do(context.Background(), tempFile.Name())
 		wg.Wait()

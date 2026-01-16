@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/anibaldeboni/rapper/internal/updates"
-	_ "github.com/anibaldeboni/rapper/internal/updates"
 
 	_ "unsafe"
 

@@ -3,29 +3,30 @@ package ui
 import (
 	"path/filepath"
 
-	"github.com/anibaldeboni/rapper/internal/styles"
+	"github.com/anibaldeboni/rapper/internal/ui/views"
+	"golang.org/x/term"
 )
 
-func mapListOptions(filePaths []string) []Option[string] {
-	opts := make([]Option[string], 0, len(filePaths))
-	maxWidth := int(float64(styles.TerminalWidth()) * 0.18)
-	for _, filePath := range filePaths {
-		opts = append(
-			opts,
-			Option[string]{
-				Title: trimFilename(filePath, maxWidth),
-				Value: filePath,
-			},
-		)
+func mapFileToOption(filePath string) views.Option[string] {
+	maxWidth := int(float64(terminalWidth()) * 0.18)
+	return views.Option[string]{
+		Title: trimFilename(filePath, maxWidth),
+		Value: filePath,
 	}
-
-	return opts
 }
+
 func trimFilename(filename string, length int) string {
 	f := filepath.Base(filename)
 	if len(f) < length {
 		return f
 	}
 	return f[:length] + "..."
+}
 
+func terminalWidth() int {
+	width, _, err := term.GetSize(0)
+	if err != nil {
+		width = 80
+	}
+	return width
 }

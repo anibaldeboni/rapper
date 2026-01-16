@@ -1,0 +1,25 @@
+# Production Environment
+# This profile shows how to use multiple headers for production
+
+request:
+  method: PUT
+  url_template: "https://api.production.com/v2/users/{{.id}}"
+  body_template: |
+    {
+      "name": "{{.name}}",
+      "email": "{{.email}}",
+      "phone": "{{.phone}}",
+      "updatedAt": "{{.timestamp}}"
+    }
+  headers:
+    Authorization: "Bearer prod-token-xyz-secure-123"
+    Content-Type: "application/json"
+    X-API-Key: "production-api-key-987654"
+    X-Request-ID: "{{.id}}"
+    Cookie: "session_id=abc123; auth_token=xyz789"
+
+csv:
+  fields: [id, name, email, phone, timestamp]
+  separator: ","
+
+workers: 8

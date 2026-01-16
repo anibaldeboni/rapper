@@ -40,44 +40,68 @@ func init() {
 }
 
 func main() {
-	cfg, err := config.Config(*configPath)
+	// Create config manager (supports multi-profile)
+	configMgr, err := config.NewManager(*configPath)
 	if err != nil {
-		handleExit(fmt.Errorf("Could not read config file: %w", err))
+		handleExit(fmt.Errorf("could not read config file: %w", err))
+	}
+
+	// Get active configuration
+	cfg := configMgr.Get()
+	if cfg == nil {
+		handleExit(errors.New("no active configuration found"))
+		return // handleExit calls os.Exit, but this helps the linter
 	}
 
 	logger := logs.NewLoggger(*outputFile)
 
-	hg := web.NewHttpGateway(
-		cfg.Token,
-		cfg.Path.Method,
-		cfg.Path.Template,
-		cfg.Payload.Template,
+	// Create HTTP gateway with flexible headers
+	hg, err := web.NewHttpGateway(
+		cfg.Request.Method,
+		cfg.Request.URLTemplate,
+		cfg.Request.BodyTemplate,
+		cfg.Request.Headers,
 	)
+	if err != nil {
+		handleExit(fmt.Errorf("could not create HTTP gateway: %w", err))
+	}
 
+	// Use workers from config if available, otherwise use flag
+	workerCount := *workers
 	if cfg.Workers > 0 {
-		w := utils.Clamp(cfg.Workers, 1, processor.MaxWorkers)
-		workers = &w
+		workerCount = utils.Clamp(cfg.Workers, 1, processor.MaxWorkers)
 	}
 
 	csvProcessor := processor.NewProcessor(
 		cfg.CSV,
 		hg,
 		logger,
-		*workers,
+		workerCount,
 	)
+
+	// Register config change listener to update gateway
+	configMgr.OnChange(func(newCfg *config.Config) {
+		_ = hg.UpdateConfig(
+			newCfg.Request.Method,
+			newCfg.Request.URLTemplate,
+			newCfg.Request.BodyTemplate,
+			newCfg.Request.Headers,
+		)
+	})
 
 	filePaths, err := utils.FindFiles(*workingDir, "*.csv")
 	if err != nil {
-		handleExit(fmt.Errorf("Could not execute file scan in %s: %w", styles.Bold(*workingDir), err))
+		handleExit(fmt.Errorf("could not execute file scan in %s: %w", styles.Bold(*workingDir), err))
 	}
 	if len(filePaths) == 0 {
-		handleExit(fmt.Errorf("No CSV files found in %s", styles.Bold(*workingDir)))
+		handleExit(fmt.Errorf("no CSV files found in %s", styles.Bold(*workingDir)))
 	}
 
-	tui := ui.New(filePaths, csvProcessor, logger)
+	// Use new AppModel with multi-view support
+	tui := ui.NewApp(filePaths, csvProcessor, logger, configMgr)
 
 	if _, err := tea.NewProgram(tui).Run(); err != nil {
-		handleExit(fmt.Errorf("Could not run the program: %w", err))
+		handleExit(fmt.Errorf("could not run the program: %w", err))
 	}
 
 	handleExit()

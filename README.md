@@ -10,7 +10,49 @@
   <img href="https://github.com/anibaldeboni/rapper/releases/latest" alt="GitHub Release" src="https://img.shields.io/github/v/release/anibaldeboni/rapper?logo=semanticrelease">
   </p>
 
-Rapper is a configurable cli tool to perform multiple HTTP requests based on a CSV file containing data.
+Rapper is a powerful, configurable CLI tool to perform multiple HTTP requests based on CSV files. It features an interactive Terminal User Interface (TUI), profile management, dynamic worker pools, and real-time metrics monitoring.
+
+## Features
+
+### 🎯 Multi-View TUI Interface
+- **Files View**: Browse and select CSV files for processing
+- **Logs View**: Real-time processing logs with scroll support
+- **Settings View**: Edit configuration with live preview
+- **Workers View**: Monitor and control worker pool dynamically
+
+### 📋 Profile Management
+- Support for multiple configuration profiles (dev, staging, production, etc.)
+- Quick profile switching with `Ctrl+P`
+- Visual profile selector with active profile indicator
+- Each profile stored as separate YAML file
+
+### ⚙️ Configuration Editor
+- In-app configuration editing
+- Form fields for URL template, request body, and headers
+- Tab navigation between fields
+- Save changes with `Ctrl+S`
+- Real-time validation and unsaved changes indicator
+
+### 👷 Dynamic Worker Pool
+- Adjust worker count in real-time with arrow keys or +/-
+- Visual slider for worker count (1 to CPU count)
+- Instant feedback without restarting
+
+### 📊 Real-Time Metrics
+- Processing status indicator
+- Total requests, success/error counts
+- Lines processed from CSV
+- Throughput (requests per second)
+- Elapsed time during processing
+- Active workers count
+- Auto-refresh every 500ms
+
+### 🎨 Visual Polish
+- Toast notifications for important actions
+- Color-coded metrics (green for success, red for errors)
+- Smooth animations and transitions
+- Enhanced modal dialogs
+- Responsive layout
 
 ## Installing
 
@@ -52,6 +94,34 @@ csv:
 
 Have in mind that when a request fails all variables selected in `csv` field will be used to form the error message, so select all variables you need to form the url and payload and any other that is relevant to identify problems when an error occur
 
+## Keyboard Shortcuts
+
+### Global Navigation
+- `Ctrl+F`: Switch to Files view
+- `Ctrl+L`: Switch to Logs view
+- `Ctrl+T`: Switch to Settings view
+- `Ctrl+W`: Switch to Workers view
+- `Esc`: Go back / Cancel operation
+- `Ctrl+C` / `q`: Quit application
+- `?`: Toggle help
+
+### Settings View
+- `Tab` / `Shift+Tab`: Navigate between form fields
+- `Ctrl+S`: Save configuration
+- `Ctrl+P`: Open profile selector
+- Arrow keys in form: Edit text
+- `↑` / `↓`: Navigate profile list (when profile selector is open)
+- `Enter`: Select profile (when profile selector is open)
+
+### Workers View
+- `←` / `→` or `h` / `l`: Decrease/increase worker count
+- `-` / `+`: Decrease/increase worker count
+
+### Files & Logs View
+- `↑` / `↓`: Navigate file list / Scroll logs
+- `Enter`: Select file for processing
+- `Esc`: Cancel processing (Files view only)
+
 ## Usage
 
 All options are available via `rapper -h`
@@ -74,28 +144,62 @@ A little demo of the app execution:
 
 # Development
 
-In the project root directory you will find a `Makefile` with all available commands.
+The project uses a comprehensive `Makefile` for all build and development tasks. Run `make help` to see all available commands.
 
 ### Building
+
+Build the application with VCS info embedded:
 
 ```shell
 make build
 ```
 
-After that, just copy the binary to a location mapped in the `$PATH` environment variable
+The binary will be created at `./build/rapper`. Version information is automatically extracted from git via `debug.ReadBuildInfo()`.
 
-### Lint
+Other build options:
 
-Make sure you have `golangci-lint` installed. More instruction on how to install could be found [here](https://golangci-lint.run/usage/install/)
+```shell
+make dev           # Build with race detector for development
+make release       # Build optimized binary for release
+make build-all     # Build binaries for all platforms (Linux, macOS, Windows)
+```
+
+After building, copy the binary to a location in your `$PATH`:
+
+```shell
+sudo cp ./build/rapper /usr/local/bin/
+```
+
+### Testing
+
+Run tests with race detection:
+
+```shell
+make test
+```
+
+Generate coverage report:
+
+```shell
+make test-coverage  # Opens coverage.html in ./build/
+```
+
+For test assertions we use [testify](https://github.com/stretchr/testify) and [gomock](https://go.uber.org/mock) for test mocks generation.
+
+### Linting
+
+Make sure you have `golangci-lint` installed. More instructions [here](https://golangci-lint.run/usage/install/).
 
 ```shell
 make lint
 ```
 
-### Tsting
-
-For test assertions we use [testify](https://github.com/stretchr/testify) and [gomock](https://go.uber.org/mock) for test mocks generation.
+### Other Commands
 
 ```shell
-make test
+make clean         # Remove build artifacts and cache
+make install_deps  # Download and install dependencies
+make mocks         # Generate mocks
+make run           # Build and run the application
+make all           # Run lint, test, and build
 ```

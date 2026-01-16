@@ -57,7 +57,7 @@ func IsZero[T comparable](val T) bool {
 // FindFiles takes a directory path and a list of file patterns as input and returns a list of files that match the patterns in the given directory.
 // It also returns a list of any errors encountered during the process.
 func FindFiles(dir string, f ...string) ([]string, error) {
-	var files []string
+	files := make([]string, 0, len(f))
 	var errs []error
 	for _, file := range f {
 		found, err := filepath.Glob(filepath.Join(dir, file))
@@ -68,11 +68,11 @@ func FindFiles(dir string, f ...string) ([]string, error) {
 	}
 
 	if len(errs) > 0 {
-		return files, fmt.Errorf("Errors: %w", errors.Join(errs...))
+		return files, fmt.Errorf("errors: %w", errors.Join(errs...))
 	}
 
 	if len(files) == 0 {
-		return files, errors.New("No files found")
+		return files, errors.New("no files found")
 	}
 
 	return files, nil

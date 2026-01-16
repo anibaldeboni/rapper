@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/styles"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -44,33 +43,4 @@ func (itemDelegate[T]) Render(w io.Writer, m list.Model, index int, listItem lis
 	}
 
 	fmt.Fprint(w, fn(str))
-}
-
-func createList[T comparable](options []Option[T], title string) list.Model {
-	listItems := make([]list.Item, 0, len(options))
-	var maxItemTitleLength int
-	for _, option := range options {
-		listItems = append(listItems, option)
-		if len(option.Title) > maxItemTitleLength {
-			maxItemTitleLength = len(option.Title)
-		}
-	}
-
-	l := list.New(listItems, itemDelegate[T]{}, 0, 0)
-	l.Title = title
-	l.InfiniteScrolling = true
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
-	l.SetShowHelp(false)
-	l.SetFilteringEnabled(false)
-	l.DisableQuitKeybindings()
-	l.KeyMap.CursorUp = key.NewBinding(key.WithKeys("up"))
-	l.KeyMap.CursorDown = key.NewBinding(key.WithKeys("down"))
-	l.Styles.Title = styles.TitleStyle
-	l.Styles.PaginationStyle = styles.PaginationStyle
-	l.Styles.ActivePaginationDot = styles.ActivePaginationDot
-	l.Styles.InactivePaginationDot = styles.InactivePaginationDot
-	l.Styles.TitleBar = styles.TitleBarStyle
-
-	return l
 }

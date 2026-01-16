@@ -55,7 +55,7 @@ func randomFiglet() *figletlib.Font {
 
 	font, err := figletlib.ReadFontFromBytes(randomFiglet)
 	if err != nil {
-		panic(fmt.Errorf("Error reading font: %w", err))
+		panic(fmt.Errorf("error reading font: %w", err))
 	}
 
 	return font
@@ -109,7 +109,7 @@ func horizontalColoring(str string, grad colorgrad.Gradient) string {
 	grad = grad.Sharp(uint(lines), 0)
 	steps := 1.0 / float64(lines)
 
-	var colorized []string
+	colorized := make([]string, 0, lines)
 	for i, line := range splited {
 		color := grad.At(steps * float64(i))
 		colorized = append(
@@ -132,7 +132,7 @@ func diagonalColoring(str string, grad colorgrad.Gradient) string {
 	grad = grad.Sharp(numVerticals, 0)
 	step := 1.0 / float64(numVerticals)
 
-	var colorized []string
+	colorized := make([]string, 0, len(lines))
 	for i, line := range lines {
 		chars := strings.Split(line, "")
 		for j, char := range chars {

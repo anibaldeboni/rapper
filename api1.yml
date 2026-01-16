@@ -1,0 +1,20 @@
+request:
+    method: POST
+    url_template: http://localhost:8080/api/users/{{.id}}
+    body_template: |
+        {
+          "name": "{{.name}}",
+          "email": "{{.email}}"
+        }
+    headers:
+        Authorization: Bearer dev-token-123456
+        Content-Type: application/json
+        Cookie: SESSID=1234
+        X-API-Version: v1
+csv:
+    separator: ','
+    fields:
+        - id
+        - name
+        - email
+workers: 2

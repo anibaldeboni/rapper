@@ -1,6 +1,6 @@
 module github.com/anibaldeboni/rapper
 
-go 1.23.0
+go 1.25.0
 
 require (
 	github.com/ccoveille/go-safecast v1.6.1

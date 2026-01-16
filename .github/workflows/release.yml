@@ -1,26 +1,93 @@
-name: Build new release
+name: Release
+
 on:
   workflow_dispatch:
-  release:
-    types: [created]
+    inputs:
+      dry_run:
+        description: "Dry run (não publica)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
-  actions: read
   contents: write
-  id-token: write
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  issues: write
+  pull-requests: write
 
 jobs:
-  tests:
-    uses: ./.github/workflows/tests.yml
-    secrets: inherit
-  lint:
-    uses: ./.github/workflows/lint.yml
-    secrets: inherit
-  build-release:
-    uses: ./.github/workflows/slsa-releaser.yml
-    secrets: inherit
-    needs: [tests, lint]
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        run: go run gotest.tools/gotestsum@latest --format pkgname -- -v -cover ./...
+
+      - name: Run lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  semantic-release:
+    name: Semantic Release
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Semantic Release
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            npx semantic-release --dry-run
+          else
+            npx semantic-release
+          fi
+
+  goreleaser:
+    name: GoReleaser
+    needs: semantic-release
+    if: needs.semantic-release.outputs.new_release_published == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

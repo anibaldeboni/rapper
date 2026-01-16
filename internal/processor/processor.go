@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
@@ -23,18 +24,42 @@ var (
 	MaxWorkers = runtime.NumCPU()
 )
 
+// Metrics holds real-time processing metrics
+type Metrics struct {
+	TotalRequests   uint64
+	SuccessRequests uint64
+	ErrorRequests   uint64
+	LinesProcessed  uint64
+	ActiveWorkers   int
+	RequestsPerSec  float64
+	StartTime       time.Time
+	IsProcessing    bool
+}
+
 //go:generate mockgen -destination mock/processor_mock.go github.com/anibaldeboni/rapper/internal/processor Processor
 type Processor interface {
 	Do(ctx context.Context, filePath string) (context.Context, context.CancelFunc)
+
+	// GetMetrics returns current processing metrics
+	GetMetrics() Metrics
+
+	// SetWorkers dynamically adjusts the number of workers (only affects next processing)
+	SetWorkers(n int)
+
+	// GetWorkerCount returns the current worker count
+	GetWorkerCount() int
 }
 
 type csvLineMap map[string]string
 
 type processorImpl struct {
-	gateway   web.HttpGateway
-	logger    logs.Logger
-	csvConfig config.CSV
-	workers   int
+	gateway      web.HttpGateway
+	logger       logs.Logger
+	csvConfig    config.CSVConfig
+	workers      int
+	mu           sync.RWMutex
+	startTime    time.Time
+	isProcessing bool
 }
 
 // NewProcessor creates a new instance of the Processor interface.
@@ -44,7 +69,7 @@ type processorImpl struct {
 // - logger: The logger.
 // - workers: The number of workers to be used.
 // It returns a pointer to the Processor interface.
-func NewProcessor(cfg config.CSV, hg web.HttpGateway, logger logs.Logger, workers int) Processor {
+func NewProcessor(cfg config.CSVConfig, hg web.HttpGateway, logger logs.Logger, workers int) Processor {
 	return &processorImpl{
 		csvConfig: cfg,
 		gateway:   hg,
@@ -66,6 +91,12 @@ func (p *processorImpl) Do(ctx context.Context, filePath string) (context.Contex
 		return nil, nil
 	}
 
+	// Mark processing as started
+	p.mu.Lock()
+	p.startTime = time.Now()
+	p.isProcessing = true
+	p.mu.Unlock()
+
 	wg := &sync.WaitGroup{}
 	wg.Add(p.workers)
 	for i := 0; i < p.workers; i++ {
@@ -74,6 +105,11 @@ func (p *processorImpl) Do(ctx context.Context, filePath string) (context.Contex
 
 	go func() {
 		wg.Wait()
+
+		// Mark processing as finished
+		p.mu.Lock()
+		p.isProcessing = false
+		p.mu.Unlock()
 
 		if reqCount.Load() > 0 {
 			p.logger.Add(doneMessage(errCount.Load()))
@@ -154,4 +190,50 @@ func (p *processorImpl) mapCSV(ctx context.Context, filePath string) <-chan csvL
 	}()
 
 	return rows
+}
+
+// GetMetrics returns current processing metrics
+func (p *processorImpl) GetMetrics() Metrics {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	totalReq := reqCount.Load()
+	errReq := errCount.Load()
+	successReq := totalReq - errReq
+
+	var reqPerSec float64
+	if p.isProcessing && !p.startTime.IsZero() {
+		elapsed := time.Since(p.startTime).Seconds()
+		if elapsed > 0 {
+			reqPerSec = float64(totalReq) / elapsed
+		}
+	}
+
+	return Metrics{
+		TotalRequests:   totalReq,
+		SuccessRequests: successReq,
+		ErrorRequests:   errReq,
+		LinesProcessed:  linesCount.Load(),
+		ActiveWorkers:   p.workers,
+		RequestsPerSec:  reqPerSec,
+		StartTime:       p.startTime,
+		IsProcessing:    p.isProcessing,
+	}
+}
+
+// SetWorkers dynamically adjusts the number of workers
+// Note: This only affects the next processing run, not current processing
+func (p *processorImpl) SetWorkers(n int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.workers = utils.Clamp(n, 1, MaxWorkers)
+}
+
+// GetWorkerCount returns the current configured worker count
+func (p *processorImpl) GetWorkerCount() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.workers
 }

@@ -16,9 +16,9 @@ func readCSVHeaders(reader *csv.Reader) ([]string, error) {
 	headers, err := reader.Read()
 	if err != nil {
 		if err == io.EOF {
-			err = errors.New("No records found in the file\n")
+			err = errors.New("no records found in the file")
 		}
-		return nil, fmt.Errorf("Error reading headers: %w", err)
+		return nil, fmt.Errorf("error reading headers: %w", err)
 	}
 
 	return headers, nil
@@ -27,7 +27,7 @@ func readCSVHeaders(reader *csv.Reader) ([]string, error) {
 func newCSVReader(filePath string, sep rune) (*csv.Reader, *os.File, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error opening file: %w", err)
+		return nil, nil, fmt.Errorf("error opening file: %w", err)
 	}
 
 	reader := csv.NewReader(file)
@@ -58,7 +58,7 @@ func buildFilteredFieldIndex(csvHeaders []string, fieldsToFilter []string) map[s
 	return indexes
 }
 
-func csvSep(cfg config.CSV) rune {
+func csvSep(cfg config.CSVConfig) rune {
 	sep := strings.Trim(cfg.Separator, " ")
 	if utils.IsZero(sep) {
 		sep = ","

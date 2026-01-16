@@ -1,0 +1,22 @@
+# Staging Environment
+# This profile demonstrates API key authentication instead of Bearer token
+
+request:
+  method: PATCH
+  url_template: "https://staging.example.com/api/v1/customers/{{.customer_id}}"
+  body_template: |
+    {
+      "status": "{{.status}}",
+      "notes": "{{.notes}}"
+    }
+  headers:
+    X-API-Key: "staging-key-abc-123"
+    Content-Type: "application/json"
+    X-Environment: "staging"
+    X-Client-Version: "2.6.0"
+
+csv:
+  fields: [customer_id, status, notes]
+  separator: ","
+
+workers: 4
