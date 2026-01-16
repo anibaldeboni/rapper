@@ -7,13 +7,13 @@ import (
 )
 
 type keyMap struct {
-	ListUp              key.Binding
-	ListDown            key.Binding
+	Up                  key.Binding
+	Down                key.Binding
+	Right               key.Binding
+	Left                key.Binding
 	Quit                key.Binding
 	Select              key.Binding
 	Cancel              key.Binding
-	LogUp               key.Binding
-	LogDown             key.Binding
 	ViewFiles           key.Binding
 	ViewLogs            key.Binding
 	ViewSettings        key.Binding
@@ -41,13 +41,21 @@ func createHelp() help.Model {
 }
 
 var keys = keyMap{
-	ListUp: key.NewBinding(
+	Up: key.NewBinding(
 		key.WithKeys("up"),
-		key.WithHelp("↑", "move file selection up"),
+		key.WithHelp("↑", "move up"),
 	),
-	ListDown: key.NewBinding(
+	Down: key.NewBinding(
 		key.WithKeys("down"),
-		key.WithHelp("↓", "move file selection down"),
+		key.WithHelp("↓", "move down"),
+	),
+	Right: key.NewBinding(
+		key.WithKeys("right"),
+		key.WithHelp("→", "move right"),
+	),
+	Left: key.NewBinding(
+		key.WithKeys("left"),
+		key.WithHelp("←", "move left"),
 	),
 	Select: key.NewBinding(
 		key.WithKeys("enter"),
@@ -60,14 +68,6 @@ var keys = keyMap{
 	Quit: key.NewBinding(
 		key.WithKeys("q"),
 		key.WithHelp("q", "quit"),
-	),
-	LogUp: key.NewBinding(
-		key.WithKeys("up"),
-		key.WithHelp("↑", "scroll up"),
-	),
-	LogDown: key.NewBinding(
-		key.WithKeys("down"),
-		key.WithHelp("↓", "scroll down"),
 	),
 	ViewFiles: key.NewBinding(
 		key.WithKeys("f1", "ctrl+f"),
@@ -112,119 +112,78 @@ var keys = keyMap{
 }
 
 // globalKeyMap shows only global navigation keys (for header)
-type globalKeyMap struct {
-	ViewFiles    key.Binding
-	ViewLogs     key.Binding
-	ViewSettings key.Binding
-	ViewWorkers  key.Binding
-	Quit         key.Binding
-}
+type globalKeyMap struct{}
 
 func (k globalKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.ViewFiles, k.ViewLogs, k.ViewSettings, k.ViewWorkers, k.Quit}
+	return []key.Binding{keys.ViewFiles, keys.ViewLogs, keys.ViewSettings, keys.ViewWorkers, keys.Quit}
 }
 
 func (k globalKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.ViewFiles, k.ViewLogs, k.ViewSettings, k.ViewWorkers, k.Quit},
+		{keys.ViewFiles, keys.ViewLogs, keys.ViewSettings, keys.ViewWorkers, keys.Quit},
 	}
 }
 
 // getGlobalKeyMap returns the global navigation keymap (for header)
 func getGlobalKeyMap() help.KeyMap {
-	return globalKeyMap{
-		ViewFiles:    keys.ViewFiles,
-		ViewLogs:     keys.ViewLogs,
-		ViewSettings: keys.ViewSettings,
-		ViewWorkers:  keys.ViewWorkers,
-		Quit:         keys.Quit,
-	}
+	return globalKeyMap{}
 }
 
 // filesViewKeyMap shows only files view specific keys
-type filesViewKeyMap struct {
-	Select key.Binding
-	Cancel key.Binding
-}
+type filesViewKeyMap struct{}
 
 func (k filesViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Select, k.Cancel}
+	return []key.Binding{keys.Up, keys.Down, keys.Select, keys.Cancel}
 }
 
 func (k filesViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Select, k.Cancel}}
+	return [][]key.Binding{{keys.Up, keys.Down, keys.Select, keys.Cancel}}
 }
 
 // logsViewKeyMap shows only logs view specific keys
-type logsViewKeyMap struct {
-	LogUp   key.Binding
-	LogDown key.Binding
-}
+type logsViewKeyMap struct{}
 
 func (k logsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.LogUp, k.LogDown}
+	return []key.Binding{keys.Up, keys.Right, keys.Down, keys.Left}
 }
 
 func (k logsViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.LogUp, k.LogDown}}
+	return [][]key.Binding{{keys.Up, keys.Right, keys.Down, keys.Left}}
 }
 
 // settingsViewKeyMap shows only settings view specific keys
-type settingsViewKeyMap struct {
-	Save                key.Binding
-	Profile             key.Binding
-	Cancel              key.Binding
-	SwitchFieldForward  key.Binding
-	SwitchFieldBackward key.Binding
-}
+type settingsViewKeyMap struct{}
 
 func (k settingsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.SwitchFieldForward, k.SwitchFieldBackward, k.Save, k.Profile, k.Cancel}
+	return []key.Binding{keys.SwitchFieldForward, keys.SwitchFieldBackward, keys.Save, keys.Profile, keys.Cancel}
 }
 
 func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.SwitchFieldForward, k.SwitchFieldBackward, k.Save, k.Profile, k.Cancel}}
+	return [][]key.Binding{{keys.SwitchFieldForward, keys.SwitchFieldBackward, keys.Save, keys.Profile, keys.Cancel}}
 }
 
 // workersViewKeyMap shows only workers view specific keys
-type workersViewKeyMap struct {
-	WorkerInc key.Binding
-	WorkerDec key.Binding
-}
+type workersViewKeyMap struct{}
 
 func (k workersViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.WorkerInc, k.WorkerDec}
+	return []key.Binding{keys.WorkerInc, keys.WorkerDec}
 }
 
 func (k workersViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.WorkerInc, k.WorkerDec}}
+	return [][]key.Binding{{keys.WorkerInc, keys.WorkerDec}}
 }
 
 // getViewSpecificKeyMap returns only view-specific keys (excluding global navigation)
 func getViewSpecificKeyMap(view View) help.KeyMap {
 	switch view {
 	case ViewFiles:
-		return filesViewKeyMap{
-			Select: keys.Select,
-			Cancel: keys.Cancel,
-		}
+		return filesViewKeyMap{}
 	case ViewLogs:
-		return logsViewKeyMap{
-			LogUp:   keys.LogUp,
-			LogDown: keys.LogDown,
-		}
+		return logsViewKeyMap{}
 	case ViewSettings:
-		return settingsViewKeyMap{
-			Save:                keys.Save,
-			Profile:             keys.Profile,
-			SwitchFieldForward:  keys.SwitchFieldForward,
-			SwitchFieldBackward: keys.SwitchFieldBackward,
-		}
+		return settingsViewKeyMap{}
 	case ViewWorkers:
-		return workersViewKeyMap{
-			WorkerInc: keys.WorkerInc,
-			WorkerDec: keys.WorkerDec,
-		}
+		return workersViewKeyMap{}
 	default:
 		// Return empty keymap for unknown views
 		return globalKeyMap{}

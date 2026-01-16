@@ -48,32 +48,27 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 	// Handle any processing-related messages by checking their content
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// User scrolled manually - disable auto-scroll
-		if key.Matches(msg, key.NewBinding(key.WithKeys("up", "down", "pgup", "pgdown", "home"))) {
+		switch {
+		case key.Matches(msg, key.NewBinding(key.WithKeys("up", "down", "pgup", "pgdown", "home"))):
 			v.autoScroll = false
-		}
-		// Re-enable auto-scroll if user explicitly goes to bottom
-		if key.Matches(msg, key.NewBinding(key.WithKeys("end"))) {
+		case key.Matches(msg, key.NewBinding(key.WithKeys("end"))):
 			v.autoScroll = true
-		}
-
-		if key.Matches(msg, key.NewBinding(key.WithKeys("up"))) {
-			v.ScrollUp(1)
-		}
-		if key.Matches(msg, key.NewBinding(key.WithKeys("down"))) {
-			v.ScrollDown(1)
-		}
-		if key.Matches(msg, key.NewBinding(key.WithKeys("pgup"))) {
-			v.ScrollUp(v.height)
-		}
-		if key.Matches(msg, key.NewBinding(key.WithKeys("pgdown"))) {
-			v.ScrollDown(v.height)
-		}
-		if key.Matches(msg, key.NewBinding(key.WithKeys("home"))) {
+		case key.Matches(msg, key.NewBinding(key.WithKeys("up"))):
+			v.viewport.ScrollUp(1)
+		case key.Matches(msg, key.NewBinding(key.WithKeys("down"))):
+			v.viewport.ScrollDown(1)
+		case key.Matches(msg, key.NewBinding(key.WithKeys("pgup"))):
+			v.viewport.PageUp()
+		case key.Matches(msg, key.NewBinding(key.WithKeys("pgdown"))):
+			v.viewport.PageDown()
+		case key.Matches(msg, key.NewBinding(key.WithKeys("home"))):
 			v.viewport.GotoTop()
-		}
-		if key.Matches(msg, key.NewBinding(key.WithKeys("end"))) {
+		case key.Matches(msg, key.NewBinding(key.WithKeys("end"))):
 			v.viewport.GotoBottom()
+		case key.Matches(msg, key.NewBinding(key.WithKeys("right"))):
+			v.viewport.ScrollRight(1)
+		case key.Matches(msg, key.NewBinding(key.WithKeys("left"))):
+			v.viewport.ScrollLeft(1)
 		}
 	default:
 		// Check for processing messages using reflection
@@ -125,14 +120,4 @@ func (v *LogsView) updateLogs() {
 	if v.isProcessing && v.autoScroll {
 		v.viewport.GotoBottom()
 	}
-}
-
-// ScrollUp scrolls the viewport up
-func (v *LogsView) ScrollUp(lines int) {
-	v.viewport.ScrollUp(lines)
-}
-
-// ScrollDown scrolls the viewport down
-func (v *LogsView) ScrollDown(lines int) {
-	v.viewport.ScrollDown(lines)
 }

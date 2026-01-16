@@ -45,7 +45,7 @@ func (tm *ToastManager) Add(message string, toastType ToastType) {
 		Message:   message,
 		Type:      toastType,
 		CreatedAt: time.Now(),
-		Duration:  5 * time.Second,
+		Duration:  4 * time.Second,
 	}
 
 	tm.toasts = append(tm.toasts, toast)
