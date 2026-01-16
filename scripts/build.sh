@@ -1,6 +1,15 @@
+#!/bin/bash
+# DEPRECATED: This script is deprecated in favor of using the Makefile.
+# Please use: make build
+#
+# This script is kept for backward compatibility only.
+
 set -e
 APP=${1:-"rapper"}
 BUILD_OUTPUT="./build/$APP"
+
+echo "⚠️  WARNING: This script is deprecated. Please use 'make build' instead."
+echo ""
 
 go get -v ./...
 # Build with VCS stamping enabled (default in Go 1.18+)

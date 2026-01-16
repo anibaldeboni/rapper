@@ -70,9 +70,9 @@ func getVersion() string {
 // Pseudo-versions have format like "v0.0.0-20191109021931-daa7c04131f5"
 func isPseudoVersion(version string) bool {
 	// Pseudo-versions contain a timestamp (e.g., "20191109021931")
-	return strings.Contains(version, "-0.") || 
-	       strings.Contains(version, "+incompatible") ||
-	       (strings.Count(version, "-") >= 2 && len(version) > 25)
+	return strings.Contains(version, "-0.") ||
+		strings.Contains(version, "+incompatible") ||
+		(strings.Count(version, "-") >= 2 && len(version) > 25)
 }
 
 // normalizeVersion removes the "v" prefix from version strings.
