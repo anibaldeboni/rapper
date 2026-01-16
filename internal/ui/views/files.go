@@ -17,8 +17,6 @@ type Option[T comparable] struct {
 	Title string
 }
 
-var fileTitleStyle = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true).Render
-
 func (Option[T]) FilterValue() string { return "" }
 
 // FilesView handles CSV file selection
@@ -50,19 +48,22 @@ func (v *FilesView) Update(msg tea.Msg) tea.Cmd {
 func (v *FilesView) Resize(width, height int) {
 	v.width = width
 	v.height = height
-	v.list.SetHeight(height - 5)
 }
 
 // View renders the files view
 func (v *FilesView) View() string {
 	return lipgloss.NewStyle().
-		PaddingLeft(2).
-		PaddingTop(1).
+		MarginLeft(2).
+		MarginTop(1).
 		Render(
-			lipgloss.JoinVertical(
-				lipgloss.Top,
-				fileTitleStyle(v.title),
-				v.list.View(),
+			lipgloss.PlaceVertical(
+				v.height-1,
+				lipgloss.Left,
+				lipgloss.JoinVertical(
+					lipgloss.Top,
+					titleStyle.Render(v.title),
+					v.list.View(),
+				),
 			),
 		)
 }
@@ -82,7 +83,6 @@ var (
 	paginationStyle   = lipgloss.NewStyle().PaddingLeft(2)
 	activeDot         = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#d3d3d3", Dark: "#d3d3d3"}).SetString(bullet).Bold(true)
 	inactiveDotStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8d8d8d", Dark: "#8d8d8d"}).SetString(inactiveDot).Bold(true)
-	titleBarStyle     = lipgloss.NewStyle().PaddingBottom(1)
 )
 
 // fileItemDelegate is the delegate for rendering file list items
@@ -102,7 +102,7 @@ func (d fileItemDelegate) Render(w io.Writer, m list.Model, index int, listItem 
 	fn := itemStyle.Render
 	if index == m.Index() {
 		fn = func(s ...string) string {
-			return selectedItemStyle.Render("> " + strings.Join(s, " "))
+			return selectedItemStyle.Render("▶ " + strings.Join(s, " "))
 		}
 	}
 
@@ -119,11 +119,10 @@ func createFileList(items []list.Item) list.Model {
 	l.DisableQuitKeybindings()
 	l.KeyMap.CursorUp = key.NewBinding(key.WithKeys("up"))
 	l.KeyMap.CursorDown = key.NewBinding(key.WithKeys("down"))
-	l.Styles.Title = titleStyle
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.ActivePaginationDot = activeDot
 	l.Styles.InactivePaginationDot = inactiveDotStyle
-	l.Styles.TitleBar = titleBarStyle
+	// l.Styles.TitleBar = titleBarStyle
 
 	return l
 }

@@ -224,9 +224,10 @@ func (m AppModel) resizeViews() {
 	// - 2 lines for AppStyle margins (top + bottom)
 	// Ensure minimum height
 	availableHeight := max(m.height-4, 10)
+	availableWidth := m.width - 4
 
-	m.filesView.Resize(m.width/2, availableHeight)
-	m.logsView.Resize(m.width/2, availableHeight)
-	m.settingsView.Resize(m.width, availableHeight)
-	m.workersView.Resize(m.width, availableHeight)
+	m.filesView.Resize(availableWidth, availableHeight)
+	m.logsView.Resize(availableWidth, availableHeight)
+	m.settingsView.Resize(availableWidth, availableHeight)
+	m.workersView.Resize(availableWidth, availableHeight)
 }

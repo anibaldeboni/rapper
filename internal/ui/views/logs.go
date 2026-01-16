@@ -28,7 +28,7 @@ type LogsView struct {
 
 // NewLogsView creates a new LogsView
 func NewLogsView(logger logs.Logger) *LogsView {
-	vp := viewport.New(60, 20)
+	vp := viewport.New(0, 0)
 
 	v := &LogsView{
 		viewport:   vp,
@@ -97,7 +97,7 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 func (v *LogsView) Resize(width, height int) {
 	v.width = width
 	v.height = height
-	v.viewport.Width = width
+	v.viewport.Width = (width / 2) - 2
 	v.viewport.Height = height - 3
 }
 
@@ -106,8 +106,8 @@ func (v *LogsView) View() string {
 	titleBar := logTitleStyle.Render(v.title)
 
 	return lipgloss.NewStyle().
-		PaddingLeft(2).
-		PaddingTop(1).
+		MarginLeft(2).
+		MarginTop(1).
 		Render(
 			lipgloss.JoinVertical(
 				lipgloss.Top,

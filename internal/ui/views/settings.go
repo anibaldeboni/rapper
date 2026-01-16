@@ -63,14 +63,14 @@ func NewSettingsView(configMgr config.Manager) *SettingsView {
 	urlInput := textinput.New()
 	urlInput.Placeholder = "http://localhost:8080/api/v1/users"
 	urlInput.CharLimit = 500
-	urlInput.Width = 80
+	// urlInput.Width = 80
 	urlInput.Prompt = ""
 
 	// Create method input
 	methodInput := textinput.New()
 	methodInput.Placeholder = "POST"
 	methodInput.CharLimit = 10
-	methodInput.Width = 20
+	// methodInput.Width = 20
 	methodInput.Prompt = ""
 
 	// Create body textarea
@@ -78,7 +78,7 @@ func NewSettingsView(configMgr config.Manager) *SettingsView {
 	bodyInput.Placeholder = `{"name": "{{.name}}", "email": "{{.email}}"}`
 	bodyInput.CharLimit = 5000
 	bodyInput.SetHeight(5)
-	bodyInput.SetWidth(80)
+	// bodyInput.SetWidth(80)
 	bodyInput.ShowLineNumbers = false
 
 	// Create headers textarea
@@ -87,7 +87,7 @@ func NewSettingsView(configMgr config.Manager) *SettingsView {
 Authorization: Bearer {{.token}}`
 	headersInput.CharLimit = 2000
 	headersInput.SetHeight(3)
-	headersInput.SetWidth(80)
+	// headersInput.SetWidth(80)
 	headersInput.ShowLineNumbers = false
 
 	// Create CSV fields textarea
@@ -97,7 +97,7 @@ name
 email`
 	csvFieldsInput.CharLimit = 1000
 	csvFieldsInput.SetHeight(4)
-	csvFieldsInput.SetWidth(80)
+	// csvFieldsInput.SetWidth(80)
 	csvFieldsInput.ShowLineNumbers = false
 
 	v := &SettingsView{
@@ -414,7 +414,7 @@ func (v *SettingsView) View() string {
 
 	// Header with profile badge
 	profile := v.getActiveProfileName()
-	title := settingsTitleStyle.Render("⚙️  Settings")
+	title := settingsTitleStyle.Render("⚙️ Settings")
 	profileBadge := profileBadgeStyle.Render(fmt.Sprintf("📋 %s", profile))
 	header := lipgloss.JoinHorizontal(lipgloss.Left, title, profileBadge)
 	b.WriteString(header)
@@ -477,18 +477,16 @@ func (v *SettingsView) View() string {
 	}
 	b.WriteString(helpStyle.Render(help))
 
-	baseView := settingsAppStyle.Render(b.String())
-
 	// Show profile selector modal if active
 	if v.showProfileSelector {
-		return v.renderWithProfileSelector(baseView)
+		return v.renderWithProfileSelector()
 	}
 
-	return baseView
+	return lipgloss.Place(v.width/2, v.height, lipgloss.Left, lipgloss.Top, settingsAppStyle.Render(b.String()))
 }
 
 // renderWithProfileSelector renders the profile selector modal overlay
-func (v *SettingsView) renderWithProfileSelector(baseView string) string {
+func (v *SettingsView) renderWithProfileSelector() string {
 	profiles := v.getProfiles()
 	activeProfile := v.getActiveProfileName()
 

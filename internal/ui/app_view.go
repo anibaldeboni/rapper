@@ -9,17 +9,14 @@ import (
 )
 
 func (m AppModel) View() string {
-	// Render header with contextual help
-	header := m.renderHeader()
-
 	// Render based on current view
 	var content string
 
 	switch m.nav.Current() {
 	case ViewFiles:
-		content = m.renderFilesView()
+		content = m.filesView.View()
 	case ViewLogs:
-		content = m.renderLogsView()
+		content = m.logsView.View()
 	case ViewSettings:
 		content = m.settingsView.View()
 	case ViewWorkers:
@@ -29,45 +26,35 @@ func (m AppModel) View() string {
 	// Render toasts if any
 	toasts := m.toastMgr.Render()
 
-	// Render status bar
-	statusBar := m.renderStatusBar()
-
 	// Join all elements: header, toasts (if any), content, and status bar
-	if toasts != "" {
-		app := lipgloss.JoinVertical(
-			lipgloss.Top,
-			header,
-			lipgloss.JoinHorizontal(
+	app := lipgloss.NewStyle().
+		MaxWidth(m.width).
+		MaxHeight(m.height).
+		AlignVertical(lipgloss.Center).
+		Margin(0, 2).
+		Render(
+			lipgloss.JoinVertical(
 				lipgloss.Top,
-				content,
-				lipgloss.PlaceHorizontal(
-					lipgloss.Width(toasts),
-					lipgloss.Right,
-					toasts,
+				m.renderHeader(),
+				lipgloss.JoinHorizontal(
+					lipgloss.Top,
+					content,
+					lipgloss.PlaceHorizontal(
+						lipgloss.Width(content),
+						lipgloss.Right,
+						toasts,
+					),
 				),
+				m.renderStatusBar(),
 			),
-			statusBar,
 		)
-		return AppStyle(app)
-	}
-
-	// Join header, content and status bar
-	app := lipgloss.JoinVertical(
-		lipgloss.Top,
-		header,
-		content,
-		statusBar,
+	return lipgloss.Place(
+		m.width,
+		m.height,
+		lipgloss.Center,
+		lipgloss.Center,
+		app,
 	)
-
-	return AppStyle(app)
-}
-
-func (m AppModel) renderFilesView() string {
-	return m.filesView.View()
-}
-
-func (m AppModel) renderLogsView() string {
-	return m.logsView.View()
 }
 
 // renderHeader renders the global navigation help bar at the top
@@ -78,8 +65,7 @@ func (m AppModel) renderHeader() string {
 	// Discrete style for help bar
 	helpBarStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
-		Background(lipgloss.Color("235")).
-		Padding(0, 1)
+		Background(lipgloss.Color("235"))
 
 		// App tag
 	viewName := LogoStyle(m.nav.Current().String())

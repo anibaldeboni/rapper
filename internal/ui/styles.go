@@ -25,7 +25,6 @@ var (
 				Foreground(lipgloss.AdaptiveColor{Light: "#8d8d8d", Dark: "#8d8d8d"}).
 				SetString(inactiveDot).
 				Bold(true)
-	AppStyle      = lipgloss.NewStyle().Margin(1, 1, 1, 2).Render
 	ProgressStyle = lipgloss.NewStyle().Padding(0, 2, 1, 3).Render
 	HelpStyle     = lipgloss.NewStyle().PaddingLeft(1).Render //.Foreground(lipgloss.Color("245"))
 	ViewPortStyle = lipgloss.NewStyle().PaddingTop(1).Render

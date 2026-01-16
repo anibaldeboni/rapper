@@ -45,7 +45,7 @@ func (tm *ToastManager) Add(message string, toastType ToastType) {
 		Message:   message,
 		Type:      toastType,
 		CreatedAt: time.Now(),
-		Duration:  3 * time.Second,
+		Duration:  5 * time.Second,
 	}
 
 	tm.toasts = append(tm.toasts, toast)
@@ -110,6 +110,7 @@ func (tm *ToastManager) Render() string {
 
 	for _, toast := range tm.toasts {
 		rendered.WriteString(renderToast(toast))
+		rendered.WriteString("\n\n")
 	}
 
 	return rendered.String()
@@ -121,9 +122,7 @@ func renderToast(toast Toast) string {
 	var style lipgloss.Style
 
 	baseStyle := lipgloss.NewStyle().
-		Padding(0, 1).
-		MarginLeft(1).
-		MarginTop(1)
+		Padding(1, 2)
 
 	switch toast.Type {
 	case ToastSuccess:
