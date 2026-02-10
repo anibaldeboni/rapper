@@ -11,13 +11,10 @@ import (
 	"time"
 
 	"github.com/anibaldeboni/rapper/internal/config"
-	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/utils"
-	"github.com/anibaldeboni/rapper/internal/web"
 )
 
 var (
-	_          Processor = (*processorImpl)(nil)
 	reqCount   atomic.Uint64
 	errCount   atomic.Uint64
 	linesCount atomic.Uint64
@@ -36,25 +33,11 @@ type Metrics struct {
 	IsProcessing    bool
 }
 
-//go:generate mockgen -destination mock/processor_mock.go github.com/anibaldeboni/rapper/internal/processor Processor
-type Processor interface {
-	Do(ctx context.Context, filePath string) (context.Context, context.CancelFunc)
-
-	// GetMetrics returns current processing metrics
-	GetMetrics() Metrics
-
-	// SetWorkers dynamically adjusts the number of workers (only affects next processing)
-	SetWorkers(n int)
-
-	// GetWorkerCount returns the current worker count
-	GetWorkerCount() int
-}
-
 type csvLineMap map[string]string
 
 type processorImpl struct {
-	gateway      web.HttpGateway
-	logger       logs.Logger
+	gateway      HttpGateway
+	logger       RequestLogger
 	csvConfig    config.CSVConfig
 	workers      int
 	mu           sync.RWMutex
@@ -62,14 +45,13 @@ type processorImpl struct {
 	isProcessing bool
 }
 
-// NewProcessor creates a new instance of the Processor interface.
+// NewProcessor creates a new Processor.
 // It takes in the following parameters:
 // - cfg: The CSV configuration.
 // - hg: The HTTP gateway.
-// - logger: The logger.
+// - logger: The request logger.
 // - workers: The number of workers to be used.
-// It returns a pointer to the Processor interface.
-func NewProcessor(cfg config.CSVConfig, hg web.HttpGateway, logger logs.Logger, workers int) Processor {
+func NewProcessor(cfg config.CSVConfig, hg HttpGateway, logger RequestLogger, workers int) *processorImpl {
 	return &processorImpl{
 		csvConfig: cfg,
 		gateway:   hg,

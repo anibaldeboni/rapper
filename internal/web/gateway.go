@@ -11,16 +11,10 @@ import (
 	"text/template"
 )
 
-var _ HttpGateway = (*HttpGatewayImpl)(nil)
-
-//go:generate mockgen -destination mock/gateway_mock.go github.com/anibaldeboni/rapper/internal/web HttpGateway
-type HttpGateway interface {
-	Exec(ctx context.Context, variables map[string]string) (Response, error)
-	UpdateConfig(method, urlTemplate, bodyTemplate string, headers map[string]string) error
-}
-
-type HttpGatewayImpl struct {
-	Client       HttpClient
+// httpGatewayImpl implements the processor.HttpGateway interface.
+// This is an internal implementation - the interface is defined by the client (processor package).
+type httpGatewayImpl struct {
+	client       *httpClientImpl
 	urlTemplate  *template.Template
 	bodyTemplate *template.Template
 	headers      map[string]string // Flexible headers (Authorization, Cookie, etc)
@@ -28,8 +22,8 @@ type HttpGatewayImpl struct {
 	mu           sync.RWMutex // Protects against concurrent access during hot-reload
 }
 
-// NewHttpGateway creates a new HttpGateway with flexible headers.
-func NewHttpGateway(method, urlTemplate, bodyTemplate string, headers map[string]string) (HttpGateway, error) {
+// NewHttpGateway creates a new HTTP gateway.
+func NewHttpGateway(method, urlTemplate, bodyTemplate string, headers map[string]string) (*httpGatewayImpl, error) {
 	urlTmpl, err := NewTemplate("url", urlTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("invalid URL template: %w", err)
@@ -40,18 +34,18 @@ func NewHttpGateway(method, urlTemplate, bodyTemplate string, headers map[string
 		return nil, fmt.Errorf("invalid body template: %w", err)
 	}
 
-	return &HttpGatewayImpl{
+	return &httpGatewayImpl{
 		method:       method,
 		urlTemplate:  urlTmpl,
 		bodyTemplate: bodyTmpl,
 		headers:      headers,
-		Client:       NewHttpClient(),
+		client:       newHttpClient(),
 	}, nil
 }
 
-// NewHttpGatewayLegacy creates a new HttpGateway using legacy token-based auth.
+// NewHttpGatewayLegacy creates a new HTTP gateway using legacy token-based auth.
 // DEPRECATED: Use NewHttpGateway with headers map instead.
-func NewHttpGatewayLegacy(token, method, urlTemplate, bodyTemplate string) HttpGateway {
+func NewHttpGatewayLegacy(token, method, urlTemplate, bodyTemplate string) *httpGatewayImpl {
 	headers := map[string]string{
 		"Authorization": "Bearer " + token,
 		"Content-Type":  "application/json",
@@ -60,31 +54,32 @@ func NewHttpGatewayLegacy(token, method, urlTemplate, bodyTemplate string) HttpG
 	gateway, err := NewHttpGateway(method, urlTemplate, bodyTemplate, headers)
 	if err != nil {
 		// Fallback to basic implementation if templates fail
-		return &HttpGatewayImpl{
+		return &httpGatewayImpl{
 			method:  method,
 			headers: headers,
-			Client:  NewHttpClient(),
+			client:  newHttpClient(),
 		}
 	}
 
 	return gateway
 }
-func (hg *HttpGatewayImpl) req(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
+
+func (hg *httpGatewayImpl) req(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
 	hg.mu.RLock()
 	method := hg.method
 	hg.mu.RUnlock()
 
 	switch method {
 	case http.MethodGet:
-		return hg.Client.Get(ctx, url, headers)
+		return hg.client.Get(ctx, url, headers)
 	case http.MethodPost:
-		return hg.Client.Post(ctx, url, body, headers)
+		return hg.client.Post(ctx, url, body, headers)
 	case http.MethodPut:
-		return hg.Client.Put(ctx, url, body, headers)
+		return hg.client.Put(ctx, url, body, headers)
 	case http.MethodDelete:
-		return hg.Client.Delete(ctx, url, headers)
+		return hg.client.Delete(ctx, url, headers)
 	case http.MethodPatch:
-		return hg.Client.Patch(ctx, url, body, headers)
+		return hg.client.Patch(ctx, url, body, headers)
 	default:
 		return Response{}, errors.New("method not supported: " + method)
 	}
@@ -92,7 +87,7 @@ func (hg *HttpGatewayImpl) req(ctx context.Context, url string, body io.Reader, 
 
 // Exec executes the request with the given variables to fill the body and url templates.
 // It supports template rendering for both URL, body, and header values.
-func (hg *HttpGatewayImpl) Exec(ctx context.Context, variables map[string]string) (Response, error) {
+func (hg *httpGatewayImpl) Exec(ctx context.Context, variables map[string]string) (Response, error) {
 	hg.mu.RLock()
 	defer hg.mu.RUnlock()
 
@@ -118,8 +113,8 @@ func (hg *HttpGatewayImpl) Exec(ctx context.Context, variables map[string]string
 	return hg.req(ctx, uri, body, headers)
 }
 
-// UpdateConfig updates the gateway configuration and templates at runtime (hot-reload)
-func (hg *HttpGatewayImpl) UpdateConfig(method, urlTemplate, bodyTemplate string, headers map[string]string) error {
+// UpdateConfig updates the gateway configuration and templates at runtime (hot-reload).
+func (hg *httpGatewayImpl) UpdateConfig(method, urlTemplate, bodyTemplate string, headers map[string]string) error {
 	hg.mu.Lock()
 	defer hg.mu.Unlock()
 

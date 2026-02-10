@@ -6,11 +6,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
-	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/components"
+	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
@@ -96,9 +95,9 @@ type AppModel struct {
 	nav *Navigation
 
 	// State
-	logger    logs.Logger
-	processor processor.Processor
-	configMgr config.Manager
+	logger    ports.LogService
+	processor ports.ProcessorController
+	configMgr ports.ConfigManager
 
 	// Views
 	filesView    *views.FilesView
@@ -119,7 +118,7 @@ type AppModel struct {
 }
 
 // NewApp creates a new AppModel with multi-view support
-func NewApp(csvFiles []string, fileProcessor processor.Processor, log logs.Logger, configMgr config.Manager) *AppModel {
+func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log ports.LogService, configMgr ports.ConfigManager) *AppModel {
 	// Convert CSV files to list items
 	items := make([]list.Item, 0, len(csvFiles))
 	for _, file := range csvFiles {

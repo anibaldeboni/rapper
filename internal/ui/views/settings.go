@@ -1,13 +1,13 @@
 package views
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
+	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -38,7 +38,7 @@ const (
 
 // SettingsView displays and edits configuration settings
 type SettingsView struct {
-	configMgr config.Manager
+	configMgr ports.ConfigManager
 	width     int
 	height    int
 
@@ -62,7 +62,7 @@ type SettingsView struct {
 }
 
 // NewSettingsView creates a new SettingsView
-func NewSettingsView(configMgr config.Manager) *SettingsView {
+func NewSettingsView(configMgr ports.ConfigManager) *SettingsView {
 	// Create URL input
 	urlInput := textinput.New()
 	urlInput.Placeholder = "http://localhost:8080/api/v1/users"
@@ -532,46 +532,26 @@ func (v *SettingsView) renderWithProfileSelector() string {
 
 // getActiveProfileName returns the name of the active profile
 func (v *SettingsView) getActiveProfileName() string {
-	profileMgr := v.configMgr.GetProfileManager()
-	if profileMgr == nil {
+	profileName := v.configMgr.GetActiveProfile()
+	if profileName == "" {
 		return "default"
 	}
-
-	active := profileMgr.GetActive()
-	if active == nil {
-		return "default"
-	}
-
-	return active.Name
+	return profileName
 }
 
 // getProfiles returns all available profiles
 func (v *SettingsView) getProfiles() []string {
-	profileMgr := v.configMgr.GetProfileManager()
-	if profileMgr == nil {
+	profiles := v.configMgr.ListProfiles()
+	if len(profiles) == 0 {
 		return []string{"default"}
 	}
-
-	profiles := profileMgr.List()
-	names := make([]string, len(profiles))
-	for i, p := range profiles {
-		names[i] = p.Name
-	}
-
-	return names
+	return profiles
 }
 
 // switchProfile switches to a different profile and reloads the configuration
 func (v *SettingsView) switchProfile(name string) tea.Cmd {
-	profileMgr := v.configMgr.GetProfileManager()
-	if profileMgr == nil {
-		return func() tea.Msg {
-			return msgs.ProfileSwitchErrorMsg{Err: errors.New("profile manager not available")}
-		}
-	}
-
 	// Switch the active profile
-	if err := profileMgr.SetActive(name); err != nil {
+	if err := v.configMgr.SetActiveProfile(name); err != nil {
 		return func() tea.Msg {
 			return msgs.ProfileSwitchErrorMsg{Err: err}
 		}

@@ -15,29 +15,8 @@ type Profile struct {
 	Config   *Config // Loaded configuration
 }
 
-// ProfileManager manages multiple configuration profiles
-//
-//go:generate mockgen -destination mock/profile_mock.go github.com/anibaldeboni/rapper/internal/config ProfileManager
-type ProfileManager interface {
-	// Discover finds all .yml and .yaml files in the directory
-	Discover(dir string) ([]Profile, error)
-
-	// List returns all available profiles
-	List() []Profile
-
-	// GetActive returns the currently active profile
-	GetActive() *Profile
-
-	// SetActive switches to a different profile by name
-	SetActive(name string) error
-
-	// Save persists the active profile to its YAML file
-	Save() error
-
-	// UpdateActive updates the configuration of the active profile
-	UpdateActive(cfg *Config) error
-}
-
+// profileManagerImpl manages multiple configuration profiles.
+// This is an internal implementation - not exposed as an interface.
 type profileManagerImpl struct {
 	profiles     []Profile
 	activeIndex  int
@@ -45,8 +24,8 @@ type profileManagerImpl struct {
 	mu           sync.RWMutex
 }
 
-// NewProfileManager creates a new ProfileManager instance
-func NewProfileManager(loader *Loader) ProfileManager {
+// newProfileManager creates a new profile manager instance
+func newProfileManager(loader *Loader) *profileManagerImpl {
 	return &profileManagerImpl{
 		profiles:     make([]Profile, 0),
 		activeIndex:  0,
@@ -54,8 +33,8 @@ func NewProfileManager(loader *Loader) ProfileManager {
 	}
 }
 
-// Discover finds all .yml and .yaml files in the directory and loads them as profiles
-func (pm *profileManagerImpl) Discover(dir string) ([]Profile, error) {
+// discover finds all .yml and .yaml files in the directory and loads them as profiles
+func (pm *profileManagerImpl) discover(dir string) ([]Profile, error) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -116,8 +95,8 @@ func (pm *profileManagerImpl) Discover(dir string) ([]Profile, error) {
 	return profiles, nil
 }
 
-// List returns all available profiles
-func (pm *profileManagerImpl) List() []Profile {
+// list returns all available profiles
+func (pm *profileManagerImpl) list() []Profile {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
@@ -127,8 +106,8 @@ func (pm *profileManagerImpl) List() []Profile {
 	return profiles
 }
 
-// GetActive returns the currently active profile
-func (pm *profileManagerImpl) GetActive() *Profile {
+// getActive returns the currently active profile
+func (pm *profileManagerImpl) getActive() *Profile {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
@@ -140,8 +119,8 @@ func (pm *profileManagerImpl) GetActive() *Profile {
 	return &pm.profiles[pm.activeIndex]
 }
 
-// SetActive switches to a different profile by name
-func (pm *profileManagerImpl) SetActive(name string) error {
+// setActive switches to a different profile by name
+func (pm *profileManagerImpl) setActive(name string) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -155,8 +134,8 @@ func (pm *profileManagerImpl) SetActive(name string) error {
 	return fmt.Errorf("profile %s not found", name)
 }
 
-// UpdateActive updates the configuration of the active profile
-func (pm *profileManagerImpl) UpdateActive(cfg *Config) error {
+// updateActive updates the configuration of the active profile
+func (pm *profileManagerImpl) updateActive(cfg *Config) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -168,8 +147,8 @@ func (pm *profileManagerImpl) UpdateActive(cfg *Config) error {
 	return nil
 }
 
-// Save persists the active profile to its YAML file
-func (pm *profileManagerImpl) Save() error {
+// save persists the active profile to its YAML file
+func (pm *profileManagerImpl) save() error {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 

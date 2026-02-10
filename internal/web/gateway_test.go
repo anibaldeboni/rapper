@@ -1,107 +1,69 @@
-package web_test
+package web
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
-
-	"github.com/anibaldeboni/rapper/internal/web"
-	mock_web "github.com/anibaldeboni/rapper/internal/web/mock"
-	"go.uber.org/mock/gomock"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func buildGateway(t *testing.T, client *mock_web.MockHttpClient, method string) *web.HttpGatewayImpl {
-	t.Helper()
-
-	gateway := &web.HttpGatewayImpl{
-		Client: client,
-	}
-
-	// Initialize the gateway with proper configuration
-	err := gateway.UpdateConfig(method, "api.site.domain/{{.id}}", `{ "key": "{{.value}}" }`, map[string]string{"Authorization": "Bearer auth-token"})
-	if err != nil {
-		t.Fatalf("failed to update gateway config: %v", err)
-	}
-
-	return gateway
-}
 func TestExec(t *testing.T) {
-	url := "api.site.domain/"
-	body := `{ "key": "value" }`
-	headers := map[string]string{"Authorization": "Bearer auth-token"}
-	variables := map[string]string{
-		"id":    "1",
-		"value": "value",
-	}
-	successResponse := web.Response{
-		StatusCode: 200,
-		Body:       []byte(body),
-		Headers:    http.Header{"Content-Type": []string{"application/json"}},
-	}
+	t.Run("should execute POST requests", func(t *testing.T) {
+		var seenMethod string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			seenMethod = r.Method
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		}))
+		defer server.Close()
 
-	tests := []struct {
-		name    string
-		method  string
-		wantErr bool
-	}{
-		{
-			name:    "should return error if the request fails",
-			method:  http.MethodPut,
-			wantErr: true,
-		},
-		{
-			name:    "should use the method post",
-			method:  http.MethodPost,
-			wantErr: false,
-		},
-		{
-			name:    "should use the method put",
-			method:  http.MethodPut,
-			wantErr: false,
-		},
-		{
-			name:    "should return error if unsupported method is used",
-			method:  "UNSUPPORTED",
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			httpClient := mock_web.NewMockHttpClient(ctrl)
+		gateway, err := NewHttpGateway(http.MethodPost, server.URL+"/{{.id}}", `{ "key": "{{.value}}" }`, map[string]string{"Authorization": "Bearer auth-token"})
+		if !assert.NoError(t, err) {
+			return
+		}
 
-			gateway := buildGateway(t, httpClient, tt.method)
-			ctx := context.Background()
+		res, err := gateway.Exec(context.Background(), map[string]string{"id": "1", "value": "value"})
+		assert.NoError(t, err)
+		assert.Equal(t, http.MethodPost, seenMethod)
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+	})
 
-			var err error
-			var res web.Response
-			if tt.wantErr {
-				err = errors.New("error")
-			} else {
-				res = successResponse
-			}
-			switch tt.method {
-			case http.MethodPost:
-				httpClient.EXPECT().Post(ctx, url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
-			case http.MethodPut:
-				httpClient.EXPECT().Put(ctx, url+"1", bytes.NewBuffer([]byte(body)), headers).Return(res, err)
-			}
+	t.Run("should execute PUT requests", func(t *testing.T) {
+		var seenMethod string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			seenMethod = r.Method
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		}))
+		defer server.Close()
 
-			res, e := gateway.Exec(ctx, variables)
+		gateway, err := NewHttpGateway(http.MethodPut, server.URL+"/{{.id}}", `{ "key": "{{.value}}" }`, map[string]string{"Authorization": "Bearer auth-token"})
+		if !assert.NoError(t, err) {
+			return
+		}
 
-			if tt.wantErr {
-				assert.Error(t, e)
-				assert.Zero(t, res)
-			} else {
-				assert.NoError(t, e)
-				assert.NotZero(t, res)
-			}
+		res, err := gateway.Exec(context.Background(), map[string]string{"id": "1", "value": "value"})
+		assert.NoError(t, err)
+		assert.Equal(t, http.MethodPut, seenMethod)
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+	})
 
-		})
-	}
+	t.Run("should return error for unsupported method", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		}))
+		defer server.Close()
+
+		gateway, err := NewHttpGateway("UNSUPPORTED", server.URL+"/{{.id}}", `{ "key": "{{.value}}" }`, map[string]string{"Authorization": "Bearer auth-token"})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		res, err := gateway.Exec(context.Background(), map[string]string{"id": "1", "value": "value"})
+		assert.Error(t, err)
+		assert.Zero(t, res)
+	})
 }

@@ -7,8 +7,7 @@ import (
 	"testing"
 
 	"github.com/anibaldeboni/rapper/internal/config"
-	mock_log "github.com/anibaldeboni/rapper/internal/logs/mock"
-	mock_web "github.com/anibaldeboni/rapper/internal/web/mock"
+	mock_processor "github.com/anibaldeboni/rapper/internal/processor/mock"
 	"go.uber.org/mock/gomock"
 )
 
@@ -19,13 +18,13 @@ func TestProcessor_Do(t *testing.T) {
 		ctx := context.Background()
 		wg := sync.WaitGroup{}
 		wg.Add(2)
-		gatewayMock := mock_web.NewMockHttpGateway(ctrl)
+		gatewayMock := mock_processor.NewMockHttpGateway(ctrl)
 		gatewayMock.EXPECT().
 			Exec(gomock.Any(), gomock.Any()).
 			Do(func(arg0, arg1 any) {
 				wg.Done()
 			}).Times(2)
-		loggerMock := mock_log.NewMockLogger(ctrl)
+		loggerMock := mock_processor.NewMockRequestLogger(ctrl)
 		loggerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
 		loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(2)
 
@@ -45,13 +44,13 @@ func TestProcessor_Do(t *testing.T) {
 
 		wg := sync.WaitGroup{}
 		wg.Add(1)
-		gatewayMock := mock_web.NewMockHttpGateway(ctrl)
+		gatewayMock := mock_processor.NewMockHttpGateway(ctrl)
 		gatewayMock.EXPECT().
 			Exec(gomock.Any(), map[string]string{"header1": "value1"}).
 			Do(func(arg0, arg1 any) {
 				wg.Done()
 			}).Times(1)
-		loggerMock := mock_log.NewMockLogger(ctrl)
+		loggerMock := mock_processor.NewMockRequestLogger(ctrl)
 		loggerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
 		loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
 

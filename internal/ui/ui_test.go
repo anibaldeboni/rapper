@@ -3,10 +3,8 @@ package ui_test
 import (
 	"testing"
 
-	manager_mock "github.com/anibaldeboni/rapper/internal/config/mock"
-	mock_log "github.com/anibaldeboni/rapper/internal/logs/mock"
-	mock_processor "github.com/anibaldeboni/rapper/internal/processor/mock"
 	"github.com/anibaldeboni/rapper/internal/ui"
+	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
 	"go.uber.org/mock/gomock"
 
 	"github.com/stretchr/testify/assert"
@@ -15,9 +13,9 @@ import (
 func TestNewUI(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	logManagerMock := mock_log.NewMockLogger(ctrl)
-	processorMock := mock_processor.NewMockProcessor(ctrl)
-	configMgrMock := manager_mock.NewMockManager(ctrl)
+	logManagerMock := mock_ui.NewMockLogService(ctrl)
+	processorMock := mock_ui.NewMockProcessorController(ctrl)
+	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
 
 	t.Run("When the path contains CSV files", func(t *testing.T) {
 		filePaths := []string{"../../tests/example.csv"}

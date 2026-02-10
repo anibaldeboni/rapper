@@ -3,9 +3,9 @@ package views
 import (
 	"strings"
 
-	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
+	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -19,7 +19,7 @@ var (
 // LogsView displays execution logs
 type LogsView struct {
 	viewport   viewport.Model
-	logger     logs.Logger
+	logger     ports.LogProvider
 	title      string
 	width      int
 	height     int
@@ -27,7 +27,7 @@ type LogsView struct {
 }
 
 // NewLogsView creates a new LogsView
-func NewLogsView(logger logs.Logger) *LogsView {
+func NewLogsView(logger ports.LogProvider) *LogsView {
 	vp := viewport.New(0, 0)
 
 	v := &LogsView{

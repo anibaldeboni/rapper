@@ -80,7 +80,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if hasCancel {
 			// Forward progress message to LogsView to update content
-			logsCmd := m.logsView.Update(msgs.ProcessingProgressMsg{Metrics: m.processor.GetMetrics()})
+			metrics := m.processor.GetMetrics()
+			logsCmd := m.logsView.Update(msgs.ProcessingProgressMsg{
+				TotalRequests:   metrics.TotalRequests,
+				SuccessRequests: metrics.SuccessRequests,
+				ErrorRequests:   metrics.ErrorRequests,
+				LinesProcessed:  metrics.LinesProcessed,
+				ActiveWorkers:   metrics.ActiveWorkers,
+				RequestsPerSec:  metrics.RequestsPerSec,
+				StartTime:       metrics.StartTime,
+				IsProcessing:    metrics.IsProcessing,
+			})
 			cmds = append(cmds, logsCmd)
 		}
 

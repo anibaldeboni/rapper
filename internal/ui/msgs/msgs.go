@@ -2,8 +2,6 @@ package msgs
 
 import (
 	"time"
-
-	"github.com/anibaldeboni/rapper/internal/processor"
 )
 
 type TickMsg time.Time
@@ -39,5 +37,12 @@ type ProcessingStoppedMsg struct {
 
 // ProcessingProgressMsg is sent periodically during processing with metrics
 type ProcessingProgressMsg struct {
-	Metrics processor.Metrics
+	TotalRequests   uint64
+	SuccessRequests uint64
+	ErrorRequests   uint64
+	LinesProcessed  uint64
+	ActiveWorkers   int
+	RequestsPerSec  float64
+	StartTime       time.Time
+	IsProcessing    bool
 }

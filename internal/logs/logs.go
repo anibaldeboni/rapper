@@ -8,15 +8,6 @@ import (
 	"github.com/anibaldeboni/rapper/internal/styles"
 )
 
-var _ Logger = (*loggerImpl)(nil)
-
-//go:generate mockgen -destination mock/log_mock.go github.com/anibaldeboni/rapper/internal/logs Logger
-type Logger interface {
-	Add(Message)
-	Get() []string
-	WriteToFile(Line)
-}
-
 type Line interface {
 	Bytes() []byte
 }
@@ -27,8 +18,8 @@ type loggerImpl struct {
 	sync.RWMutex
 }
 
-// NewLoggger creates a new instance of Loggger.
-func NewLoggger(filePath string) Logger {
+// NewLoggger creates a new logger instance.
+func NewLoggger(filePath string) *loggerImpl {
 	var logger loggerImpl
 	if filePath != "" {
 		if file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660); err != nil {

@@ -2,12 +2,13 @@ package views
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
+	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -28,21 +29,21 @@ type TickMsg time.Time
 
 // WorkersView displays and controls worker pool
 type WorkersView struct {
-	proc         processor.Processor
+	proc         ports.ProcessorController
 	width        int
 	height       int
 	workerCount  int
 	maxWorkers   int
-	lastMetrics  processor.Metrics
+	lastMetrics  ports.ProcessorMetrics
 	tickInterval time.Duration
 }
 
 // NewWorkersView creates a new WorkersView
-func NewWorkersView(proc processor.Processor) *WorkersView {
+func NewWorkersView(proc ports.ProcessorController) *WorkersView {
 	return &WorkersView{
 		proc:         proc,
 		workerCount:  proc.GetWorkerCount(),
-		maxWorkers:   processor.MaxWorkers,
+		maxWorkers:   runtime.NumCPU(),
 		tickInterval: 500 * time.Millisecond,
 	}
 }

@@ -4,40 +4,20 @@ import (
 	"sync"
 )
 
-// Manager manages configuration with hot-reload support
-//
-//go:generate mockgen -destination mock/manager_mock.go github.com/anibaldeboni/rapper/internal/config Manager
-type Manager interface {
-	// Get returns the current configuration
-	Get() *Config
-
-	// Update updates the current configuration in memory
-	Update(cfg *Config) error
-
-	// Save persists the current configuration to disk
-	Save() error
-
-	// OnChange registers a callback to be notified when configuration changes
-	OnChange(callback func(*Config))
-
-	// GetProfileManager returns the underlying ProfileManager
-	GetProfileManager() ProfileManager
-}
-
 type managerImpl struct {
-	profileMgr ProfileManager
+	profileMgr *profileManagerImpl
 	listeners  []func(*Config)
 	mu         sync.RWMutex
 }
 
-// NewManager creates a new Manager instance
-// It discovers all .yml files in the specified directory and loads them as profiles
-func NewManager(dir string) (Manager, error) {
+// NewManager creates a new Manager instance.
+// It discovers all .yml files in the specified directory and loads them as profiles.
+func NewManager(dir string) (*managerImpl, error) {
 	loader := NewLoader()
-	profileMgr := NewProfileManager(loader)
+	profileMgr := newProfileManager(loader)
 
 	// Discover profiles in the directory
-	_, err := profileMgr.Discover(dir)
+	_, err := profileMgr.discover(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +30,7 @@ func NewManager(dir string) (Manager, error) {
 
 // Get returns the current configuration from the active profile
 func (m *managerImpl) Get() *Config {
-	active := m.profileMgr.GetActive()
+	active := m.profileMgr.getActive()
 	if active == nil {
 		return nil
 	}
@@ -59,7 +39,7 @@ func (m *managerImpl) Get() *Config {
 
 // Update updates the current configuration and notifies all listeners
 func (m *managerImpl) Update(cfg *Config) error {
-	if err := m.profileMgr.UpdateActive(cfg); err != nil {
+	if err := m.profileMgr.updateActive(cfg); err != nil {
 		return err
 	}
 
@@ -76,7 +56,7 @@ func (m *managerImpl) Update(cfg *Config) error {
 
 // Save persists the current configuration to the active profile's YAML file
 func (m *managerImpl) Save() error {
-	return m.profileMgr.Save()
+	return m.profileMgr.save()
 }
 
 // OnChange registers a callback to be notified when configuration changes
@@ -87,7 +67,26 @@ func (m *managerImpl) OnChange(callback func(*Config)) {
 	m.listeners = append(m.listeners, callback)
 }
 
-// GetProfileManager returns the underlying ProfileManager
-func (m *managerImpl) GetProfileManager() ProfileManager {
-	return m.profileMgr
+// ListProfiles returns names of all available profiles
+func (m *managerImpl) ListProfiles() []string {
+	profiles := m.profileMgr.list()
+	names := make([]string, len(profiles))
+	for i, p := range profiles {
+		names[i] = p.Name
+	}
+	return names
+}
+
+// GetActiveProfile returns the name of the active profile
+func (m *managerImpl) GetActiveProfile() string {
+	active := m.profileMgr.getActive()
+	if active == nil {
+		return ""
+	}
+	return active.Name
+}
+
+// SetActiveProfile switches to the specified profile
+func (m *managerImpl) SetActiveProfile(name string) error {
+	return m.profileMgr.setActive(name)
 }

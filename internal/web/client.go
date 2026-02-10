@@ -6,8 +6,7 @@ import (
 	"net/http"
 )
 
-var _ HttpClient = (*httpClientImpl)(nil)
-
+// Response represents an HTTP response.
 type Response struct {
 	Headers    http.Header
 	URL        string
@@ -15,41 +14,41 @@ type Response struct {
 	StatusCode int
 }
 
-//go:generate mockgen -destination mock/client_mock.go github.com/anibaldeboni/rapper/internal/web HttpClient
-type HttpClient interface {
-	Put(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error)
-	Post(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error)
-	Get(ctx context.Context, url string, headers map[string]string) (Response, error)
-	Delete(ctx context.Context, url string, headers map[string]string) (Response, error)
-	Patch(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error)
-}
-
+// httpClientImpl handles raw HTTP operations.
+// This is an internal implementation detail, not exposed as an interface.
 type httpClientImpl struct{}
 
-func NewHttpClient() HttpClient {
+// newHttpClient creates a new HTTP client.
+func newHttpClient() *httpClientImpl {
 	return &httpClientImpl{}
 }
 
-func (httpClientImpl) Put(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
+// NewHttpClient creates a new HTTP client for external use (e.g., updates package).
+// Returns the concrete type for direct use without interface abstraction.
+func NewHttpClient() *httpClientImpl {
+	return &httpClientImpl{}
+}
+
+func (c *httpClientImpl) Put(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
 	headers = buildHeaders(headers)
 	return request(ctx, http.MethodPut, url, headers, body)
 }
 
-func (httpClientImpl) Post(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
+func (c *httpClientImpl) Post(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
 	headers = buildHeaders(headers)
 	return request(ctx, http.MethodPost, url, headers, body)
 }
 
-func (httpClientImpl) Get(ctx context.Context, url string, headers map[string]string) (Response, error) {
+func (c *httpClientImpl) Get(ctx context.Context, url string, headers map[string]string) (Response, error) {
 	return request(ctx, http.MethodGet, url, headers, nil)
 }
 
-func (httpClientImpl) Delete(ctx context.Context, url string, headers map[string]string) (Response, error) {
+func (c *httpClientImpl) Delete(ctx context.Context, url string, headers map[string]string) (Response, error) {
 	headers = buildHeaders(headers)
 	return request(ctx, http.MethodDelete, url, headers, nil)
 }
 
-func (httpClientImpl) Patch(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
+func (c *httpClientImpl) Patch(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
 	headers = buildHeaders(headers)
 	return request(ctx, http.MethodPatch, url, headers, body)
 }
