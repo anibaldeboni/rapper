@@ -10,6 +10,7 @@ import (
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -36,6 +37,7 @@ type WorkersView struct {
 	maxWorkers   int
 	lastMetrics  ports.ProcessorMetrics
 	tickInterval time.Duration
+	viewport     viewport.Model
 }
 
 // NewWorkersView creates a new WorkersView
@@ -45,6 +47,7 @@ func NewWorkersView(proc ports.ProcessorController) *WorkersView {
 		workerCount:  proc.GetWorkerCount(),
 		maxWorkers:   runtime.NumCPU(),
 		tickInterval: 500 * time.Millisecond,
+		viewport:     viewport.New(0, 0),
 	}
 }
 
@@ -52,6 +55,28 @@ func NewWorkersView(proc ports.ProcessorController) *WorkersView {
 func (v *WorkersView) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle viewport scrolling first
+		switch {
+		case key.Matches(msg, kbind.PageUp):
+			v.viewport.PageUp()
+			return nil
+		case key.Matches(msg, kbind.PageDown):
+			v.viewport.PageDown()
+			return nil
+		case key.Matches(msg, kbind.GotoTop):
+			v.viewport.GotoTop()
+			return nil
+		case key.Matches(msg, kbind.GotoBottom):
+			v.viewport.GotoBottom()
+			return nil
+		case key.Matches(msg, kbind.Up):
+			v.viewport.ScrollUp(1)
+			return nil
+		case key.Matches(msg, kbind.Down):
+			v.viewport.ScrollDown(1)
+			return nil
+		}
+
 		switch {
 		case key.Matches(msg, kbind.Left):
 			if v.workerCount > 1 {
@@ -108,6 +133,8 @@ func (v *WorkersView) Init() tea.Cmd {
 func (v *WorkersView) Resize(width, height int) {
 	v.width = width
 	v.height = height
+	v.viewport.Width = width - 4
+	v.viewport.Height = height - 2
 }
 
 // View renders the workers view
@@ -209,7 +236,41 @@ func (v *WorkersView) View() string {
 		b.WriteString("\n\n")
 	}
 
-	return workersAppStyle.Render(b.String())
+	// Set viewport content
+	v.viewport.SetContent(b.String())
+
+	// Render viewport with scroll indicators
+	viewportView := v.viewport.View()
+	scrollIndicator := v.renderScrollIndicator()
+
+	if scrollIndicator != "" {
+		return workersAppStyle.Render(lipgloss.JoinVertical(lipgloss.Left, viewportView, scrollIndicator))
+	}
+
+	return workersAppStyle.Render(viewportView)
+}
+
+// renderScrollIndicator renders scroll position indicator if content is scrollable
+func (v *WorkersView) renderScrollIndicator() string {
+	if v.viewport.TotalLineCount() <= v.viewport.Height {
+		return ""
+	}
+
+	scrollPercentage := int(v.viewport.ScrollPercent() * 100)
+	indicatorStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		Align(lipgloss.Center)
+
+	var indicator string
+	if scrollPercentage <= 0 {
+		indicator = "↓ Scroll down for more"
+	} else if scrollPercentage >= 100 {
+		indicator = "↑ Scroll up to see more"
+	} else {
+		indicator = fmt.Sprintf("↑ %d%% ↓", scrollPercentage)
+	}
+
+	return indicatorStyle.Render(indicator)
 }
 
 // renderSlider renders a visual slider for worker count

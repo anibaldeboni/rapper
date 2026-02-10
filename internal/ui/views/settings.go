@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -41,6 +42,7 @@ type SettingsView struct {
 	configMgr ports.ConfigManager
 	width     int
 	height    int
+	viewport  viewport.Model
 
 	// Form fields
 	urlInput       textinput.Model
@@ -113,6 +115,7 @@ email`
 		csvFieldsInput: csvFieldsInput,
 		focused:        urlField,
 		focusable:      []int{urlField, methodField, bodyField, headersField, csvFieldsField},
+		viewport:       viewport.New(0, 0),
 	}
 
 	// Load current configuration
@@ -260,6 +263,24 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle viewport scrolling when not in profile selector or editing textareas
+		if !v.showProfileSelector {
+			switch {
+			case key.Matches(msg, kbind.PageUp):
+				v.viewport.PageUp()
+				return nil
+			case key.Matches(msg, kbind.PageDown):
+				v.viewport.PageDown()
+				return nil
+			case key.Matches(msg, kbind.GotoTop):
+				v.viewport.GotoTop()
+				return nil
+			case key.Matches(msg, kbind.GotoBottom):
+				v.viewport.GotoBottom()
+				return nil
+			}
+		}
+
 		if v.showProfileSelector {
 			profiles := v.getProfiles()
 			switch {
@@ -376,6 +397,8 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 func (v *SettingsView) Resize(width, height int) {
 	v.width = width
 	v.height = height
+	v.viewport.Width = width - 4
+	v.viewport.Height = height - 4
 }
 
 // View renders the settings view
@@ -408,8 +431,43 @@ func (v *SettingsView) View() string {
 		helpStyle.Render(help),
 	)
 
-	return settingsAppStyle.Render(content)
+	// Set viewport content
+	v.viewport.SetContent(content)
+
+	// Render viewport with scroll indicators
+	viewportView := v.viewport.View()
+	scrollIndicator := v.renderScrollIndicator()
+
+	if scrollIndicator != "" {
+		return settingsAppStyle.Render(lipgloss.JoinVertical(lipgloss.Left, viewportView, scrollIndicator))
+	}
+
+	return settingsAppStyle.Render(viewportView)
 }
+
+// renderScrollIndicator renders scroll position indicator if content is scrollable
+func (v *SettingsView) renderScrollIndicator() string {
+	if v.viewport.TotalLineCount() <= v.viewport.Height {
+		return ""
+	}
+
+	scrollPercentage := int(v.viewport.ScrollPercent() * 100)
+	indicatorStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		Align(lipgloss.Center)
+
+	var indicator string
+	if scrollPercentage <= 0 {
+		indicator = "↓ Scroll down for more"
+	} else if scrollPercentage >= 100 {
+		indicator = "↑ Scroll up to see more"
+	} else {
+		indicator = fmt.Sprintf("↑ %d%% ↓", scrollPercentage)
+	}
+
+	return indicatorStyle.Render(indicator)
+}
+
 func (v *SettingsView) renderTextArea(fieldIdx int, text string, input textarea.Model) string {
 	label := v.renderLabel(text, fieldIdx)
 	return inputStyle.Render(lipgloss.JoinVertical(lipgloss.Left, label, input.View()))

@@ -70,7 +70,7 @@ func (v *FilesView) Update(msg tea.Msg) tea.Cmd {
 func (v *FilesView) Resize(width, height int) {
 	v.width = width
 	v.height = height
-	v.list.SetWidth((width / 4) * 3)
+	v.list.SetSize((width/4)*3, height)
 }
 
 // View renders the files view

@@ -50,22 +50,28 @@ func (k logsViewKeyMap) FullHelp() [][]key.Binding {
 type settingsViewKeyMap struct{}
 
 func (k settingsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.NextField, kbind.PrevField, kbind.Save, kbind.Profile}
+	return []key.Binding{kbind.NextField, kbind.PrevField, kbind.PageUp, kbind.PageDown, kbind.Save, kbind.Profile}
 }
 
 func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{kbind.NextField, kbind.PrevField, kbind.Save, kbind.Profile}}
+	return [][]key.Binding{
+		{kbind.NextField, kbind.PrevField, kbind.Save, kbind.Profile},
+		{kbind.PageUp, kbind.PageDown, kbind.GotoTop, kbind.GotoBottom},
+	}
 }
 
 // workersViewKeyMap shows only workers view specific keys
 type workersViewKeyMap struct{}
 
 func (k workersViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.WorkerDec, kbind.WorkerInc}
+	return []key.Binding{kbind.WorkerDec, kbind.WorkerInc, kbind.PageUp, kbind.PageDown}
 }
 
 func (k workersViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{kbind.WorkerDec, kbind.WorkerInc}}
+	return [][]key.Binding{
+		{kbind.WorkerDec, kbind.WorkerInc},
+		{kbind.Up, kbind.Down, kbind.PageUp, kbind.PageDown, kbind.GotoTop, kbind.GotoBottom},
+	}
 }
 
 // getViewSpecificKeyMap returns only view-specific keys (excluding global navigation)
