@@ -41,10 +41,10 @@ github.com/mattn/go-localereader v0.0.1/go.mod h1:8fBrzywKY7BI3czFoHkuzRoWE9C+Ei
 github.com/mattn/go-runewidth v0.0.12/go.mod h1:RAqKPSqVFrSLVXbA8x7dzmKdmGzieGRCM46jaSJTDAk=
 github.com/mattn/go-runewidth v0.0.16 h1:E5ScNMtiwvlvB5paMFdw9p4kSQzbXFikJ5SQO6TULQc=
 github.com/mattn/go-runewidth v0.0.16/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh153qUoGf23w=
-github.com/mazznoer/colorgrad v0.10.0 h1:p2ImJimPGEUFhMrNx4EGSzkr2XARomIo1yyUgso3NDQ=
-github.com/mazznoer/colorgrad v0.10.0/go.mod h1:1dkoC2jE1oMVr11umiBHfyHV/W+E+By2WJaPKJJ6Nkk=
-github.com/mazznoer/csscolorparser v0.1.5 h1:Wr4uNIE+pHWN3TqZn2SGpA2nLRG064gB7WdSfSS5cz4=
-github.com/mazznoer/csscolorparser v0.1.5/go.mod h1:OQRVvgCyHDCAquR1YWfSwwaDcM0LhnSffGnlbOew/3I=
+github.com/mazznoer/colorgrad v0.11.1 h1:PPSOg+wFXwjSfLIm2nj9hrW1SG8cmWswpYytfVJRMDM=
+github.com/mazznoer/colorgrad v0.11.1/go.mod h1:aZCwErnvmDKAjiqKgzIuIwQUerRDbv4/XXRzIwAUyeY=
+github.com/mazznoer/csscolorparser v0.1.8 h1:i7w3wHW99d0q0KZv1ONkU/efXFAKcw1mgEgW6gj8KUA=
+github.com/mazznoer/csscolorparser v0.1.8/go.mod h1:OQRVvgCyHDCAquR1YWfSwwaDcM0LhnSffGnlbOew/3I=
 github.com/michaelquigley/figlet v0.0.0-20191015203154-054d06db54b4 h1:O0aAES+Hu4tySETys37Xd1wMcUohr5X7yM3qaRSHKRw=
 github.com/michaelquigley/figlet v0.0.0-20191015203154-054d06db54b4/go.mod h1:ZgenLagNkpruEGzNeXiQH9RtZedSLKw1WlDTJWPZzpk=
 github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 h1:ZK8zHtRHOkbHy6Mmr5D264iyp3TiX5OmNcI5cIARiQI=
