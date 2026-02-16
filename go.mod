@@ -6,7 +6,7 @@ require (
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/charmbracelet/bubbletea v1.3.5
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/hashicorp/go-version v1.7.0
+	github.com/hashicorp/go-version v1.8.0
 	github.com/michaelquigley/figlet v0.0.0-20191015203154-054d06db54b4
 	go.uber.org/mock v0.5.2
 	golang.org/x/term v0.32.0
