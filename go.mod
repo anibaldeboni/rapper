@@ -3,7 +3,7 @@ module github.com/anibaldeboni/rapper
 go 1.25.0
 
 require (
-	github.com/ccoveille/go-safecast v1.6.1
+	github.com/ccoveille/go-safecast v1.8.2
 	github.com/charmbracelet/bubbletea v1.3.5
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/hashicorp/go-version v1.7.0
