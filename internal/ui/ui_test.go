@@ -1,12 +1,13 @@
 package ui_test
 
 import (
+	"bytes"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/anibaldeboni/rapper/internal/ui"
 	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
-	tea "github.com/charmbracelet/bubbletea"
 	"go.uber.org/mock/gomock"
 
 	"github.com/stretchr/testify/assert"
@@ -81,4 +82,41 @@ func TestSmallWindowHandling(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestProgramWithWindowSizeIntegration(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logManagerMock := mock_ui.NewMockLogService(ctrl)
+	processorMock := mock_ui.NewMockProcessorController(ctrl)
+	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
+
+	filePaths := []string{"../../tests/example.csv"}
+
+	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
+	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
+	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
+	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
+	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
+
+	app := ui.NewApp(filePaths, processorMock, logManagerMock, configMgrMock)
+
+	var in bytes.Buffer
+	var out bytes.Buffer
+
+	p := tea.NewProgram(
+		app,
+		tea.WithWindowSize(80, 24),
+		tea.WithInput(&in),
+		tea.WithOutput(&out),
+	)
+
+	go p.Send(tea.Quit)
+
+	model, err := p.Run()
+	assert.NoError(t, err)
+	assert.NotNil(t, model)
+	assert.NotEmpty(t, out.String())
 }

@@ -3,12 +3,13 @@ package ui
 import (
 	"fmt"
 
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/ccoveille/go-safecast"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
 )
 
-func (m AppModel) View() string {
+func (m AppModel) View() tea.View {
 	// Render based on current view
 	var content string
 
@@ -56,13 +57,18 @@ func (m AppModel) View() string {
 				m.renderStatusBar(),
 			),
 		)
-	return lipgloss.Place(
+	v := tea.NewView(lipgloss.Place(
 		m.width,
 		m.height,
 		lipgloss.Center,
 		lipgloss.Center,
 		app,
-	)
+	))
+	v.AltScreen = true
+	v.ReportFocus = true
+	v.WindowTitle = fmt.Sprintf("%s@%s", AppName, AppVersion)
+	v.KeyboardEnhancements.ReportEventTypes = true
+	return v
 }
 
 // renderHeader renders the global navigation help bar at the top

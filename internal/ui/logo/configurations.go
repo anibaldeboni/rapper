@@ -3,7 +3,7 @@ package logo
 import (
 	"fmt"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/mazznoer/colorgrad"
 	"github.com/michaelquigley/figlet/figletlib"
 )

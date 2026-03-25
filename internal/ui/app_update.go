@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func tickCmd() tea.Cmd {
@@ -21,7 +21,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		// Global navigation keys
 		switch {
 		case key.Matches(msg, kbind.Quit):
@@ -62,6 +62,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.broadcastResize()
+		return m, nil
+
+	case tea.BackgroundColorMsg:
+		if msg.IsDark() != m.isDark {
+			m.applyTheme(msg.IsDark())
+		}
+		return m, nil
+
+	case tea.KeyboardEnhancementsMsg:
+		m.hasKeyEventTypes = msg.SupportsEventTypes()
+		m.workersView.SetKeyboardEventTypes(m.hasKeyEventTypes)
 		return m, nil
 
 	case msgs.TickMsg:
@@ -141,7 +152,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m AppModel) updateCurrentView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m AppModel) updateCurrentView(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch m.nav.Current() {

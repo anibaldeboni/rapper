@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/processor"
@@ -17,7 +18,6 @@ import (
 	"github.com/anibaldeboni/rapper/internal/updates"
 	"github.com/anibaldeboni/rapper/internal/utils"
 	"github.com/anibaldeboni/rapper/internal/web"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 var (
@@ -99,8 +99,20 @@ func main() {
 
 	// Use new AppModel with multi-view support
 	tui := ui.NewApp(filePaths, csvProcessor, logger, configMgr)
+	ttyIn, ttyOut, err := tea.OpenTTY()
+	if err != nil {
+		handleExit(fmt.Errorf("could not open terminal tty: %w", err))
+	}
+	defer func() {
+		_ = ttyIn.Close()
+		_ = ttyOut.Close()
+	}()
 
-	if _, err := tea.NewProgram(tui).Run(); err != nil {
+	if _, err := tea.NewProgram(
+		tui,
+		tea.WithInput(ttyIn),
+		tea.WithOutput(ttyOut),
+	).Run(); err != nil {
 		handleExit(fmt.Errorf("could not run the program: %w", err))
 	}
 

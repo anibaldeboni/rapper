@@ -6,16 +6,16 @@ import (
 	"strings"
 	"sync"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/components"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 const AppName = "rapper"
@@ -106,11 +106,13 @@ type AppModel struct {
 	workersView  *views.WorkersView
 
 	// Common UI elements
-	help     help.Model
-	spinner  spinner.Model
-	toastMgr *components.ToastManager
-	width    int
-	height   int
+	help             help.Model
+	spinner          spinner.Model
+	toastMgr         *components.ToastManager
+	width            int
+	height           int
+	isDark           bool
+	hasKeyEventTypes bool
 
 	// Context for cancellation
 	cancel   context.CancelFunc
@@ -125,7 +127,7 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 		items = append(items, mapFileToOption(file))
 	}
 
-	return &AppModel{
+	app := &AppModel{
 		nav:          NewNavigation(),
 		logger:       log,
 		processor:    fileProcessor,
@@ -138,7 +140,12 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 		spinner:      createSpinner(),
 		toastMgr:     components.NewToastManager(),
 		cancelMu:     &sync.RWMutex{},
+		isDark:       true,
 	}
+
+	app.applyTheme(true)
+
+	return app
 }
 
 func createSpinner() spinner.Model {
@@ -163,7 +170,14 @@ func createHelp() help.Model {
 }
 
 func (m AppModel) Init() tea.Cmd {
-	return tea.Batch(tea.EnterAltScreen, tickCmd(), m.spinner.Tick)
+	return tea.Batch(tea.RequestBackgroundColor, tickCmd(), m.spinner.Tick)
+}
+
+func (m *AppModel) applyTheme(isDark bool) {
+	m.isDark = isDark
+	styles.ApplyTheme(isDark)
+	m.filesView.SetTheme(isDark)
+	m.help = createHelp()
 }
 
 func operationError() logs.Message {

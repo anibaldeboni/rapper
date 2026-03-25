@@ -3,13 +3,13 @@ package views
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var (
@@ -28,7 +28,7 @@ type LogsView struct {
 
 // NewLogsView creates a new LogsView
 func NewLogsView(logger ports.LogProvider) *LogsView {
-	vp := viewport.New(0, 0)
+	vp := viewport.New(viewport.WithWidth(0), viewport.WithHeight(0))
 
 	v := &LogsView{
 		viewport:   vp,
@@ -47,7 +47,7 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 
 	// Handle any processing-related messages by checking their content
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, kbind.GotoBottom):
 			v.viewport.GotoBottom()
@@ -92,8 +92,8 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 func (v *LogsView) Resize(width, height int) {
 	v.width = width
 	v.height = height
-	v.viewport.Width = (width / 2) - 2
-	v.viewport.Height = height - 3
+	v.viewport.SetWidth((width / 2) - 2)
+	v.viewport.SetHeight(height - 3)
 }
 
 // View renders the logs view

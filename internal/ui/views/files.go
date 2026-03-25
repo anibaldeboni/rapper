@@ -5,10 +5,10 @@ import (
 	"io"
 	"strings"
 
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // Option is a generic option for lists
@@ -34,8 +34,6 @@ var (
 	itemStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
 	selectedItemStyle = lipgloss.NewStyle().MarginLeft(2).Foreground(lipgloss.Color("#d6acff"))
 	paginationStyle   = lipgloss.NewStyle().MarginLeft(2)
-	activeDot         = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#d3d3d3", Dark: "#d3d3d3"}).SetString(bullet).Bold(true)
-	inactiveDotStyle  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#8d8d8d", Dark: "#8d8d8d"}).SetString(inactiveDot).Bold(true)
 )
 
 // NewFilesView creates a new FilesView
@@ -49,14 +47,28 @@ func NewFilesView(csvFiles []list.Item) *FilesView {
 	l.KeyMap.CursorUp = kbind.Up
 	l.KeyMap.CursorDown = kbind.Down
 	l.Styles.PaginationStyle = paginationStyle
-	l.Styles.ActivePaginationDot = activeDot
-	l.Styles.InactivePaginationDot = inactiveDotStyle
 	l.Styles.TitleBar = titleStyle.Bold(true)
 	l.Title = "👀 Select a CSV file to process"
 
-	return &FilesView{
+	v := &FilesView{
 		list: l,
 	}
+
+	v.SetTheme(true)
+
+	return v
+}
+
+func (v *FilesView) SetTheme(isDark bool) {
+	lightDark := lipgloss.LightDark(isDark)
+	v.list.Styles.ActivePaginationDot = lipgloss.NewStyle().
+		Foreground(lightDark(lipgloss.Color("#d3d3d3"), lipgloss.Color("#d3d3d3"))).
+		SetString(bullet).
+		Bold(true)
+	v.list.Styles.InactivePaginationDot = lipgloss.NewStyle().
+		Foreground(lightDark(lipgloss.Color("#8d8d8d"), lipgloss.Color("#8d8d8d"))).
+		SetString(inactiveDot).
+		Bold(true)
 }
 
 // Update handles messages for the files view

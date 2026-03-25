@@ -1,7 +1,8 @@
 package ui
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 	"golang.org/x/term"
 )
 
@@ -18,11 +19,11 @@ var (
 	SelectedItemStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#d6acff"))
 	PaginationStyle     = lipgloss.NewStyle().PaddingLeft(2)
 	ActivePaginationDot = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#d3d3d3", Dark: "#d3d3d3"}).
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("#d3d3d3"), Dark: lipgloss.Color("#d3d3d3")}).
 				SetString(bullet).
 				Bold(true)
 	InactivePaginationDot = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#8d8d8d", Dark: "#8d8d8d"}).
+				Foreground(compat.AdaptiveColor{Light: lipgloss.Color("#8d8d8d"), Dark: lipgloss.Color("#8d8d8d")}).
 				SetString(inactiveDot).
 				Bold(true)
 	ProgressStyle = lipgloss.NewStyle().Padding(0, 2, 1, 3).Render
@@ -34,20 +35,20 @@ var (
 			Bold(true).
 			Padding(0, 1).
 			Render
-	HelpKeyStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#d3d3d3",
-		Dark:  "#d3d3d3",
+	HelpKeyStyle = lipgloss.NewStyle().Foreground(compat.AdaptiveColor{
+		Light: lipgloss.Color("#d3d3d3"),
+		Dark:  lipgloss.Color("#d3d3d3"),
 	}).
 		Bold(true)
 
-	HelpDescStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#8d8d8d",
-		Dark:  "#8d8d8d",
+	HelpDescStyle = lipgloss.NewStyle().Foreground(compat.AdaptiveColor{
+		Light: lipgloss.Color("#8d8d8d"),
+		Dark:  lipgloss.Color("#8d8d8d"),
 	})
 
-	HelpSepStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#DDDADA",
-		Dark:  "#535353",
+	HelpSepStyle = lipgloss.NewStyle().Foreground(compat.AdaptiveColor{
+		Light: lipgloss.Color("#DDDADA"),
+		Dark:  lipgloss.Color("#535353"),
 	})
 
 	ScreenCenteredStyle = lipgloss.NewStyle().

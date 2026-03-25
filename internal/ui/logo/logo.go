@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/assets"
 	"github.com/anibaldeboni/rapper/internal/utils"
 	"github.com/ccoveille/go-safecast"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/mazznoer/colorgrad"
 	"github.com/michaelquigley/figlet/figletlib"
 	"golang.org/x/exp/maps"

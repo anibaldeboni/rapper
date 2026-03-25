@@ -1,9 +1,9 @@
 package ui
 
 import (
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
 )
 
 // globalKeyMap shows only global navigation keys (for header)

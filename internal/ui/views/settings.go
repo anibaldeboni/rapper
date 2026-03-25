@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textarea"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textarea"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var (
@@ -115,7 +115,7 @@ email`
 		csvFieldsInput: csvFieldsInput,
 		focused:        urlField,
 		focusable:      []int{urlField, methodField, bodyField, headersField, csvFieldsField},
-		viewport:       viewport.New(0, 0),
+		viewport:       viewport.New(viewport.WithWidth(0), viewport.WithHeight(0)),
 	}
 
 	// Load current configuration
@@ -262,7 +262,7 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		// Handle viewport scrolling when not in profile selector or editing textareas
 		if !v.showProfileSelector {
 			switch {
@@ -397,8 +397,8 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 func (v *SettingsView) Resize(width, height int) {
 	v.width = width
 	v.height = height
-	v.viewport.Width = width - 4
-	v.viewport.Height = height - 4
+	v.viewport.SetWidth(width - 4)
+	v.viewport.SetHeight(height - 4)
 }
 
 // View renders the settings view
@@ -447,7 +447,7 @@ func (v *SettingsView) View() string {
 
 // renderScrollIndicator renders scroll position indicator if content is scrollable
 func (v *SettingsView) renderScrollIndicator() string {
-	if v.viewport.TotalLineCount() <= v.viewport.Height {
+	if v.viewport.TotalLineCount() <= v.viewport.Height() {
 		return ""
 	}
 
@@ -581,7 +581,7 @@ func (v *SettingsView) renderWithProfileSelector() string {
 		lipgloss.Center,
 		modal,
 		lipgloss.WithWhitespaceChars(" "),
-		lipgloss.WithWhitespaceForeground(lipgloss.Color("0")),
+		lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("0"))),
 	)
 
 	// Layer modal over base view

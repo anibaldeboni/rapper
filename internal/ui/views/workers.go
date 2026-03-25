@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var (
@@ -30,31 +30,44 @@ type TickMsg time.Time
 
 // WorkersView displays and controls worker pool
 type WorkersView struct {
-	proc         ports.ProcessorController
-	width        int
-	height       int
-	workerCount  int
-	maxWorkers   int
-	lastMetrics  ports.ProcessorMetrics
-	tickInterval time.Duration
-	viewport     viewport.Model
+	proc             ports.ProcessorController
+	width            int
+	height           int
+	workerCount      int
+	maxWorkers       int
+	hasKeyEventTypes bool
+	lastMetrics      ports.ProcessorMetrics
+	tickInterval     time.Duration
+	viewport         viewport.Model
 }
 
 // NewWorkersView creates a new WorkersView
 func NewWorkersView(proc ports.ProcessorController) *WorkersView {
 	return &WorkersView{
-		proc:         proc,
-		workerCount:  proc.GetWorkerCount(),
-		maxWorkers:   runtime.NumCPU(),
-		tickInterval: 500 * time.Millisecond,
-		viewport:     viewport.New(0, 0),
+		proc:             proc,
+		workerCount:      proc.GetWorkerCount(),
+		maxWorkers:       runtime.NumCPU(),
+		hasKeyEventTypes: false,
+		tickInterval:     500 * time.Millisecond,
+		viewport:         viewport.New(viewport.WithWidth(0), viewport.WithHeight(0)),
 	}
+}
+
+func (v *WorkersView) SetKeyboardEventTypes(enabled bool) {
+	v.hasKeyEventTypes = enabled
 }
 
 // Update handles messages for the workers view
 func (v *WorkersView) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
+		if v.hasKeyEventTypes && msg.Key().IsRepeat {
+			switch {
+			case key.Matches(msg, kbind.Left), key.Matches(msg, kbind.Right), key.Matches(msg, kbind.WorkerDec), key.Matches(msg, kbind.WorkerInc):
+				return nil
+			}
+		}
+
 		// Handle viewport scrolling first
 		switch {
 		case key.Matches(msg, kbind.PageUp):
@@ -107,6 +120,11 @@ func (v *WorkersView) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 
+	case tea.KeyReleaseMsg:
+		if v.hasKeyEventTypes {
+			return nil
+		}
+
 	case TickMsg:
 		// Update metrics
 		v.lastMetrics = v.proc.GetMetrics()
@@ -133,8 +151,8 @@ func (v *WorkersView) Init() tea.Cmd {
 func (v *WorkersView) Resize(width, height int) {
 	v.width = width
 	v.height = height
-	v.viewport.Width = width - 4
-	v.viewport.Height = height - 2
+	v.viewport.SetWidth(width - 4)
+	v.viewport.SetHeight(height - 2)
 }
 
 // View renders the workers view
@@ -252,7 +270,7 @@ func (v *WorkersView) View() string {
 
 // renderScrollIndicator renders scroll position indicator if content is scrollable
 func (v *WorkersView) renderScrollIndicator() string {
-	if v.viewport.TotalLineCount() <= v.viewport.Height {
+	if v.viewport.TotalLineCount() <= v.viewport.Height() {
 		return ""
 	}
 
