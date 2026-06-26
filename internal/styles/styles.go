@@ -14,7 +14,7 @@ var (
 			Padding(0, 1).
 			Bold(true)
 	TitleBarStyle         = lipgloss.NewStyle().PaddingBottom(1)
-	ItemStyle             = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("255"))
+	ItemStyle             = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
 	SelectedItemStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#d6acff"))
 	PaginationStyle       = lipgloss.NewStyle().PaddingLeft(2)
 	ActivePaginationDot   lipgloss.Style
