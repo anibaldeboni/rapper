@@ -128,9 +128,12 @@ email`
 		bodyInput:      bodyInput,
 		headersInput:   headersInput,
 		csvFieldsInput: csvFieldsInput,
-		focused:        urlField,
-		focusable:      []int{sliderField, urlField, methodField, bodyField, headersField, csvFieldsField},
-		viewport:       viewport.New(viewport.WithWidth(0), viewport.WithHeight(0)),
+		// Slider gets the initial focus so the +/- keys work the moment
+		// the user lands in Settings. Tab still moves focus into the
+		// form fields, so typing '+' inside URL/headers remains possible.
+		focused:   sliderField,
+		focusable: []int{sliderField, urlField, methodField, bodyField, headersField, csvFieldsField},
+		viewport:  viewport.New(viewport.WithWidth(0), viewport.WithHeight(0)),
 	}
 
 	// Load current configuration
