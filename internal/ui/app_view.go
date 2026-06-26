@@ -11,7 +11,7 @@ import (
 )
 
 // toastOverlayWidth is the width reserved for the top-right toast corner
-// overlay. The metric panel in the Logs view uses ~28 columns by default
+// overlay. The metric panel in the Logs view uses ~36 columns by default
 // so 40 leaves a small visual gap between the two top-right elements.
 const toastOverlayWidth = 40
 

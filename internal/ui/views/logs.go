@@ -20,12 +20,16 @@ var (
 // metricsMinWidth is the floor for the metrics column on the right side of
 // the Logs view. The width is recomputed against the full available width
 // in Resize, capped to ~30% of the available area so a wide terminal does
-// not give the metrics an absurd amount of space.
-const metricsMinWidth = 18
+// not give the metrics an absurd amount of space. The minimum is large
+// enough to hold the 20-char label column plus a separator plus a
+// multi-digit value, so a narrow terminal still shows complete rows.
+const metricsMinWidth = 24
 
 // metricsDefaultWidth is the default width of the metrics column on the
-// right side of the Logs view when there is plenty of room.
-const metricsDefaultWidth = 28
+// right side of the Logs view when there is plenty of room. Sized to fit
+// the widest row (label + separator + value, e.g. throughput with five
+// digits + " req/s") without lipgloss clipping the right edge.
+const metricsDefaultWidth = 36
 
 // LogsView displays execution logs alongside the live metrics panel.
 type LogsView struct {
