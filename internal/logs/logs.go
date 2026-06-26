@@ -12,15 +12,15 @@ type Line interface {
 	Bytes() []byte
 }
 
-type loggerImpl struct {
-	file     *os.File
-	messages []Message
+type logger struct {
+	file *os.File
 	sync.RWMutex
+	messages []Message
 }
 
 // NewLoggger creates a new logger instance.
-func NewLoggger(filePath string) *loggerImpl {
-	var logger loggerImpl
+func NewLoggger(filePath string) *logger {
+	var logger logger
 	if filePath != "" {
 		if file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660); err != nil {
 			logger.Add(errorMessage(err.Error()))
@@ -32,14 +32,14 @@ func NewLoggger(filePath string) *loggerImpl {
 }
 
 // Add appends a log message to the log manager's logs.
-func (l *loggerImpl) Add(log Message) {
+func (l *logger) Add(log Message) {
 	l.Lock()
 	defer l.Unlock()
 	l.messages = append(l.messages, log)
 }
 
 // Get returns all logs as a slice of strings.
-func (l *loggerImpl) Get() []string {
+func (l *logger) Get() []string {
 	l.RLock()
 	defer l.RUnlock()
 	logs := make([]string, 0, len(l.messages))
@@ -51,7 +51,7 @@ func (l *loggerImpl) Get() []string {
 
 // WriteToFile writes the given log line to the log file, if it is open.
 // If there is an error while writing to the file, an error message is added to the logger.
-func (l *loggerImpl) WriteToFile(line Line) {
+func (l *logger) WriteToFile(line Line) {
 	if l.file != nil {
 		if err := write(l.file, line); err != nil {
 			l.Add(errorMessage(err.Error()))
