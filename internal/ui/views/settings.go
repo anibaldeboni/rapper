@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/config"
+	"github.com/anibaldeboni/rapper/internal/ui/components"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
@@ -29,7 +30,8 @@ var (
 
 // focusable fields
 const (
-	urlField = iota
+	sliderField = iota
+	urlField
 	methodField
 	bodyField
 	headersField
@@ -40,9 +42,13 @@ const (
 // SettingsView displays and edits configuration settings
 type SettingsView struct {
 	configMgr ports.ConfigManager
+	proc      ports.ProcessorController
 	width     int
 	height    int
 	viewport  viewport.Model
+
+	// Worker count slider (above the form fields)
+	slider *components.Slider
 
 	// Form fields
 	urlInput       textinput.Model
@@ -63,8 +69,10 @@ type SettingsView struct {
 	modified bool
 }
 
-// NewSettingsView creates a new SettingsView
-func NewSettingsView(configMgr ports.ConfigManager) *SettingsView {
+// NewSettingsView creates a new SettingsView. The proc controller is required
+// because the worker-count slider at the top of the view mutates the runtime
+// processor immediately on change.
+func NewSettingsView(configMgr ports.ConfigManager, proc ports.ProcessorController) *SettingsView {
 	// Create URL input
 	urlInput := textinput.New()
 	urlInput.Placeholder = "http://localhost:8080/api/v1/users"
@@ -106,15 +114,22 @@ email`
 	// csvFieldsInput.SetWidth(80)
 	csvFieldsInput.ShowLineNumbers = false
 
+	// Worker count slider — range matches processor's [1, runtime.NumCPU()]
+	// convention; the processor initializes to the max so we mirror that here.
+	initial := proc.GetWorkerCount()
+	slider := components.NewSlider("Worker Count", 1, initial, initial)
+
 	v := &SettingsView{
 		configMgr:      configMgr,
+		proc:           proc,
+		slider:         slider,
 		urlInput:       urlInput,
 		methodInput:    methodInput,
 		bodyInput:      bodyInput,
 		headersInput:   headersInput,
 		csvFieldsInput: csvFieldsInput,
 		focused:        urlField,
-		focusable:      []int{urlField, methodField, bodyField, headersField, csvFieldsField},
+		focusable:      []int{sliderField, urlField, methodField, bodyField, headersField, csvFieldsField},
 		viewport:       viewport.New(viewport.WithWidth(0), viewport.WithHeight(0)),
 	}
 
@@ -227,8 +242,11 @@ func (v *SettingsView) updateFocus() {
 	v.bodyInput.Blur()
 	v.headersInput.Blur()
 	v.csvFieldsInput.Blur()
+	v.slider.Focused = false
 
 	switch v.focused {
+	case sliderField:
+		v.slider.Focused = true
 	case urlField:
 		v.urlInput.Focus()
 	case methodField:
@@ -279,6 +297,19 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 				v.viewport.GotoBottom()
 				return nil
 			}
+		}
+
+		// Slider key handling — only when the slider is focused and the
+		// profile selector modal is not in front of the form. This keeps
+		// `+`/`-` typing intact in URL/method/headers.
+		if v.focused == sliderField && !v.showProfileSelector {
+			prev := v.slider.Value
+			updated, _ := v.slider.Update(msg)
+			v.slider = &updated
+			if v.slider.Value != prev {
+				v.proc.SetWorkers(v.slider.Value)
+			}
+			return nil
 		}
 
 		if v.showProfileSelector {
@@ -423,6 +454,7 @@ func (v *SettingsView) View() string {
 				profileBadgeStyle.Render("📋 "+v.getActiveProfileName()),
 			),
 		),
+		inputStyle.Render(v.slider.View()),
 		v.renderInput(urlField, "URL template:", v.urlInput),
 		v.renderInput(methodField, "Method:", v.methodInput),
 		v.renderTextArea(bodyField, "Body template:", v.bodyInput),
