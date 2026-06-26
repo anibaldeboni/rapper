@@ -143,31 +143,44 @@ func (m AppModel) renderStatusBar() string {
 }
 
 // spliceRight overlays the given text on the right side of the base string.
-// Both inputs are multi-line. The overlay's first line replaces the rightmost
-// N characters of the base's first line, the second line replaces the right
-// of the base's second line, and so on. Lines beyond the overlay length are
-// untouched. Returns the base string when either input is empty.
+// The base is assumed to be the global app layout produced by View(),
+// with the header on line 0 and the status bar on the last line; the
+// overlay is stacked on the right edge of the content area in between
+// (lines 1..len-2). Toasts never overwrite the header or the status bar.
+// Returns the base string when either input is empty or when the base
+// has no content area to overlay onto.
 func spliceRight(base, overlay string, _ int) string {
 	if base == "" || overlay == "" {
 		return base
 	}
 
-	overlayLines := strings.Split(overlay, "\n")
 	baseLines := strings.Split(base, "\n")
-	if len(baseLines) == 0 {
+	if len(baseLines) < 3 {
+		// No content area between header and status bar: keep the
+		// header and status bar untouched and drop the overlay.
 		return base
 	}
 
+	// Reserve line 0 for the header and line len(baseLines)-1 for the
+	// status bar. The overlay is spliced onto the lines in between so
+	// every toast lands in the content area, stacked at the top.
+	contentStart := 1
+	contentEnd := len(baseLines) - 1
+	overlayLines := strings.Split(overlay, "\n")
+
 	for i, overlayLine := range overlayLines {
-		if i >= len(baseLines) {
+		target := contentStart + i
+		if target >= contentEnd {
+			// No more content lines available; drop extra overlay
+			// lines instead of overwriting the status bar.
 			break
 		}
-		baseLine := baseLines[i]
+		baseLine := baseLines[target]
 		overlayWidth := lipgloss.Width(overlayLine)
 		baseWidth := lipgloss.Width(baseLine)
 		// Trim the base line so that the overlay fits on the right.
 		if overlayWidth >= baseWidth {
-			baseLines[i] = overlayLine
+			baseLines[target] = overlayLine
 			continue
 		}
 		// Keep the left portion of the base line and append the overlay.
@@ -175,7 +188,7 @@ func spliceRight(base, overlay string, _ int) string {
 		// need to slice on visible width; using a simple approach: keep
 		// baseWidth-overlayWidth characters of the visible base.
 		keep := baseWidth - overlayWidth
-		baseLines[i] = truncateVisibleLeft(baseLine, keep) + overlayLine
+		baseLines[target] = truncateVisibleLeft(baseLine, keep) + overlayLine
 	}
 	return strings.Join(baseLines, "\n")
 }
