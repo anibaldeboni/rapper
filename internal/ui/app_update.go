@@ -29,18 +29,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, kbind.ViewFiles):
 			m.nav.Set(ViewFiles)
+			m.logsView.SetMetricsVisible(false)
 			return m, nil
 
 		case key.Matches(msg, kbind.ViewLogs):
 			m.nav.Set(ViewLogs)
+			m.logsView.SetMetricsVisible(true)
 			return m, nil
 
 		case key.Matches(msg, kbind.ViewSettings):
 			m.nav.Set(ViewSettings)
-			return m, nil
-
-		case key.Matches(msg, kbind.ViewWorkers):
-			m.nav.Set(ViewWorkers)
+			m.logsView.SetMetricsVisible(false)
 			return m, nil
 
 		case key.Matches(msg, kbind.CancelOperation):
@@ -72,7 +71,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyboardEnhancementsMsg:
 		m.hasKeyEventTypes = msg.SupportsEventTypes()
-		m.workersView.SetKeyboardEventTypes(m.hasKeyEventTypes)
 		return m, nil
 
 	case msgs.TickMsg:
@@ -105,11 +103,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, logsCmd)
 		}
 
-		// Forward tick to WorkersView for metrics updates
-		if m.nav.Current() == ViewWorkers {
-			// Convert tickMsg to views.TickMsg
-			workersCmd := m.workersView.Update(views.TickMsg(msg))
-			cmds = append(cmds, workersCmd)
+		// Forward metrics tick to LogsView only when active. The metrics
+		// panel owns its own tick chain and stops it via SetVisible(false)
+		// when the user navigates away.
+		if m.nav.Current() == ViewLogs {
+			metricsCmd := m.logsView.Update(msgs.MetricsTickMsg(msg))
+			cmds = append(cmds, metricsCmd)
 		}
 
 	case msgs.ProcessingStartedMsg:
@@ -173,9 +172,6 @@ func (m AppModel) updateCurrentView(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case ViewSettings:
 		cmd = m.settingsView.Update(msg)
-
-	case ViewWorkers:
-		cmd = m.workersView.Update(msg)
 	}
 
 	return m, cmd
@@ -236,5 +232,4 @@ func (m AppModel) broadcastResize() {
 	m.filesView.Resize(availableWidth, availableHeight)
 	m.logsView.Resize(availableWidth, availableHeight)
 	m.settingsView.Resize(availableWidth, availableHeight)
-	m.workersView.Resize(availableWidth, availableHeight)
 }

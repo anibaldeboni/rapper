@@ -43,10 +43,6 @@ var (
 		key.WithKeys("f3", "ctrl+t"),
 		key.WithHelp("F3", "settings"),
 	)
-	ViewWorkers = key.NewBinding(
-		key.WithKeys("f4", "ctrl+w"),
-		key.WithHelp("F4", "workers"),
-	)
 	Save = key.NewBinding(
 		key.WithKeys("ctrl+s"),
 		key.WithHelp("ctrl+s", "save"),
@@ -54,14 +50,6 @@ var (
 	Profile = key.NewBinding(
 		key.WithKeys("ctrl+p"),
 		key.WithHelp("ctrl+p", "profile"),
-	)
-	WorkerInc = key.NewBinding(
-		key.WithKeys("right", "+"),
-		key.WithHelp("→/+", "increase"),
-	)
-	WorkerDec = key.NewBinding(
-		key.WithKeys("left", "-"),
-		key.WithHelp("←/-", "decrease"),
 	)
 	SliderInc = key.NewBinding(
 		key.WithKeys("+"),

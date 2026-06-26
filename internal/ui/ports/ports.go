@@ -46,7 +46,8 @@ type ConfigProvider interface {
 }
 
 // ProcessorController defines the interface for controlling request processing.
-// Used by AppModel and WorkersView to start processing and monitor status.
+// Used by AppModel and the in-view metrics panel in LogsView to start
+// processing and monitor status.
 //
 //go:generate mockgen -destination ../mock/processor_controller_mock.go -package mock_ui github.com/anibaldeboni/rapper/internal/ui/ports ProcessorController
 type ProcessorController interface {
