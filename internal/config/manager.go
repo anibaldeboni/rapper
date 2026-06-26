@@ -86,7 +86,24 @@ func (m *managerImpl) GetActiveProfile() string {
 	return active.Name
 }
 
-// SetActiveProfile switches to the specified profile
+// SetActiveProfile switches to the specified profile and notifies all
+// OnChange listeners with the new active *Config, mirroring the notification
+// block in Update.
 func (m *managerImpl) SetActiveProfile(name string) error {
-	return m.profileMgr.setActive(name)
+	if err := m.profileMgr.setActive(name); err != nil {
+		return err
+	}
+
+	cfg := m.Get()
+
+	m.mu.RLock()
+	listeners := make([]func(*Config), len(m.listeners))
+	copy(listeners, m.listeners)
+	m.mu.RUnlock()
+
+	for _, fn := range listeners {
+		fn(cfg)
+	}
+
+	return nil
 }
