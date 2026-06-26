@@ -16,9 +16,8 @@ Rapper is a powerful, configurable CLI tool to perform multiple HTTP requests ba
 
 ### 🎯 Multi-View TUI Interface
 - **Files View**: Browse and select CSV files for processing
-- **Logs View**: Real-time processing logs with scroll support
-- **Settings View**: Edit configuration with live preview
-- **Workers View**: Monitor and control worker pool dynamically
+- **Logs View**: Real-time processing logs with live metrics on the right
+- **Settings View**: Edit configuration and tune the worker count via slider
 
 ### 📋 Profile Management
 - Support for multiple configuration profiles (dev, staging, production, etc.)
@@ -34,7 +33,7 @@ Rapper is a powerful, configurable CLI tool to perform multiple HTTP requests ba
 - Real-time validation and unsaved changes indicator
 
 ### 👷 Dynamic Worker Pool
-- Adjust worker count in real-time with arrow keys or +/-
+- Adjust worker count in real-time from the top of Settings with `+` / `-`
 - Visual slider for worker count (1 to CPU count)
 - Instant feedback without restarting
 
@@ -45,7 +44,7 @@ Rapper is a powerful, configurable CLI tool to perform multiple HTTP requests ba
 - Throughput (requests per second)
 - Elapsed time during processing
 - Active workers count
-- Auto-refresh every 500ms
+- Visible on the right side of the Logs view, auto-refresh every 100ms
 
 ### 🎨 Visual Polish
 - Toast notifications for important actions
@@ -100,24 +99,21 @@ Have in mind that when a request fails all variables selected in `csv` field wil
 - `F1`: Switch to Files view
 - `F2`: Switch to Logs view
 - `F3`: Switch to Settings view
-- `F4`: Switch to Workers view
 - `Ctrl+C`: Cancel operation
 - `q`: Quit application
 
 ### Settings View
-- `Tab` / `Shift+Tab`: Navigate between form fields
+- `Tab` / `Shift+Tab`: Navigate between form fields (slider is the first field)
+- `+` / `-`: Increase / decrease worker count when the slider is focused
 - `Ctrl+S`: Save configuration
 - `Ctrl+P`: Open profile selector
 - Arrow keys in form: Edit text
 - `↑` / `↓`: Navigate profile list (when profile selector is open)
 - `Enter`: Select profile (when profile selector is open)
 
-### Workers View
-- `←` / `→`: Decrease/increase worker count
-- `-` / `+`: Decrease/increase worker count
-
 ### Files & Logs View
 - `↑` / `↓` / `←` / `→`: Navigate file list / Scroll logs
+- The Logs view shows live processing metrics on the right side while processing
 
 ## Usage
 

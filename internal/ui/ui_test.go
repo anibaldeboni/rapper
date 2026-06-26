@@ -27,7 +27,8 @@ func TestNewUI(t *testing.T) {
 		logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
 		// Mock ConfigManager.Get() which is called during settings view initialization
 		configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-		// Mock Processor.GetWorkerCount() which is called during workers view initialization
+		// Mock Processor.GetWorkerCount() which is called during settings view
+		// initialization to seed the worker-count slider at the top of the view.
 		processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
 
 		c := ui.NewApp(filePaths, processorMock, logManagerMock, configMgrMock)
