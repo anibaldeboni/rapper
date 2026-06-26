@@ -6,6 +6,12 @@ import (
 
 type TickMsg time.Time
 
+// MetricsTickMsg fires every 100ms while the Logs view is active and drives
+// the real-time metrics panel refresh. Defined here so any view or component
+// can subscribe to the same tick stream without depending on the deleted
+// `views` workers package.
+type MetricsTickMsg time.Time
+
 // ConfigSavedMsg is sent when configuration is successfully saved
 type ConfigSavedMsg struct{}
 

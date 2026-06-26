@@ -63,6 +63,14 @@ var (
 		key.WithKeys("left", "-"),
 		key.WithHelp("←/-", "decrease"),
 	)
+	SliderInc = key.NewBinding(
+		key.WithKeys("+"),
+		key.WithHelp("+", "increase workers"),
+	)
+	SliderDec = key.NewBinding(
+		key.WithKeys("-"),
+		key.WithHelp("-", "decrease workers"),
+	)
 	NextField = key.NewBinding(
 		key.WithKeys("tab"),
 		key.WithHelp("tab", "next field"),

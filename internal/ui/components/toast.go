@@ -117,6 +117,25 @@ func (tm *ToastManager) Render() string {
 	return rendered.String()
 }
 
+// RenderOverlay returns the active toasts joined vertically with a trailing
+// newline, each row constrained to the given width. Designed to be spliced
+// into the top-right corner of the global view by app_view.go: the per-toast
+// fade (Faint in the last 25% of lifetime) is preserved so the visual feel
+// is unchanged from the previous side-panel rendering.
+func (tm *ToastManager) RenderOverlay(width int) string {
+	if !tm.HasActive() || width <= 0 {
+		return ""
+	}
+
+	rowStyle := lipgloss.NewStyle().Width(width).Align(lipgloss.Left)
+	rows := make([]string, 0, len(tm.toasts))
+	for _, toast := range tm.toasts {
+		rows = append(rows, rowStyle.Render(renderToast(toast)))
+	}
+
+	return strings.Join(rows, "\n")
+}
+
 // renderToast renders a single toast notification
 func renderToast(toast Toast) string {
 	var icon string
