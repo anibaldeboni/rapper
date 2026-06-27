@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -113,4 +114,139 @@ func TestSpliceRight_MoreOverlayThanContentLinesStops(t *testing.T) {
 	// Status bar must be untouched even with extra overlay lines.
 	assert.Equal(t, status, lines[len(lines)-1], "status bar must stay untouched when overlay is longer than content")
 	assert.NotContains(t, lines[len(lines)-1], "TOAST", "status bar must not contain any toast")
+}
+
+// TestSpliceRight_OverlayAnchoredToRightEdgeNotBaseLineWidth reproduces the
+// visual bug where the middle line of a multi-line toast appeared on the
+// LEFT while the top and bottom lines were on the RIGHT. The cause:
+// spliceRight compared the overlay width against the BASE line width and,
+// when the base line was shorter than the overlay, replaced the base line
+// entirely — leaving the overlay at column 0 instead of the right edge.
+//
+// The fix must anchor the overlay to a fixed x-position computed from the
+// terminal width (the `width` parameter), independent of the visible
+// width of each base line. All overlay lines must end at the same column
+// from the right, regardless of how short the underlying base line is.
+func TestSpliceRight_OverlayAnchoredToRightEdgeNotBaseLineWidth(t *testing.T) {
+	// Build a base where the middle content line is intentionally SHORT
+	// (only 20 visible cols) while the top/bottom content lines are full
+	// width (80 visible cols). The header and status bar are full width.
+	header := strings.Repeat("H", 80)
+	shortMiddle := "SHORT MIDDLE LINE"
+	fullWidthBottom := strings.Repeat("B", 80)
+	status := strings.Repeat("S", 80)
+
+	base := strings.Join([]string{header, fullWidthBottom, shortMiddle, fullWidthBottom, status}, "\n")
+
+	// Overlay lines are 40 visible cols each. With a 120-col terminal and
+	// a 2-col right margin, the expected targetX is 120 - 40 - 2 = 78.
+	// All overlay lines must end at column 117 (right edge - 2 margin).
+	overlay := strings.Join([]string{
+		strings.Repeat("X", 40),
+		strings.Repeat("Y", 40),
+		strings.Repeat("Z", 40),
+	}, "\n")
+
+	terminalWidth := 120
+	got := spliceRight(base, overlay, terminalWidth)
+	lines := strings.Split(got, "\n")
+
+	// The overlay lands on lines 1, 2, 3 (between header at 0 and
+	// status at len-1). Inspect the visible width of each spliced line
+	// to confirm the overlay was placed at the same x-position from
+	// the right, regardless of base line width.
+	for i := 1; i <= 3; i++ {
+		gotWidth := lipgloss.Width(lines[i])
+		// Each spliced line must contain exactly the base-line prefix
+		// (truncated to targetX) plus the 40-col overlay.
+		// targetX = 120 - 40 - 2 = 78 visible columns of base kept.
+		expectedMinWidth := 78 + 40 // = 118
+		assert.GreaterOrEqual(t, gotWidth, expectedMinWidth,
+			"line %d must contain the full overlay (40 cols) starting at x=78, not collapsed to the left; got visible width %d",
+			i, gotWidth)
+	}
+
+	// The middle line (index 2) is the one that USED to break: the base
+	// was only 17 visible cols, so the old code replaced it with the
+	// overlay entirely, putting the overlay at column 0 (visible width
+	// = 40). The fix must ensure the middle line is at least 118 visible
+	// cols wide — proving the overlay is anchored to the right edge.
+	middleWidth := lipgloss.Width(lines[2])
+	assert.GreaterOrEqual(t, middleWidth, 118,
+		"middle line (short base) must have overlay anchored to right edge; got width %d (this is the bug — overlay was at column 0)",
+		middleWidth)
+
+	// The overlay must be present in the middle line at all (regression
+	// guard against the overlay being dropped).
+	assert.Contains(t, lines[2], strings.Repeat("Y", 40),
+		"middle line must contain the second overlay line")
+}
+
+// TestSpliceRight_WidthParameterControlsRightEdge verifies the
+// triangulation: the `width` parameter actually drives the right-edge
+// anchor. Two different widths must place the overlay at two different
+// x-positions from the right, proving the fix is not relying on a
+// hardcoded column.
+func TestSpliceRight_WidthParameterControlsRightEdge(t *testing.T) {
+	base := strings.Join([]string{
+		strings.Repeat("H", 100), // header
+		strings.Repeat("B", 100), // content 1
+		strings.Repeat("B", 100), // content 2
+		strings.Repeat("S", 100), // status
+	}, "\n")
+	overlay := strings.Repeat("X", 20) // 20-col overlay
+
+	// Wide terminal: overlay should be far from the left.
+	wideResult := spliceRight(base, overlay, 200)
+	wideLines := strings.Split(wideResult, "\n")
+	wideLine := wideLines[1] // first content line
+
+	// Narrow terminal: overlay should be closer to the left.
+	narrowResult := spliceRight(base, overlay, 80)
+	narrowLines := strings.Split(narrowResult, "\n")
+	narrowLine := narrowLines[1]
+
+	// In the wide case, the first 'X' must appear later (further right)
+	// than in the narrow case.
+	wideXPos := strings.Index(wideLine, "X")
+	narrowXPos := strings.Index(narrowLine, "X")
+	assert.Greater(t, wideXPos, narrowXPos,
+		"wider terminal must place overlay further from the left: wide=%d narrow=%d",
+		wideXPos, narrowXPos)
+
+	// The overlay must still be anchored: in a 200-col terminal with a
+	// 20-col overlay and 2-col margin, targetX = 200-20-2 = 178. The
+	// 100-col base is padded to 178, so the first X is at column 178.
+	assert.Equal(t, 178, wideXPos,
+		"wide terminal: overlay first X must be at column 178 (200-20-2)")
+
+	// In an 80-col terminal: targetX = 80-20-2 = 58.
+	assert.Equal(t, 58, narrowXPos,
+		"narrow terminal: overlay first X must be at column 58 (80-20-2)")
+}
+
+// TestSpliceRight_OverlayWiderThanTerminalFallsBackToZero verifies the
+// edge case: when the overlay is wider than the available terminal
+// width, the function places it at column 0 instead of producing a
+// negative targetX. This prevents arithmetic underflow and keeps the
+// overlay visible.
+func TestSpliceRight_OverlayWiderThanTerminalFallsBackToZero(t *testing.T) {
+	base := strings.Join([]string{
+		strings.Repeat("H", 50),
+		strings.Repeat("B", 50),
+		strings.Repeat("S", 50),
+	}, "\n")
+	overlay := strings.Repeat("X", 60) // wider than terminal (40)
+
+	got := spliceRight(base, overlay, 40) // terminal narrower than overlay
+	lines := strings.Split(got, "\n")
+
+	// Overlay must land on the content line (line 1) and start at x=0
+	// (the fallback when targetX would be negative).
+	assert.Contains(t, lines[1], strings.Repeat("X", 60),
+		"overlay must be present in the content line even when it is wider than the terminal")
+
+	// Header and status must still be untouched.
+	assert.Equal(t, strings.Repeat("H", 50), lines[0])
+	assert.Equal(t, strings.Repeat("S", 50), lines[len(lines)-1])
 }

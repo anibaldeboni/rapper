@@ -147,10 +147,17 @@ func (m AppModel) renderStatusBar() string {
 // with the header on line 0 and the status bar on the last line; the
 // overlay is stacked on the right edge of the content area in between
 // (lines 1..len-2). Toasts never overwrite the header or the status bar.
-// Returns the base string when either input is empty or when the base
-// has no content area to overlay onto.
-func spliceRight(base, overlay string, _ int) string {
-	if base == "" || overlay == "" {
+// Returns the base string when either input is empty, when width is
+// non-positive, or when the base has no content area to overlay onto.
+//
+// The overlay is anchored to a fixed x-position computed from the
+// terminal width (not the base line width) so that all overlay lines
+// end at the same column from the right, regardless of how short the
+// underlying base line is. This prevents the visual bug where a short
+// middle content line caused its overlay to collapse to the LEFT edge
+// while the top and bottom lines were correctly on the RIGHT.
+func spliceRight(base, overlay string, width int) string {
+	if base == "" || overlay == "" || width <= 0 {
 		return base
 	}
 
@@ -177,18 +184,29 @@ func spliceRight(base, overlay string, _ int) string {
 		}
 		baseLine := baseLines[target]
 		overlayWidth := lipgloss.Width(overlayLine)
-		baseWidth := lipgloss.Width(baseLine)
-		// Trim the base line so that the overlay fits on the right.
-		if overlayWidth >= baseWidth {
-			baseLines[target] = overlayLine
-			continue
+
+		// Compute the x-position from the RIGHT edge of the terminal.
+		// A small right margin keeps the overlay from touching the
+		// screen edge. This is independent of the base line width so
+		// every overlay line ends at the same column.
+		const rightMargin = 2
+		targetX := width - overlayWidth - rightMargin
+		if targetX < 0 {
+			// Overlay is wider than the available space. Place it
+			// at column 0 and let the terminal wrap/clip naturally.
+			targetX = 0
 		}
-		// Keep the left portion of the base line and append the overlay.
-		// lipgloss Width returns visible columns ignoring ANSI escapes so we
-		// need to slice on visible width; using a simple approach: keep
-		// baseWidth-overlayWidth characters of the visible base.
-		keep := baseWidth - overlayWidth
-		baseLines[target] = truncateVisibleLeft(baseLine, keep) + overlayLine
+
+		// Keep the left `targetX` visible columns of the base line
+		// (so the base appears to the left of the overlay) and pad
+		// with spaces to exactly `targetX` visible cols. Padding is
+		// required so that short base lines still anchor the overlay
+		// to the right edge — otherwise a 17-col base would leave
+		// the overlay at column 17 instead of column 78.
+		truncated := truncateVisibleLeft(baseLine, targetX)
+		baseVisibleWidth := lipgloss.Width(truncated)
+		padding := strings.Repeat(" ", targetX-baseVisibleWidth)
+		baseLines[target] = truncated + padding + overlayLine
 	}
 	return strings.Join(baseLines, "\n")
 }
