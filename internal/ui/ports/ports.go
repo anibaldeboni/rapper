@@ -62,6 +62,11 @@ type ProcessorController interface {
 
 	// GetWorkerCount returns the current worker count
 	GetWorkerCount() int
+
+	// GetMaxWorkers returns the maximum number of workers the processor
+	// will accept (processor.MaxWorkers, derived from runtime.NumCPU()).
+	// Consumers (e.g. the Settings slider) use this to bound user input.
+	GetMaxWorkers() int
 }
 
 // ProcessorMetrics holds real-time processing metrics.

@@ -115,9 +115,11 @@ email`
 	csvFieldsInput.ShowLineNumbers = false
 
 	// Worker count slider — range matches processor's [1, runtime.NumCPU()]
-	// convention; the processor initializes to the max so we mirror that here.
+	// convention. The slider's Max is the hardware ceiling (not the current
+	// count) so the user can always grow the worker pool back up after it
+	// has been throttled down.
 	initial := proc.GetWorkerCount()
-	slider := components.NewSlider("Worker Count", 1, initial, initial)
+	slider := components.NewSlider("Worker Count", 1, proc.GetMaxWorkers(), initial)
 
 	v := &SettingsView{
 		configMgr:      configMgr,

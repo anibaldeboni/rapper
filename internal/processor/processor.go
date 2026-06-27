@@ -237,3 +237,10 @@ func (p *processorImpl) GetWorkerCount() int {
 
 	return p.workers
 }
+
+// GetMaxWorkers returns the maximum number of workers accepted by the
+// processor (processor.MaxWorkers, derived from runtime.NumCPU()). Used by
+// UI surfaces to bound the worker-count slider.
+func (p *processorImpl) GetMaxWorkers() int {
+	return MaxWorkers
+}

@@ -43,6 +43,7 @@ func TestSettingsView_SliderFocusedOnConstruction_PlusKeyIncrements(t *testing.T
 	// because focus defaulted to urlField.
 	const current = 4
 	proc.EXPECT().GetWorkerCount().Return(current).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(current).AnyTimes()
 	configMgr.EXPECT().Get().Return(nil).AnyTimes()
 
 	v := NewSettingsView(configMgr, proc)
@@ -69,11 +70,50 @@ func TestSettingsView_SliderFocusedOnConstruction_RendersFocusIndicator(t *testi
 	proc := mock_ui.NewMockProcessorController(ctrl)
 
 	proc.EXPECT().GetWorkerCount().Return(2).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(2).AnyTimes()
 	configMgr.EXPECT().Get().Return(nil).AnyTimes()
 
 	v := NewSettingsView(configMgr, proc)
 
 	assert.True(t, v.slider.Focused, "slider must be focused on construction so + / - work immediately")
+}
+
+// TestSettingsView_SliderMaxEqualsProcessorMaxWorkers is the regression test
+// for the bug where the worker-count slider was constructed with Max equal to
+// the current worker count instead of the hardware maximum. The slider Max
+// must reflect processor.MaxWorkers (runtime.NumCPU()) so that pressing `+`
+// can raise the count beyond the current setting.
+//
+// Root cause: settings.go used `initial` for both the slider's Value and Max
+// arguments to NewSlider. If the processor started at 2 workers (e.g. via
+// the `-workers` flag), the slider was bounded to [1, 2] and the user could
+// never grow it back up to NumCPU() from the Settings view.
+//
+// Fix: introduce GetMaxWorkers() on the ProcessorController port and pass
+// its return value as the slider's Max. The hexagonal boundary is preserved
+// because the views package continues to depend only on the port interface.
+func TestSettingsView_SliderMaxEqualsProcessorMaxWorkers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	configMgr := mock_ui.NewMockConfigManager(ctrl)
+	proc := mock_ui.NewMockProcessorController(ctrl)
+
+	// Seed the processor at a worker count below NumCPU so that the
+	// difference between current and max is visible. On an 8-core machine
+	// the user should be able to climb from 2 up to 8.
+	const current = 2
+	const maxWorkers = 8
+	proc.EXPECT().GetWorkerCount().Return(current).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(maxWorkers).AnyTimes()
+	configMgr.EXPECT().Get().Return(nil).AnyTimes()
+
+	v := NewSettingsView(configMgr, proc)
+
+	assert.Equal(t, maxWorkers, v.slider.Max,
+		"slider Max must equal processor.MaxWorkers, not the current worker count; "+
+			"otherwise the user is trapped at the initial value and can never grow it")
+	assert.Equal(t, current, v.slider.Value, "slider Value must be seeded at the current worker count")
 }
 
 // TestSettingsView_SliderAcceptsKittyProtocolPlusKey is the regression test
@@ -108,6 +148,7 @@ func TestSettingsView_SliderAcceptsKittyProtocolPlusKey(t *testing.T) {
 	// exercise the same real-world sequence: - first, + second.
 	const current = 4
 	proc.EXPECT().GetWorkerCount().Return(current).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(current).AnyTimes()
 	configMgr.EXPECT().Get().Return(nil).AnyTimes()
 
 	v := NewSettingsView(configMgr, proc)

@@ -30,6 +30,9 @@ func TestNewUI(t *testing.T) {
 		// Mock Processor.GetWorkerCount() which is called during settings view
 		// initialization to seed the worker-count slider at the top of the view.
 		processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+		// Mock Processor.GetMaxWorkers() which is called during settings view
+		// initialization to bound the worker-count slider to runtime.NumCPU().
+		processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
 
 		c := ui.NewApp(filePaths, processorMock, logManagerMock, configMgrMock)
 
@@ -51,6 +54,7 @@ func TestSmallWindowHandling(t *testing.T) {
 	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
 	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
 	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
 	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
 
 	app := ui.NewApp(filePaths, processorMock, logManagerMock, configMgrMock)
@@ -100,6 +104,7 @@ func TestProgramWithWindowSizeIntegration(t *testing.T) {
 	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
 	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
 	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
 	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
 
 	app := ui.NewApp(filePaths, processorMock, logManagerMock, configMgrMock)
