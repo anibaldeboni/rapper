@@ -51,12 +51,27 @@ var (
 		key.WithKeys("ctrl+p"),
 		key.WithHelp("ctrl+p", "profile"),
 	)
+	// SliderInc/SliderDec accept both the shifted text ("+", "-") and the
+	// shifted keystroke ("shift+=", "shift+-") representations.
+	//
+	// Why both: Bubble Tea v2 enables the Kitty keyboard protocol
+	// (KeyboardEnhancements.ReportEventTypes) so terminals like Kitty,
+	// WezTerm, foot, and recent xterm builds send shifted characters as
+	// {Text: "", Code: unshifted-rune, Mod: ModShift} — not the legacy
+	// {Text: shifted-rune}. Key.String() then renders as "shift+=" rather
+	// than "+", and the bubbles Matches helper does plain string equality
+	// against the binding keys, so a single WithKeys("+") entry silently
+	// swallows the keypress.
+	//
+	// We keep the unshifted/legacy forms ("+", "-") so terminals that
+	// still send the old format (or keypads) keep working, and we add
+	// the Kitty keystroke forms so the modern format works too.
 	SliderInc = key.NewBinding(
-		key.WithKeys("+"),
+		key.WithKeys("+", "shift+="),
 		key.WithHelp("+", "increase workers"),
 	)
 	SliderDec = key.NewBinding(
-		key.WithKeys("-"),
+		key.WithKeys("-", "shift+-"),
 		key.WithHelp("-", "decrease workers"),
 	)
 	NextField = key.NewBinding(
