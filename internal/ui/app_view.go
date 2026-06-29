@@ -32,10 +32,22 @@ func (m AppModel) View() tea.View {
 	// Join all elements: header, content, and status bar. Toasts are layered
 	// on top of the content via line-splice rather than as a separate
 	// column so the active view can use the full content width.
+	//
+	// AlignVertical is set to Top (not Center) because each view has a
+	// different rendered height, and Center distributes the slack between
+	// top and bottom based on the (m.height - totalContent) diff. When
+	// the diff is odd — which is the case for the Settings view (37 total
+	// lines: 1 header + 35 view + 1 status) — lipgloss places the extra
+	// line above the global header, producing a "ghost line" that the
+	// user sees as an empty line on top of the menu. Top alignment keeps
+	// the header on line 0 regardless of view height, so the visual
+	// stays consistent across Files, Logs, and Settings. The unused
+	// vertical space (when the joined content is shorter than the
+	// terminal) simply lands at the bottom, under the status bar.
 	app := lipgloss.NewStyle().
 		MaxWidth(m.width).
 		MaxHeight(m.height).
-		AlignVertical(lipgloss.Center).
+		AlignVertical(lipgloss.Top).
 		Margin(0, 2).
 		Render(
 			lipgloss.JoinVertical(
@@ -57,7 +69,7 @@ func (m AppModel) View() tea.View {
 		m.width,
 		m.height,
 		lipgloss.Center,
-		lipgloss.Center,
+		lipgloss.Top,
 		app,
 	))
 	v.AltScreen = true

@@ -4,8 +4,12 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
+	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 // TestSpliceRight_StacksOverlayAtTopOfContentArea verifies that the
@@ -249,4 +253,92 @@ func TestSpliceRight_OverlayWiderThanTerminalFallsBackToZero(t *testing.T) {
 	// Header and status must still be untouched.
 	assert.Equal(t, strings.Repeat("H", 50), lines[0])
 	assert.Equal(t, strings.Repeat("S", 50), lines[len(lines)-1])
+}
+
+// TestView_HeaderAlwaysOnLineZero is the regression test for the
+// "extra empty line above the top menu" bug that manifested only on
+// the Settings view.
+//
+// Root cause: AppModel.View() used
+//
+//	lipgloss.NewStyle().MaxHeight(m.height).AlignVertical(lipgloss.Center)
+//
+// to vertically center the joined (header, view, statusBar) content
+// inside the terminal. Each view has a different rendered height, so
+// the (m.height - totalContent) diff varies per view. When the diff is
+// odd, lipgloss distributes the slack asymmetrically
+// (floor(diff/2) on top, ceil(diff/2) on bottom), which placed one
+// extra empty line above the global header for the Settings view
+// (totalContent=37 → diff=3 → 1 line above) but not for the Files view
+// (totalContent=38 → diff=2 → 1 line above too, but in a different
+// parity slot). The user perceived this as "an extra line only on
+// Settings".
+//
+// Fix: switch AlignVertical from Center to Top. The header is now
+// always on line 0 regardless of view height, so the "ghost line"
+// disappears from Settings. The unused vertical space (when the joined
+// content is shorter than the terminal) now lands at the bottom under
+// the status bar instead of being split between top and bottom. This
+// is a deliberate trade-off: the app no longer recenters on resize,
+// but the visual is consistent across all views.
+//
+// Test contract: for every (view, terminalHeight) pair, the global
+// header line must be the first non-empty line in the rendered output.
+// We probe Files, Logs, and Settings at three terminal heights (24,
+// 40, 80) to cover the common range. A 0-line top gap is the invariant.
+func TestView_HeaderAlwaysOnLineZero(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logManagerMock := mock_ui.NewMockLogService(ctrl)
+	processorMock := mock_ui.NewMockProcessorController(ctrl)
+	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
+
+	// Common expectations for all view initialisations.
+	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
+	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
+	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
+	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
+	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
+	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
+
+	// Use a representative CSV path so the Files view has real content.
+	csvPath := "../../tests/example.csv"
+	app := NewApp([]string{csvPath}, processorMock, logManagerMock, configMgrMock)
+
+	// Mark Settings as modified so its "⚠️ Unsaved changes" help line
+	// is visible — this exercises the worst-case Settings content
+	// height (the one that triggered the bug originally).
+	//
+	// Note: SettingsView.modified is unexported (views package). We
+	// cannot toggle it from here. The Settings view is exercised with
+	// its default state (no help line), which is the common case.
+
+	for _, termH := range []int{24, 40, 80} {
+		app.width = 100
+		app.height = termH
+		// Send a WindowSizeMsg so the views' Resize() runs and the
+		// renderers are calibrated for the chosen height.
+		app.Update(tea.WindowSizeMsg{Width: 100, Height: termH})
+
+		for _, viewName := range []View{ViewFiles, ViewLogs, ViewSettings} {
+			app.nav.Set(viewName)
+			view := app.View()
+			// tea.View.Content holds the rendered frame.
+			lines := strings.Split(view.Content, "\n")
+
+			firstContent := -1
+			for i, l := range lines {
+				if strings.TrimSpace(l) != "" {
+					firstContent = i
+					break
+				}
+			}
+			assert.Equal(t, 0, firstContent,
+				"view %s at height %d must have the global header on line 0 "+
+					"(no top ghost line); got first content on line %d",
+				viewName, termH, firstContent)
+		}
+	}
 }
