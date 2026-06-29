@@ -48,7 +48,7 @@ func (m AppModel) View() tea.View {
 		MaxWidth(m.width).
 		MaxHeight(m.height).
 		AlignVertical(lipgloss.Top).
-		Margin(0, 2).
+		Margin(1, 2).
 		Render(
 			lipgloss.JoinVertical(
 				lipgloss.Top,
