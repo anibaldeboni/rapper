@@ -286,6 +286,41 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
+		// Global shortcuts run first so navigation / save / profile always
+		// work regardless of which component has focus. Save, NextField
+		// and PrevField are pre-empted by the profile-selector modal —
+		// the modal is a true modal (per product decision) and ignores
+		// those keys when it is in front. Profile (Ctrl+P) is split:
+		// this switch opens the modal from the closed state; the modal
+		// block below handles closing it from the open state.
+		switch {
+		case key.Matches(msg, kbind.Save) && !v.showProfileSelector:
+			// Save configuration
+			return v.saveConfigCmd()
+
+		case key.Matches(msg, kbind.Profile) && !v.showProfileSelector:
+			// Toggle profile selector open
+			v.showProfileSelector = !v.showProfileSelector
+			// Set initial selection to current profile
+			profiles := v.getProfiles()
+			activeProfile := v.getActiveProfileName()
+			for i, name := range profiles {
+				if name == activeProfile {
+					v.profileListIndex = i
+					break
+				}
+			}
+			return nil
+
+		case key.Matches(msg, kbind.NextField) && !v.showProfileSelector:
+			v.nextField()
+			return nil
+
+		case key.Matches(msg, kbind.PrevField) && !v.showProfileSelector:
+			v.prevField()
+			return nil
+		}
+
 		// Handle viewport scrolling when not in profile selector or editing textareas
 		if !v.showProfileSelector {
 			switch {
@@ -304,19 +339,9 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			}
 		}
 
-		// Slider key handling — only when the slider is focused and the
-		// profile selector modal is not in front of the form. This keeps
-		// `+`/`-` typing intact in URL/method/headers.
-		if v.focused == sliderField && !v.showProfileSelector {
-			prev := v.slider.Value
-			updated, _ := v.slider.Update(msg)
-			v.slider = &updated
-			if v.slider.Value != prev {
-				v.proc.SetWorkers(v.slider.Value)
-			}
-			return nil
-		}
-
+		// Profile-selector modal. Handles Up / Down / Enter / Esc as
+		// before, plus a Ctrl+P case that closes the modal without
+		// changing focus and without producing a save command.
 		if v.showProfileSelector {
 			profiles := v.getProfiles()
 			switch {
@@ -346,36 +371,30 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			case key.Matches(msg, kbind.Cancel):
 				v.showProfileSelector = false
 				return nil
+
+			case key.Matches(msg, kbind.Profile):
+				// Close the modal without changing focus
+				v.showProfileSelector = false
+				return nil
 			}
 			return nil
 		}
 
-		// Handle keyboard shortcuts
-		switch {
-		case key.Matches(msg, kbind.Save):
-			// Save configuration
-			return v.saveConfigCmd()
-
-		case key.Matches(msg, kbind.Profile):
-			// Toggle profile selector
-			v.showProfileSelector = !v.showProfileSelector
-			// Set initial selection to current profile
-			profiles := v.getProfiles()
-			activeProfile := v.getActiveProfileName()
-			for i, name := range profiles {
-				if name == activeProfile {
-					v.profileListIndex = i
-					break
-				}
+		// Slider key handling — only when the slider is focused, the
+		// profile selector modal is not in front of the form, AND the key
+		// is one the slider actually handles. This is the root-cause fix
+		// for the blanket-return pattern that swallowed Tab, Shift+Tab,
+		// Ctrl+S and Ctrl+P. Non-slider keys when the slider is focused
+		// fall through to the text-field dispatch below, which is a
+		// no-op for the slider (correct).
+		if v.focused == sliderField && !v.showProfileSelector &&
+			(key.Matches(msg, kbind.SliderInc) || key.Matches(msg, kbind.SliderDec)) {
+			prev := v.slider.Value
+			updated, _ := v.slider.Update(msg)
+			v.slider = &updated
+			if v.slider.Value != prev {
+				v.proc.SetWorkers(v.slider.Value)
 			}
-			return nil
-
-		case key.Matches(msg, kbind.NextField):
-			v.nextField()
-			return nil
-
-		case key.Matches(msg, kbind.PrevField):
-			v.prevField()
 			return nil
 		}
 	}
