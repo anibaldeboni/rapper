@@ -4,9 +4,11 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -172,4 +174,180 @@ func TestSettingsView_SliderAcceptsKittyProtocolPlusKey(t *testing.T) {
 	assert.Equal(t, current, v.slider.Value,
 		"slider value must grow after Kitty-protocol `+` keypress; "+
 			"the binding must match the shift+= keystroke representation")
+}
+
+// --------------------------------------------------------------------------------
+// Settings view input dispatch — RED tests for the slider+modal bug.
+//
+// The Settings view's key dispatch chain in `Update` previously checked the
+// focused-component blocks (slider, text fields) BEFORE the global shortcut
+// switch (Tab/Shift+Tab/Ctrl+S/Ctrl+P). The slider block at
+// settings.go:310-318 had a blanket `return nil` that swallowed every key —
+// even though `Slider.Update` itself only acts on +/-. Since commit 5dbaada
+// the slider is the default focus on construction, so the user lands in
+// Settings with no keyboard path to change focus, save, or open the profile
+// selector.
+//
+// The fix (see `sdd/.../design` in Engram) reorders the dispatch chain so
+// globals run first, narrows the slider block to only intercept
+// kbind.SliderInc/SliderDec, and extends the profile-selector modal with a
+// Ctrl+P case. The tests below are the contract that the fix must satisfy.
+// They are written BEFORE the fix and must fail in the red phase.
+// --------------------------------------------------------------------------------
+
+// TestSettingsView_SliderFocused_TabMovesFocus — pressing Tab when the slider
+// is focused must advance focus to the next field. Before the fix the slider
+// block at settings.go:310-318 returns nil for every key, so the global
+// NextField handler at the bottom of Update is unreachable when the slider
+// has focus. This test will fail in the red phase with `v.focused == sliderField`
+// still true.
+func TestSettingsView_SliderFocused_TabMovesFocus(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	configMgr := mock_ui.NewMockConfigManager(ctrl)
+	proc := mock_ui.NewMockProcessorController(ctrl)
+
+	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
+	configMgr.EXPECT().Get().Return(nil).AnyTimes()
+
+	v := NewSettingsView(configMgr, proc)
+	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
+
+	_ = v.Update(settingsKeyMsg(kbind.NextField.Keys()[0]))
+	assert.NotEqual(t, sliderField, v.focused,
+		"Tab must move focus away from the slider when the slider is focused; "+
+			"the slider key-handling block must not swallow global navigation keys")
+}
+
+// TestSettingsView_SliderFocused_CtrlS_TriggersSave — pressing Ctrl+S when the
+// slider is focused must trigger the save flow. The mock asserts that
+// ConfigManager.Update and ConfigManager.Save are each called exactly once
+// when the save command runs. Before the fix the slider block returns nil
+// before the global Save handler runs, so neither Update nor Save is called
+// and the test fails on the gomock expectation mismatch.
+func TestSettingsView_SliderFocused_CtrlS_TriggersSave(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	configMgr := mock_ui.NewMockConfigManager(ctrl)
+	proc := mock_ui.NewMockProcessorController(ctrl)
+
+	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
+	// Get is called once by loadConfig during NewSettingsView and again by
+	// saveConfig when the save command runs. Returning a fresh, empty Config
+	// keeps the test realistic and avoids the loadConfig early-return on nil.
+	configMgr.EXPECT().Get().Return(&config.Config{}).AnyTimes()
+	configMgr.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
+	configMgr.EXPECT().Save().Return(nil).Times(1)
+
+	v := NewSettingsView(configMgr, proc)
+	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
+
+	cmd := v.Update(settingsKeyMsg("ctrl+s"))
+	assert.NotNil(t, cmd,
+		"Ctrl+S must trigger saveConfigCmd when the slider is focused; "+
+			"the slider key-handling block must not swallow the Save global shortcut")
+}
+
+// TestSettingsView_SliderFocused_CtrlP_TogglesProfileSelector — pressing Ctrl+P
+// when the slider is focused must open the profile selector. Before the fix
+// the slider block returns nil, so the global Profile handler never toggles
+// v.showProfileSelector. The mock stubs ListProfiles/GetActiveProfile because
+// the Profile handler (settings.go:359-371) seeds profileListIndex from them.
+func TestSettingsView_SliderFocused_CtrlP_TogglesProfileSelector(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	configMgr := mock_ui.NewMockConfigManager(ctrl)
+	proc := mock_ui.NewMockProcessorController(ctrl)
+
+	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
+	configMgr.EXPECT().Get().Return(nil).AnyTimes()
+	configMgr.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
+	configMgr.EXPECT().GetActiveProfile().Return("default").AnyTimes()
+
+	v := NewSettingsView(configMgr, proc)
+	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
+	require.False(t, v.showProfileSelector, "profile selector should be closed on construction")
+
+	_ = v.Update(settingsKeyMsg("ctrl+p"))
+	assert.True(t, v.showProfileSelector,
+		"Ctrl+P must toggle the profile selector open when the slider is focused; "+
+			"the slider key-handling block must not swallow the Profile global shortcut")
+}
+
+// TestSettingsView_ModalOpen_CtrlP_ClosesSelector — pressing Ctrl+P while the
+// profile-selector modal is open must close the modal without changing focus
+// or producing a save command. Before the fix the modal block at
+// settings.go:320-350 has no Ctrl+P case; the switch falls through to the
+// bare `return nil` at line 350, so the modal stays open. After the fix the
+// modal block handles Ctrl+P and sets v.showProfileSelector to false.
+func TestSettingsView_ModalOpen_CtrlP_ClosesSelector(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	configMgr := mock_ui.NewMockConfigManager(ctrl)
+	proc := mock_ui.NewMockProcessorController(ctrl)
+
+	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
+	configMgr.EXPECT().Get().Return(nil).AnyTimes()
+	configMgr.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
+	configMgr.EXPECT().GetActiveProfile().Return("default").AnyTimes()
+
+	v := NewSettingsView(configMgr, proc)
+	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
+
+	// Pre-set the modal-open state the test is exercising. The view does
+	// not expose a public setter; the test lives in the same package and
+	// reaches in directly. This mirrors the real flow reached by the first
+	// Ctrl+P press.
+	v.showProfileSelector = true
+	v.profileListIndex = 0
+
+	_ = v.Update(settingsKeyMsg("ctrl+p"))
+	assert.False(t, v.showProfileSelector,
+		"Ctrl+P must close the profile selector when the modal is open; "+
+			"the modal block must handle the Profile key, not only Esc")
+	assert.Equal(t, sliderField, v.focused,
+		"Ctrl+P inside the modal must not change the focused field")
+}
+
+// TestSettingsView_CtrlP_TwiceIsIdempotent — pressing Ctrl+P twice in a row
+// must return the view to its original state: modal closed, focus unchanged.
+// The intermediate assertion (modal open after the first press) is what
+// makes this test actually red: before the fix the first press is swallowed
+// by the slider block, so the intermediate check fails. The end-state
+// assertion (modal closed after the second press) is the re-entrancy
+// guarantee: toggling twice must be a no-op on the modal state.
+func TestSettingsView_CtrlP_TwiceIsIdempotent(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	configMgr := mock_ui.NewMockConfigManager(ctrl)
+	proc := mock_ui.NewMockProcessorController(ctrl)
+
+	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
+	configMgr.EXPECT().Get().Return(nil).AnyTimes()
+	configMgr.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
+	configMgr.EXPECT().GetActiveProfile().Return("default").AnyTimes()
+
+	v := NewSettingsView(configMgr, proc)
+	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
+	require.False(t, v.showProfileSelector, "profile selector should be closed on construction")
+
+	_ = v.Update(settingsKeyMsg("ctrl+p"))
+	assert.True(t, v.showProfileSelector,
+		"first Ctrl+P must open the profile selector when the slider is focused")
+
+	_ = v.Update(settingsKeyMsg("ctrl+p"))
+	assert.False(t, v.showProfileSelector,
+		"second Ctrl+P must close the profile selector (re-entrancy)")
+	assert.Equal(t, sliderField, v.focused,
+		"two consecutive Ctrl+P presses must leave focus unchanged")
 }
