@@ -10,12 +10,12 @@ import (
 type globalKeyMap struct{}
 
 func (k globalKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.ViewFiles, kbind.ViewLogs, kbind.ViewSettings, kbind.ViewWorkers, kbind.CancelOperation, kbind.Quit}
+	return []key.Binding{kbind.ViewFiles, kbind.ViewLogs, kbind.ViewSettings, kbind.CancelOperation, kbind.Quit}
 }
 
 func (k globalKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{kbind.ViewFiles, kbind.ViewLogs, kbind.ViewSettings, kbind.ViewWorkers, kbind.CancelOperation, kbind.Quit},
+		{kbind.ViewFiles, kbind.ViewLogs, kbind.ViewSettings, kbind.CancelOperation, kbind.Quit},
 	}
 }
 
@@ -46,31 +46,20 @@ func (k logsViewKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{kbind.Left, kbind.Up, kbind.Down, kbind.Right}}
 }
 
-// settingsViewKeyMap shows only settings view specific keys
+// settingsViewKeyMap shows only settings view specific keys.
+// The slider keybindings are listed so users discover +/- while the slider
+// has focus; the slider itself only intercepts +/- when focused.
 type settingsViewKeyMap struct{}
 
 func (k settingsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.NextField, kbind.PrevField, kbind.PageUp, kbind.PageDown, kbind.Save, kbind.Profile}
+	return []key.Binding{kbind.NextField, kbind.PrevField, kbind.PageUp, kbind.PageDown, kbind.Save, kbind.Profile, kbind.SliderInc, kbind.SliderDec}
 }
 
 func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{kbind.NextField, kbind.PrevField, kbind.Save, kbind.Profile},
+		{kbind.SliderInc, kbind.SliderDec},
 		{kbind.PageUp, kbind.PageDown, kbind.GotoTop, kbind.GotoBottom},
-	}
-}
-
-// workersViewKeyMap shows only workers view specific keys
-type workersViewKeyMap struct{}
-
-func (k workersViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.WorkerDec, kbind.WorkerInc, kbind.PageUp, kbind.PageDown}
-}
-
-func (k workersViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{kbind.WorkerDec, kbind.WorkerInc},
-		{kbind.Up, kbind.Down, kbind.PageUp, kbind.PageDown, kbind.GotoTop, kbind.GotoBottom},
 	}
 }
 
@@ -83,8 +72,6 @@ func getViewSpecificKeyMap(view View) help.KeyMap {
 		return logsViewKeyMap{}
 	case ViewSettings:
 		return settingsViewKeyMap{}
-	case ViewWorkers:
-		return workersViewKeyMap{}
 	default:
 		// Return empty keymap for unknown views
 		return globalKeyMap{}

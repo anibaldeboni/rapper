@@ -7,7 +7,6 @@ const (
 	ViewFiles    View = iota // File selection view
 	ViewLogs                 // Execution logs view
 	ViewSettings             // Configuration settings view
-	ViewWorkers              // Workers control view
 )
 
 // Navigation manages view navigation with history
@@ -71,8 +70,6 @@ func (v View) String() string {
 		return "Logs"
 	case ViewSettings:
 		return "Settings"
-	case ViewWorkers:
-		return "Workers"
 	default:
 		return "Unknown"
 	}

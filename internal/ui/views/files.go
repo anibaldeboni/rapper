@@ -31,14 +31,14 @@ var (
 	bullet            = "⦿"
 	inactiveDot       = "⦁"
 	titleStyle        = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Margin(1, 2)
-	itemStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
-	selectedItemStyle = lipgloss.NewStyle().MarginLeft(2).Foreground(lipgloss.Color("#d6acff"))
+	itemStyle         = lipgloss.NewStyle().MarginLeft(2).Foreground(lipgloss.Color("255"))
+	selectedItemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#d6acff"))
 	paginationStyle   = lipgloss.NewStyle().MarginLeft(2)
 )
 
 // NewFilesView creates a new FilesView
 func NewFilesView(csvFiles []list.Item) *FilesView {
-	l := list.New(csvFiles, fileItemDelegate{}, 60, 0)
+	l := list.New(csvFiles, fileItemDelegate{}, 60, 5)
 	l.InfiniteScrolling = true
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)

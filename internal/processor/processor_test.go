@@ -65,6 +65,38 @@ func TestProcessor_Do(t *testing.T) {
 	})
 }
 
+// TestProcessor_UpdateConfig proves that UpdateConfig atomically replaces the
+// processor's CSV configuration. Before the fix the method does not exist and
+// the test fails to compile.
+func TestProcessor_UpdateConfig(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	gatewayMock := mock_processor.NewMockHttpGateway(ctrl)
+	gatewayMock.EXPECT().
+		Exec(gomock.Any(), map[string]string{"header2": "value2"}).
+		Do(func(arg0, arg1 any) {
+			wg.Done()
+		}).Times(1)
+	loggerMock := mock_processor.NewMockRequestLogger(ctrl)
+	loggerMock.EXPECT().Add(gomock.Any()).AnyTimes()
+	loggerMock.EXPECT().WriteToFile(gomock.Any()).AnyTimes()
+
+	csvData := "header1,header2\nvalue1,value2\n"
+	tempFile := createCsvFile(t, csvData)
+	defer os.Remove(tempFile.Name())
+
+	p := NewProcessor(config.CSVConfig{Fields: []string{"header1"}, Separator: ","}, gatewayMock, loggerMock, 1)
+
+	// Swap the field filter before running Do. The next run must honor it.
+	p.UpdateConfig(config.CSVConfig{Fields: []string{"header2"}, Separator: ","})
+
+	p.Do(context.Background(), tempFile.Name())
+	wg.Wait()
+}
+
 func createCsvFile(t *testing.T, csvData string) *os.File {
 	tempFile, err := os.CreateTemp("", "test-*.csv")
 	if err != nil {

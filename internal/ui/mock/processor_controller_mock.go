@@ -56,6 +56,20 @@ func (mr *MockProcessorControllerMockRecorder) Do(ctx, filePath any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockProcessorController)(nil).Do), ctx, filePath)
 }
 
+// GetMaxWorkers mocks base method.
+func (m *MockProcessorController) GetMaxWorkers() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMaxWorkers")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// GetMaxWorkers indicates an expected call of GetMaxWorkers.
+func (mr *MockProcessorControllerMockRecorder) GetMaxWorkers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMaxWorkers", reflect.TypeOf((*MockProcessorController)(nil).GetMaxWorkers))
+}
+
 // GetMetrics mocks base method.
 func (m *MockProcessorController) GetMetrics() ports.ProcessorMetrics {
 	m.ctrl.T.Helper()

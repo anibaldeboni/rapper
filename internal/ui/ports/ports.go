@@ -46,7 +46,8 @@ type ConfigProvider interface {
 }
 
 // ProcessorController defines the interface for controlling request processing.
-// Used by AppModel and WorkersView to start processing and monitor status.
+// Used by AppModel and the in-view metrics panel in LogsView to start
+// processing and monitor status.
 //
 //go:generate mockgen -destination ../mock/processor_controller_mock.go -package mock_ui github.com/anibaldeboni/rapper/internal/ui/ports ProcessorController
 type ProcessorController interface {
@@ -61,6 +62,11 @@ type ProcessorController interface {
 
 	// GetWorkerCount returns the current worker count
 	GetWorkerCount() int
+
+	// GetMaxWorkers returns the maximum number of workers the processor
+	// will accept (processor.MaxWorkers, derived from runtime.NumCPU()).
+	// Consumers (e.g. the Settings slider) use this to bound user input.
+	GetMaxWorkers() int
 }
 
 // ProcessorMetrics holds real-time processing metrics.

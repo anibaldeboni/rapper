@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/config"
+	"github.com/anibaldeboni/rapper/internal/ui/components"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
@@ -29,7 +30,8 @@ var (
 
 // focusable fields
 const (
-	urlField = iota
+	sliderField = iota
+	urlField
 	methodField
 	bodyField
 	headersField
@@ -40,9 +42,13 @@ const (
 // SettingsView displays and edits configuration settings
 type SettingsView struct {
 	configMgr ports.ConfigManager
+	proc      ports.ProcessorController
 	width     int
 	height    int
 	viewport  viewport.Model
+
+	// Worker count slider (above the form fields)
+	slider *components.Slider
 
 	// Form fields
 	urlInput       textinput.Model
@@ -63,8 +69,10 @@ type SettingsView struct {
 	modified bool
 }
 
-// NewSettingsView creates a new SettingsView
-func NewSettingsView(configMgr ports.ConfigManager) *SettingsView {
+// NewSettingsView creates a new SettingsView. The proc controller is required
+// because the worker-count slider at the top of the view mutates the runtime
+// processor immediately on change.
+func NewSettingsView(configMgr ports.ConfigManager, proc ports.ProcessorController) *SettingsView {
 	// Create URL input
 	urlInput := textinput.New()
 	urlInput.Placeholder = "http://localhost:8080/api/v1/users"
@@ -106,16 +114,28 @@ email`
 	// csvFieldsInput.SetWidth(80)
 	csvFieldsInput.ShowLineNumbers = false
 
+	// Worker count slider — range matches processor's [1, runtime.NumCPU()]
+	// convention. The slider's Max is the hardware ceiling (not the current
+	// count) so the user can always grow the worker pool back up after it
+	// has been throttled down.
+	initial := proc.GetWorkerCount()
+	slider := components.NewSlider("Worker Count", 1, proc.GetMaxWorkers(), initial)
+
 	v := &SettingsView{
 		configMgr:      configMgr,
+		proc:           proc,
+		slider:         slider,
 		urlInput:       urlInput,
 		methodInput:    methodInput,
 		bodyInput:      bodyInput,
 		headersInput:   headersInput,
 		csvFieldsInput: csvFieldsInput,
-		focused:        urlField,
-		focusable:      []int{urlField, methodField, bodyField, headersField, csvFieldsField},
-		viewport:       viewport.New(viewport.WithWidth(0), viewport.WithHeight(0)),
+		// Slider gets the initial focus so the +/- keys work the moment
+		// the user lands in Settings. Tab still moves focus into the
+		// form fields, so typing '+' inside URL/headers remains possible.
+		focused:   sliderField,
+		focusable: []int{sliderField, urlField, methodField, bodyField, headersField, csvFieldsField},
+		viewport:  viewport.New(viewport.WithWidth(0), viewport.WithHeight(0)),
 	}
 
 	// Load current configuration
@@ -227,8 +247,11 @@ func (v *SettingsView) updateFocus() {
 	v.bodyInput.Blur()
 	v.headersInput.Blur()
 	v.csvFieldsInput.Blur()
+	v.slider.Focused = false
 
 	switch v.focused {
+	case sliderField:
+		v.slider.Focused = true
 	case urlField:
 		v.urlInput.Focus()
 	case methodField:
@@ -263,6 +286,41 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
+		// Global shortcuts run first so navigation / save / profile always
+		// work regardless of which component has focus. Save, NextField
+		// and PrevField are pre-empted by the profile-selector modal —
+		// the modal is a true modal (per product decision) and ignores
+		// those keys when it is in front. Profile (Ctrl+P) is split:
+		// this switch opens the modal from the closed state; the modal
+		// block below handles closing it from the open state.
+		switch {
+		case key.Matches(msg, kbind.Save) && !v.showProfileSelector:
+			// Save configuration
+			return v.saveConfigCmd()
+
+		case key.Matches(msg, kbind.Profile) && !v.showProfileSelector:
+			// Toggle profile selector open
+			v.showProfileSelector = !v.showProfileSelector
+			// Set initial selection to current profile
+			profiles := v.getProfiles()
+			activeProfile := v.getActiveProfileName()
+			for i, name := range profiles {
+				if name == activeProfile {
+					v.profileListIndex = i
+					break
+				}
+			}
+			return nil
+
+		case key.Matches(msg, kbind.NextField) && !v.showProfileSelector:
+			v.nextField()
+			return nil
+
+		case key.Matches(msg, kbind.PrevField) && !v.showProfileSelector:
+			v.prevField()
+			return nil
+		}
+
 		// Handle viewport scrolling when not in profile selector or editing textareas
 		if !v.showProfileSelector {
 			switch {
@@ -281,6 +339,9 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			}
 		}
 
+		// Profile-selector modal. Handles Up / Down / Enter / Esc as
+		// before, plus a Ctrl+P case that closes the modal without
+		// changing focus and without producing a save command.
 		if v.showProfileSelector {
 			profiles := v.getProfiles()
 			switch {
@@ -310,36 +371,30 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			case key.Matches(msg, kbind.Cancel):
 				v.showProfileSelector = false
 				return nil
+
+			case key.Matches(msg, kbind.Profile):
+				// Close the modal without changing focus
+				v.showProfileSelector = false
+				return nil
 			}
 			return nil
 		}
 
-		// Handle keyboard shortcuts
-		switch {
-		case key.Matches(msg, kbind.Save):
-			// Save configuration
-			return v.saveConfigCmd()
-
-		case key.Matches(msg, kbind.Profile):
-			// Toggle profile selector
-			v.showProfileSelector = !v.showProfileSelector
-			// Set initial selection to current profile
-			profiles := v.getProfiles()
-			activeProfile := v.getActiveProfileName()
-			for i, name := range profiles {
-				if name == activeProfile {
-					v.profileListIndex = i
-					break
-				}
+		// Slider key handling — only when the slider is focused, the
+		// profile selector modal is not in front of the form, AND the key
+		// is one the slider actually handles. This is the root-cause fix
+		// for the blanket-return pattern that swallowed Tab, Shift+Tab,
+		// Ctrl+S and Ctrl+P. Non-slider keys when the slider is focused
+		// fall through to the text-field dispatch below, which is a
+		// no-op for the slider (correct).
+		if v.focused == sliderField && !v.showProfileSelector &&
+			(key.Matches(msg, kbind.SliderInc) || key.Matches(msg, kbind.SliderDec)) {
+			prev := v.slider.Value
+			updated, _ := v.slider.Update(msg)
+			v.slider = &updated
+			if v.slider.Value != prev {
+				v.proc.SetWorkers(v.slider.Value)
 			}
-			return nil
-
-		case key.Matches(msg, kbind.NextField):
-			v.nextField()
-			return nil
-
-		case key.Matches(msg, kbind.PrevField):
-			v.prevField()
 			return nil
 		}
 	}
@@ -423,6 +478,7 @@ func (v *SettingsView) View() string {
 				profileBadgeStyle.Render("📋 "+v.getActiveProfileName()),
 			),
 		),
+		inputStyle.Render(v.slider.View()),
 		v.renderInput(urlField, "URL template:", v.urlInput),
 		v.renderInput(methodField, "Method:", v.methodInput),
 		v.renderTextArea(bodyField, "Body template:", v.bodyInput),

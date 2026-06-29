@@ -103,7 +103,6 @@ type AppModel struct {
 	filesView    *views.FilesView
 	logsView     *views.LogsView
 	settingsView *views.SettingsView
-	workersView  *views.WorkersView
 
 	// Common UI elements
 	help             help.Model
@@ -133,9 +132,8 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 		processor:    fileProcessor,
 		configMgr:    configMgr,
 		filesView:    views.NewFilesView(items),
-		logsView:     views.NewLogsView(log),
-		settingsView: views.NewSettingsView(configMgr),
-		workersView:  views.NewWorkersView(fileProcessor),
+		logsView:     views.NewLogsView(log, fileProcessor),
+		settingsView: views.NewSettingsView(configMgr, fileProcessor),
 		help:         createHelp(),
 		spinner:      createSpinner(),
 		toastMgr:     components.NewToastManager(),

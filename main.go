@@ -79,7 +79,7 @@ func main() {
 		workerCount,
 	)
 
-	// Register config change listener to update gateway
+	// Register config change listener to update gateway and processor
 	configMgr.OnChange(func(newCfg *config.Config) {
 		_ = hg.UpdateConfig(
 			newCfg.Request.Method,
@@ -87,6 +87,10 @@ func main() {
 			newCfg.Request.BodyTemplate,
 			newCfg.Request.Headers,
 		)
+		csvProcessor.UpdateConfig(newCfg.CSV)
+		if newCfg.Workers > 0 {
+			csvProcessor.SetWorkers(newCfg.Workers)
+		}
 	})
 
 	filePaths, err := utils.FindFiles(*workingDir, "*.csv")

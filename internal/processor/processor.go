@@ -40,7 +40,7 @@ type processorImpl struct {
 	logger       RequestLogger
 	csvConfig    config.CSVConfig
 	workers      int
-	mu           sync.RWMutex
+	mu           sync.Mutex
 	startTime    time.Time
 	isProcessing bool
 }
@@ -130,9 +130,17 @@ requests:
 }
 
 func (p *processorImpl) mapCSV(ctx context.Context, filePath string) <-chan csvLineMap {
-	rows := make(chan csvLineMap, p.workers)
+	// Snapshot csvConfig and workers under lock so the channel buffer, separator,
+	// field filter, and processing message all reflect the active configuration
+	// at the time mapCSV was called, even if UpdateConfig races with us later.
+	p.mu.Lock()
+	csvConfig := p.csvConfig
+	workers := p.workers
+	p.mu.Unlock()
 
-	reader, file, err := newCSVReader(filePath, csvSep(p.csvConfig))
+	rows := make(chan csvLineMap, workers)
+
+	reader, file, err := newCSVReader(filePath, csvSep(csvConfig))
 	if err != nil {
 		p.logger.Add(csvError(err.Error()))
 		return nil
@@ -144,8 +152,8 @@ func (p *processorImpl) mapCSV(ctx context.Context, filePath string) <-chan csvL
 		return nil
 	}
 
-	indexes := buildFilteredFieldIndex(headers, p.csvConfig.Fields)
-	p.logger.Add(processingMessage(filepath.Base(filePath), p.workers))
+	indexes := buildFilteredFieldIndex(headers, csvConfig.Fields)
+	p.logger.Add(processingMessage(filepath.Base(filePath), workers))
 
 	go func() {
 		defer file.Close()
@@ -176,8 +184,8 @@ func (p *processorImpl) mapCSV(ctx context.Context, filePath string) <-chan csvL
 
 // GetMetrics returns current processing metrics
 func (p *processorImpl) GetMetrics() Metrics {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	totalReq := reqCount.Load()
 	errReq := errCount.Load()
@@ -212,10 +220,27 @@ func (p *processorImpl) SetWorkers(n int) {
 	p.workers = utils.Clamp(n, 1, MaxWorkers)
 }
 
+// UpdateConfig atomically replaces the processor's CSV configuration.
+// Called from main.go's OnChange callback when a profile switch is published,
+// so the next Do run uses the new field filter.
+func (p *processorImpl) UpdateConfig(cfg config.CSVConfig) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.csvConfig = cfg
+}
+
 // GetWorkerCount returns the current configured worker count
 func (p *processorImpl) GetWorkerCount() int {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	return p.workers
+}
+
+// GetMaxWorkers returns the maximum number of workers accepted by the
+// processor (processor.MaxWorkers, derived from runtime.NumCPU()). Used by
+// UI surfaces to bound the worker-count slider.
+func (p *processorImpl) GetMaxWorkers() int {
+	return MaxWorkers
 }
