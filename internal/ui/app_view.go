@@ -19,14 +19,8 @@ func (m AppModel) View() tea.View {
 	// Render the active view into the full content area; each view owns its
 	// own internal layout (see views-own-layout decision, Engram #46).
 	var content string
-
-	switch m.nav.Current() {
-	case ViewFiles:
-		content = m.filesView.View()
-	case ViewLogs:
-		content = m.logsView.View()
-	case ViewSettings:
-		content = m.settingsView.View()
+	if v, ok := m.views[m.nav.Current()]; ok && v != nil {
+		content = v.View().Content
 	}
 
 	// Join all elements: header, content, and status bar. Toasts are layered
@@ -48,7 +42,7 @@ func (m AppModel) View() tea.View {
 		MaxWidth(m.width).
 		MaxHeight(m.height).
 		AlignVertical(lipgloss.Top).
-		Margin(1, 2).
+		Margin(0, 2).
 		Render(
 			lipgloss.JoinVertical(
 				lipgloss.Top,
@@ -68,7 +62,15 @@ func (m AppModel) View() tea.View {
 	v := tea.NewView(lipgloss.Place(
 		m.width,
 		m.height,
-		lipgloss.Center,
+		// Anchor the rendered app to the top of the terminal so the
+		// global header is always on line 0. The previous Center
+		// alignment distributed the (m.height - totalContent) slack
+		// between top and bottom, which placed a "ghost line" above
+		// the header for views whose total content has odd height
+		// (notably Settings). Top alignment is consistent across all
+		// views; the unused vertical space simply lands below the
+		// status bar.
+		lipgloss.Top,
 		lipgloss.Top,
 		app,
 	))

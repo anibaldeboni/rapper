@@ -14,6 +14,7 @@ import (
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/components"
+	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
 )
@@ -89,6 +90,14 @@ func normalizeVersion(version string) string {
 	return strings.TrimPrefix(version, "v")
 }
 
+// viewModel is the contract every view must satisfy. It's a type alias
+// for tea.Model so the four view types (FilesView, LogsView,
+// SettingsView, MetricsPanel) can be stored uniformly in AppModel and
+// the compiler can verify their value-receiver Init/Update/View
+// surface. Phase 0 introduced the alias; Phase 4 swapped the concrete
+// pointer fields for `map[View]viewModel`.
+type viewModel = tea.Model
+
 // AppModel is the new multi-view model
 type AppModel struct {
 	// Navigation
@@ -99,10 +108,10 @@ type AppModel struct {
 	processor ports.ProcessorController
 	configMgr ports.ConfigManager
 
-	// Views
-	filesView    *views.FilesView
-	logsView     *views.LogsView
-	settingsView *views.SettingsView
+	// Views — every view is stored behind the `viewModel` interface so
+	// AppModel can broadcast messages uniformly. The map is keyed by
+	// the View enum; every key is initialized in NewApp.
+	views map[View]viewModel
 
 	// Common UI elements
 	help             help.Model
@@ -130,19 +139,21 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 	}
 
 	app := &AppModel{
-		nav:          NewNavigation(),
-		logger:       log,
-		processor:    fileProcessor,
-		configMgr:    configMgr,
-		filesView:    views.NewFilesView(items),
-		logsView:     views.NewLogsView(log, fileProcessor),
-		settingsView: views.NewSettingsView(configMgr, fileProcessor),
-		help:         createHelp(),
-		spinner:      createSpinner(),
-		toastMgr:     components.NewToastManager(),
-		cancelMu:     &sync.RWMutex{},
-		chrome:       NewChromeLayout(),
-		isDark:       true,
+		nav:       NewNavigation(),
+		logger:    log,
+		processor: fileProcessor,
+		configMgr: configMgr,
+		views: map[View]viewModel{
+			ViewFiles:    views.NewFilesView(items),
+			ViewLogs:     views.NewLogsView(log, fileProcessor),
+			ViewSettings: views.NewSettingsView(configMgr, fileProcessor),
+		},
+		help:     createHelp(),
+		spinner:  createSpinner(),
+		toastMgr: components.NewToastManager(),
+		cancelMu: &sync.RWMutex{},
+		chrome:   NewChromeLayout(),
+		isDark:   true,
 	}
 
 	app.applyTheme(true)
@@ -178,7 +189,12 @@ func (m AppModel) Init() tea.Cmd {
 func (m *AppModel) applyTheme(isDark bool) {
 	m.isDark = isDark
 	styles.ApplyTheme(isDark)
-	m.filesView.SetTheme(isDark)
+	// Broadcast ThemeAppliedMsg to every view in the map. Each view's
+	// own Update applies the theme (or no-ops if it doesn't care).
+	for k, v := range m.views {
+		next, _ := v.Update(msgs.ThemeAppliedMsg{IsDark: isDark})
+		m.views[k] = next
+	}
 	m.help = createHelp()
 }
 

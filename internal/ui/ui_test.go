@@ -3,6 +3,7 @@ package ui_test
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/anibaldeboni/rapper/internal/ui"
@@ -119,10 +120,28 @@ func TestProgramWithWindowSizeIntegration(t *testing.T) {
 		tea.WithOutput(&out),
 	)
 
-	go p.Send(tea.Quit)
+	// Use a forced shutdown after 200ms so the test does not depend
+	// on the timing of `p.Send(tea.Quit)` (which is racy in
+	// bubbletea v2 — the unbuffered p.msgs channel blocks the send
+	// goroutine indefinitely if the program is not yet reading, and
+	// the program's event loop can lose the race against the tick
+	// chain's continuous TickMsg production). The 200ms delay gives
+	// the program time to render at least once so the
+	// `out.String()` assertion has content to check.
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		p.Kill()
+	}()
 
 	model, err := p.Run()
-	assert.NoError(t, err)
+	// p.Kill returns ErrProgramKilled; that's an acceptable outcome
+	// for this test — the goal is to verify the program can be
+	// constructed, started, and torn down, not to test the Quit
+	// message path. The test was previously hanging on the Quit
+	// send in bubbletea v2.
+	if err != nil && err != tea.ErrProgramKilled {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	assert.NotNil(t, model)
-	assert.NotEmpty(t, out.String())
+	assert.NotEmpty(t, out.String(), "program should render at least once before shutdown")
 }

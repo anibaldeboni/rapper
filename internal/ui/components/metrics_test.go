@@ -10,8 +10,11 @@ import (
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+var _ tea.Msg = msgs.MetricsTickMsg(time.Now()) // keep import warm in case future tests need it
 
 func TestMetricsPanel_View_RendersAllMetricRows(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -29,7 +32,7 @@ func TestMetricsPanel_View_RendersAllMetricRows(t *testing.T) {
 
 	p := NewMetricsPanel(proc)
 
-	out := p.View()
+	out := p.View().Content
 
 	// Each metric label must appear in the rendered output
 	for _, label := range []string{"Status:", "Total Requests:", "✓ Success:", "✗ Errors:", "Lines Processed:", "Throughput:", "Active Workers:"} {
@@ -50,13 +53,13 @@ func TestMetricsPanel_Update_TickRefreshesMetrics(t *testing.T) {
 	}).AnyTimes()
 
 	p := NewMetricsPanel(proc)
-	p.SetVisible(true)
+	p = p.SetVisible(true)
 
-	var cmd tea.Cmd
-	p, cmd = p.Update(msgs.MetricsTickMsg(time.Now()))
+	next, cmd := p.Update(msgs.MetricsTickMsg(time.Now()))
+	p = next.(MetricsPanel)
 
 	assert.NotNil(t, cmd, "tick should reschedule itself while visible")
-	out := p.View()
+	out := p.View().Content
 	assert.Contains(t, out, "42", "view should show the total requests from the mock snapshot")
 }
 
@@ -67,11 +70,59 @@ func TestMetricsPanel_SetVisible_StopsTickWhenHidden(t *testing.T) {
 	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
 
 	p := NewMetricsPanel(proc)
-	p.SetVisible(false)
+	p = p.SetVisible(false)
 
 	_, cmd := p.Update(msgs.MetricsTickMsg(time.Now()))
 
 	assert.Nil(t, cmd, "tick should not reschedule when not visible")
+}
+
+// TestMetricsPanel_Update_MetricsVisibilityMsg_StartsTick — value-receiver
+// tea.Model: Update(MetricsVisibilityMsg{Visible: true}) flips Visible
+// and returns a tick cmd.
+func TestMetricsPanel_Update_MetricsVisibilityMsg_StartsTick(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	proc := mock_ui.NewMockProcessorController(ctrl)
+	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
+
+	p := NewMetricsPanel(proc)
+	require.False(t, p.Visible, "panel starts hidden")
+
+	next, cmd := p.Update(msgs.MetricsVisibilityMsg{Visible: true})
+	p = next.(MetricsPanel)
+
+	assert.True(t, p.Visible, "Visible must be true after Update(Visible: true)")
+	assert.NotNil(t, cmd, "Update(Visible: true) must return a tick cmd")
+}
+
+// TestMetricsPanel_Update_MetricsVisibilityMsg_StopsTick — Update({Visible:
+// false}) clears Visible and returns nil cmd.
+func TestMetricsPanel_Update_MetricsVisibilityMsg_StopsTick(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	proc := mock_ui.NewMockProcessorController(ctrl)
+	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
+
+	p := NewMetricsPanel(proc)
+	p.Visible = true
+
+	next, cmd := p.Update(msgs.MetricsVisibilityMsg{Visible: false})
+	p = next.(MetricsPanel)
+
+	assert.False(t, p.Visible, "Visible must be false after Update(Visible: false)")
+	assert.Nil(t, cmd, "Update(Visible: false) must return nil cmd")
+}
+
+// TestMetricsPanel_Init_ReturnsNil — Init must return nil per R-6.
+func TestMetricsPanel_Init_ReturnsNil(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	proc := mock_ui.NewMockProcessorController(ctrl)
+	p := NewMetricsPanel(proc)
+	if cmd := p.Init(); cmd != nil {
+		t.Fatalf("Init must return nil; got %T", cmd)
+	}
 }
 
 func TestMetricsPanel_View_ShowsIdleStatusWhenNotProcessing(t *testing.T) {
@@ -82,7 +133,7 @@ func TestMetricsPanel_View_ShowsIdleStatusWhenNotProcessing(t *testing.T) {
 
 	p := NewMetricsPanel(proc)
 
-	out := p.View()
+	out := p.View().Content
 
 	assert.Contains(t, out, "Idle", "idle status must be shown when not processing")
 	assert.True(t, !strings.Contains(out, "🟢 Processing"), "processing indicator must not appear when idle")

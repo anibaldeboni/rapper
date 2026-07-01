@@ -28,8 +28,9 @@ var (
 )
 
 // MetricsPanel renders the live processor metrics used to live next to the
-// execution log viewport. It owns its own tick scheduling so callers only
-// have to flip SetVisible when the host view becomes active or inactive.
+// execution log viewport. It is a value-type tea.Model so the parent
+// LogsView can store it (as a pointer) and forward messages to it
+// uniformly with every other component.
 type MetricsPanel struct {
 	proc     ports.ProcessorController
 	Visible  bool
@@ -37,42 +38,74 @@ type MetricsPanel struct {
 	tickEach time.Duration
 }
 
+// Compile-time guard: MetricsPanel must satisfy tea.Model with a value
+// receiver. Phase 3.5 converts the historical pointer-receiver Update
+// surface to value receivers; this assertion fails at build time if
+// the conversion regresses.
+var _ tea.Model = MetricsPanel{}
+
 // NewMetricsPanel wires a metrics panel to the supplied processor controller.
-// The panel starts hidden; call SetVisible(true) to start ticking.
-func NewMetricsPanel(proc ports.ProcessorController) *MetricsPanel {
-	return &MetricsPanel{
+// The panel starts hidden; callers flip visibility through
+// Update(msgs.MetricsVisibilityMsg{Visible: ...}).
+func NewMetricsPanel(proc ports.ProcessorController) MetricsPanel {
+	return MetricsPanel{
 		proc:     proc,
 		Visible:  false,
 		tickEach: tickInterval,
 	}
 }
 
-// SetVisible starts or stops the internal tick chain. The function is
-// idempotent; calling it with the current visibility is a no-op.
-func (p *MetricsPanel) SetVisible(visible bool) {
+// SetVisible is a convenience for the constructor and the panel's own
+// internal Update path. External callers should prefer the message path
+// (Update(msgs.MetricsVisibilityMsg{...})) so the change flows through
+// the same code path as everything else.
+func (p MetricsPanel) SetVisible(visible bool) MetricsPanel {
 	p.Visible = visible
+	return p
 }
 
-// Update handles a single tea message. MetricsTickMsg refreshes the cached
-// snapshot and reschedules the next tick when the panel is visible. All other
-// messages pass through with no effect and no command.
-func (p *MetricsPanel) Update(msg tea.Msg) (*MetricsPanel, tea.Cmd) {
-	tick, ok := msg.(msgs.MetricsTickMsg)
-	if !ok {
+// Init returns nil per R-6.
+func (p MetricsPanel) Init() tea.Cmd { return nil }
+
+// Update handles a single tea message.
+//
+//   - msgs.MetricsVisibilityMsg flips the Visible flag and returns a
+//     tick cmd when Visible is true (or nil when false).
+//   - msgs.MetricsTickMsg refreshes the cached metrics snapshot and
+//     reschedules the next tick when Visible is true.
+//
+// All other messages pass through with no effect and no command.
+func (p MetricsPanel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case msgs.MetricsVisibilityMsg:
+		p.Visible = msg.Visible
+		if msg.Visible {
+			return p, p.tickCmd()
+		}
 		return p, nil
+
+	case msgs.MetricsTickMsg:
+		if !p.Visible {
+			return p, nil
+		}
+		p.last = p.proc.GetMetrics()
+		_ = msg
+		return p, p.tickCmd()
 	}
-	if !p.Visible {
-		return p, nil
-	}
-	p.last = p.proc.GetMetrics()
-	_ = tick
-	return p, p.tickCmd()
+	return p, nil
 }
 
 // View renders the eight metric rows in a fixed order. The output is the
 // same regardless of visibility so the parent view can pre-render without
 // flickering on activation.
-func (p *MetricsPanel) View() string {
+func (p MetricsPanel) View() tea.View {
+	return tea.NewView(p.view())
+}
+
+// view returns the raw string content. Extracted so the same logic
+// can be used by tests that pre-Phase 3.5 expected a string and by
+// the View() method that wraps it in a tea.View.
+func (p MetricsPanel) view() string {
 	m := p.last
 
 	var status string
@@ -114,7 +147,7 @@ func (p *MetricsPanel) View() string {
 }
 
 // tickCmd schedules the next MetricsTickMsg after the configured interval.
-func (p *MetricsPanel) tickCmd() tea.Cmd {
+func (p MetricsPanel) tickCmd() tea.Cmd {
 	return tea.Tick(p.tickEach, func(t time.Time) tea.Msg {
 		return msgs.MetricsTickMsg(t)
 	})

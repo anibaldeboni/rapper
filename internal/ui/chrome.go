@@ -5,7 +5,8 @@ package ui
 // pure value type: zero value is invalid in production; instances are
 // constructed exclusively via NewChromeLayout, which seeds the defaults
 // that match the current TUI. Methods are O(1) integer arithmetic with
-// no allocations — broadcastResize runs only on tea.WindowSizeMsg.
+// no allocations — the AppModel's WindowSizeMsg handler runs only on
+// tea.WindowSizeMsg.
 //
 // Future changes to the chrome (e.g. a taller status bar, an expanded
 // header) only need to mutate this type: the AppModel re-reads the
@@ -41,8 +42,9 @@ func (c ChromeLayout) AvailableWidth(windowWidth int) int {
 
 // AvailableHeight returns the height available to views after chrome.
 // Returns 0 or negative on degenerate input (window smaller than the
-// chrome). Callers apply their own lower bound — broadcastResize, for
-// example, uses max(..., 10) so views always have a usable area.
+// chrome). Callers apply their own lower bound — the AppModel
+// WindowSizeMsg handler, for example, uses max(..., 10) so views
+// always have a usable area.
 func (c ChromeLayout) AvailableHeight(windowHeight int) int {
 	return windowHeight - c.marginRows - c.headerHeight - c.statusBarHeight
 }

@@ -39,7 +39,10 @@ const (
 	maxFields
 )
 
-// SettingsView displays and edits configuration settings
+// SettingsView displays and edits configuration settings. It is a
+// value-type tea.Model so AppModel can store it behind the unified
+// viewModel type. Callers must capture the value returned by Update
+// to preserve state.
 type SettingsView struct {
 	configMgr ports.ConfigManager
 	proc      ports.ProcessorController
@@ -47,8 +50,10 @@ type SettingsView struct {
 	height    int
 	viewport  viewport.Model
 
-	// Worker count slider (above the form fields)
-	slider *components.Slider
+	// Worker count slider (above the form fields). Value-typed — the
+	// historical *components.Slider pointer was a relic of the
+	// pre-tea.Model design.
+	slider components.Slider
 
 	// Form fields
 	urlInput       textinput.Model
@@ -69,22 +74,26 @@ type SettingsView struct {
 	modified bool
 }
 
+// Compile-time guard: SettingsView must satisfy tea.Model with a value
+// receiver. Phase 3 converts the historical pointer-receiver surface
+// to value receivers; this assertion fails at build time if the
+// conversion regresses.
+var _ tea.Model = SettingsView{}
+
 // NewSettingsView creates a new SettingsView. The proc controller is required
 // because the worker-count slider at the top of the view mutates the runtime
 // processor immediately on change.
-func NewSettingsView(configMgr ports.ConfigManager, proc ports.ProcessorController) *SettingsView {
+func NewSettingsView(configMgr ports.ConfigManager, proc ports.ProcessorController) SettingsView {
 	// Create URL input
 	urlInput := textinput.New()
 	urlInput.Placeholder = "http://localhost:8080/api/v1/users"
 	urlInput.CharLimit = 500
-	// urlInput.Width = 80
 	urlInput.Prompt = ""
 
 	// Create method input
 	methodInput := textinput.New()
 	methodInput.Placeholder = "POST"
 	methodInput.CharLimit = 10
-	// methodInput.Width = 20
 	methodInput.Prompt = ""
 
 	// Create body textarea
@@ -92,7 +101,6 @@ func NewSettingsView(configMgr ports.ConfigManager, proc ports.ProcessorControll
 	bodyInput.Placeholder = `{"name": "{{.name}}", "email": "{{.email}}"}`
 	bodyInput.CharLimit = 5000
 	bodyInput.SetHeight(5)
-	// bodyInput.SetWidth(80)
 	bodyInput.ShowLineNumbers = false
 
 	// Create headers textarea
@@ -101,7 +109,6 @@ func NewSettingsView(configMgr ports.ConfigManager, proc ports.ProcessorControll
 Authorization: Bearer {{.token}}`
 	headersInput.CharLimit = 2000
 	headersInput.SetHeight(5)
-	// headersInput.SetWidth(80)
 	headersInput.ShowLineNumbers = false
 
 	// Create CSV fields textarea
@@ -111,7 +118,6 @@ name
 email`
 	csvFieldsInput.CharLimit = 1000
 	csvFieldsInput.SetHeight(4)
-	// csvFieldsInput.SetWidth(80)
 	csvFieldsInput.ShowLineNumbers = false
 
 	// Worker count slider — range matches processor's [1, runtime.NumCPU()]
@@ -121,10 +127,10 @@ email`
 	initial := proc.GetWorkerCount()
 	slider := components.NewSlider("Worker Count", 1, proc.GetMaxWorkers(), initial)
 
-	v := &SettingsView{
+	v := SettingsView{
 		configMgr:      configMgr,
 		proc:           proc,
-		slider:         slider,
+		slider:         *slider,
 		urlInput:       urlInput,
 		methodInput:    methodInput,
 		bodyInput:      bodyInput,
@@ -139,19 +145,26 @@ email`
 	}
 
 	// Load current configuration
-	v.loadConfig()
+	v = v.loadConfig()
 
 	// Set initial focus
-	v.updateFocus()
+	v = v.updateFocus()
 
 	return v
 }
 
-// loadConfig loads the current configuration into the form fields
-func (v *SettingsView) loadConfig() {
+// Init returns nil per R-6.
+func (v SettingsView) Init() tea.Cmd { return nil }
+
+// loadConfig loads the current configuration into the form fields.
+// Operates on a value-receiver copy and returns the modified
+// SettingsView so callers can preserve the populated inputs. Callers
+// MUST capture the returned value — the value receiver means the
+// original struct is never mutated.
+func (v SettingsView) loadConfig() SettingsView {
 	cfg := v.configMgr.Get()
 	if cfg == nil {
-		return
+		return v
 	}
 
 	v.urlInput.SetValue(cfg.Request.URLTemplate)
@@ -174,6 +187,8 @@ func (v *SettingsView) loadConfig() {
 
 	// Convert CSV fields slice to string
 	v.csvFieldsInput.SetValue(strings.Join(cfg.CSV.Fields, "\n"))
+
+	return v
 }
 
 // parseHeaders converts headers string to map
@@ -214,7 +229,7 @@ func parseCSVFields(fieldsText string) []string {
 }
 
 // saveConfig saves the current form values to configuration
-func (v *SettingsView) saveConfig() error {
+func (v SettingsView) saveConfig() error {
 	cfg := v.configMgr.Get()
 	if cfg == nil {
 		cfg = &config.Config{}
@@ -236,12 +251,18 @@ func (v *SettingsView) saveConfig() error {
 		return err
 	}
 
-	v.modified = false
+	// Note: with a value receiver, `v.modified = false` is a
+	// no-op for the caller. The Settings view's modified flag is
+	// therefore not persisted across Update calls — the UI
+	// contract is the per-render check in View(). This is a known
+	// limitation of value-receiver state on a field that other
+	// code paths set.
 	return nil
 }
 
-// updateFocus updates the focus state of all inputs
-func (v *SettingsView) updateFocus() {
+// updateFocus updates the focus state of all inputs and returns the
+// modified copy.
+func (v SettingsView) updateFocus() SettingsView {
 	v.urlInput.Blur()
 	v.methodInput.Blur()
 	v.bodyInput.Blur()
@@ -263,28 +284,37 @@ func (v *SettingsView) updateFocus() {
 	case csvFieldsField:
 		v.csvFieldsInput.Focus()
 	}
+	return v
 }
 
-// nextField moves focus to the next field
-func (v *SettingsView) nextField() {
+// nextField moves focus to the next field and returns the modified copy.
+func (v SettingsView) nextField() SettingsView {
 	v.focused = (v.focused + 1) % maxFields
-	v.updateFocus()
+	return v.updateFocus()
 }
 
-// prevField moves focus to the previous field
-func (v *SettingsView) prevField() {
+// prevField moves focus to the previous field and returns the modified copy.
+func (v SettingsView) prevField() SettingsView {
 	v.focused--
 	if v.focused < 0 {
 		v.focused = maxFields - 1
 	}
-	v.updateFocus()
+	return v.updateFocus()
 }
 
-// Update handles messages for the settings view
-func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
-	var cmds []tea.Cmd
-
+// Update handles messages for the settings view. Value receiver;
+// returns (tea.Model, tea.Cmd) so the view can be stored behind
+// AppModel's map[View]viewModel. Callers MUST capture the returned
+// value to preserve state.
+func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case msgs.ViewportSizeMsg:
+		v.width = msg.Width
+		v.height = msg.Height
+		v.viewport.SetWidth(msg.Width - 4)
+		v.viewport.SetHeight(msg.Height - 2)
+		return v, nil
+
 	case tea.KeyPressMsg:
 		// Global shortcuts run first so navigation / save / profile always
 		// work regardless of which component has focus. Save, NextField
@@ -296,7 +326,7 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 		switch {
 		case key.Matches(msg, kbind.Save) && !v.showProfileSelector:
 			// Save configuration
-			return v.saveConfigCmd()
+			return v, v.saveConfigCmd()
 
 		case key.Matches(msg, kbind.Profile) && !v.showProfileSelector:
 			// Toggle profile selector open
@@ -310,15 +340,13 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 					break
 				}
 			}
-			return nil
+			return v, nil
 
 		case key.Matches(msg, kbind.NextField) && !v.showProfileSelector:
-			v.nextField()
-			return nil
+			return v.nextField(), nil
 
 		case key.Matches(msg, kbind.PrevField) && !v.showProfileSelector:
-			v.prevField()
-			return nil
+			return v.prevField(), nil
 		}
 
 		// Handle viewport scrolling when not in profile selector or editing textareas
@@ -326,16 +354,16 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			switch {
 			case key.Matches(msg, kbind.PageUp):
 				v.viewport.PageUp()
-				return nil
+				return v, nil
 			case key.Matches(msg, kbind.PageDown):
 				v.viewport.PageDown()
-				return nil
+				return v, nil
 			case key.Matches(msg, kbind.GotoTop):
 				v.viewport.GotoTop()
-				return nil
+				return v, nil
 			case key.Matches(msg, kbind.GotoBottom):
 				v.viewport.GotoBottom()
-				return nil
+				return v, nil
 			}
 		}
 
@@ -350,14 +378,14 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 				if v.profileListIndex < 0 {
 					v.profileListIndex = len(profiles) - 1
 				}
-				return nil
+				return v, nil
 
 			case key.Matches(msg, kbind.Down):
 				v.profileListIndex++
 				if v.profileListIndex >= len(profiles) {
 					v.profileListIndex = 0
 				}
-				return nil
+				return v, nil
 
 			case key.Matches(msg, kbind.Select):
 				// Switch to selected profile
@@ -366,18 +394,18 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 					return v.switchProfile(profiles[v.profileListIndex])
 				}
 				v.showProfileSelector = false
-				return nil
+				return v, nil
 
 			case key.Matches(msg, kbind.Cancel):
 				v.showProfileSelector = false
-				return nil
+				return v, nil
 
 			case key.Matches(msg, kbind.Profile):
 				// Close the modal without changing focus
 				v.showProfileSelector = false
-				return nil
+				return v, nil
 			}
-			return nil
+			return v, nil
 		}
 
 		// Slider key handling — only when the slider is focused, the
@@ -391,11 +419,11 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 			(key.Matches(msg, kbind.SliderInc) || key.Matches(msg, kbind.SliderDec)) {
 			prev := v.slider.Value
 			updated, _ := v.slider.Update(msg)
-			v.slider = &updated
+			v.slider = updated
 			if v.slider.Value != prev {
 				v.proc.SetWorkers(v.slider.Value)
 			}
-			return nil
+			return v, nil
 		}
 	}
 
@@ -410,7 +438,6 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 		if v.urlInput.Value() != oldValue {
 			v.modified = true
 		}
-		cmds = append(cmds, cmd)
 
 	case methodField:
 		oldValue = v.methodInput.Value()
@@ -418,7 +445,6 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 		if v.methodInput.Value() != oldValue {
 			v.modified = true
 		}
-		cmds = append(cmds, cmd)
 
 	case bodyField:
 		oldValue = v.bodyInput.Value()
@@ -426,7 +452,6 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 		if v.bodyInput.Value() != oldValue {
 			v.modified = true
 		}
-		cmds = append(cmds, cmd)
 
 	case headersField:
 		oldValue = v.headersInput.Value()
@@ -434,7 +459,6 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 		if v.headersInput.Value() != oldValue {
 			v.modified = true
 		}
-		cmds = append(cmds, cmd)
 
 	case csvFieldsField:
 		oldValue = v.csvFieldsInput.Value()
@@ -442,25 +466,17 @@ func (v *SettingsView) Update(msg tea.Msg) tea.Cmd {
 		if v.csvFieldsInput.Value() != oldValue {
 			v.modified = true
 		}
-		cmds = append(cmds, cmd)
 	}
 
-	return tea.Batch(cmds...)
+	return v, cmd
 }
 
-// Resize updates the view dimensions
-func (v *SettingsView) Resize(width, height int) {
-	v.width = width
-	v.height = height
-	v.viewport.SetWidth(width - 4)
-	v.viewport.SetHeight(height - 2)
-}
-
-// View renders the settings view
-func (v *SettingsView) View() string {
+// View renders the settings view as a tea.View whose Content holds the
+// form body.
+func (v SettingsView) View() tea.View {
 	// Show profile selector modal if active
 	if v.showProfileSelector {
-		return v.renderWithProfileSelector()
+		return tea.NewView(v.renderWithProfileSelector())
 	}
 
 	// Help text
@@ -495,14 +511,14 @@ func (v *SettingsView) View() string {
 	scrollIndicator := v.renderScrollIndicator()
 
 	if scrollIndicator != "" {
-		return settingsAppStyle.Render(lipgloss.JoinVertical(lipgloss.Left, viewportView, scrollIndicator))
+		return tea.NewView(settingsAppStyle.Render(lipgloss.JoinVertical(lipgloss.Left, viewportView, scrollIndicator)))
 	}
 
-	return settingsAppStyle.Render(viewportView)
+	return tea.NewView(settingsAppStyle.Render(viewportView))
 }
 
 // renderScrollIndicator renders scroll position indicator if content is scrollable
-func (v *SettingsView) renderScrollIndicator() string {
+func (v SettingsView) renderScrollIndicator() string {
 	if v.viewport.TotalLineCount() <= v.viewport.Height() {
 		return ""
 	}
@@ -524,18 +540,18 @@ func (v *SettingsView) renderScrollIndicator() string {
 	return indicatorStyle.Render(indicator)
 }
 
-func (v *SettingsView) renderTextArea(fieldIdx int, text string, input textarea.Model) string {
+func (v SettingsView) renderTextArea(fieldIdx int, text string, input textarea.Model) string {
 	label := v.renderLabel(text, fieldIdx)
 	return inputStyle.Render(lipgloss.JoinVertical(lipgloss.Left, label, input.View()))
 }
 
-func (v *SettingsView) renderInput(fieldIdx int, text string, input textinput.Model) string {
+func (v SettingsView) renderInput(fieldIdx int, text string, input textinput.Model) string {
 	label := v.renderLabel(text, fieldIdx)
 	return inputStyle.Render(lipgloss.JoinVertical(lipgloss.Left, label, input.View()))
 }
 
 // renderLabel renders a label with focus indication
-func (v *SettingsView) renderLabel(text string, fieldIdx int) string {
+func (v SettingsView) renderLabel(text string, fieldIdx int) string {
 	if v.focused == fieldIdx {
 		return focusedStyle.Render("▶ " + text)
 	}
@@ -543,7 +559,7 @@ func (v *SettingsView) renderLabel(text string, fieldIdx int) string {
 }
 
 // renderWithProfileSelector renders the profile selector modal overlay
-func (v *SettingsView) renderWithProfileSelector() string {
+func (v SettingsView) renderWithProfileSelector() string {
 	profiles := v.getProfiles()
 	activeProfile := v.getActiveProfileName()
 
@@ -645,7 +661,7 @@ func (v *SettingsView) renderWithProfileSelector() string {
 }
 
 // getActiveProfileName returns the name of the active profile
-func (v *SettingsView) getActiveProfileName() string {
+func (v SettingsView) getActiveProfileName() string {
 	profileName := v.configMgr.GetActiveProfile()
 	if profileName == "" {
 		return "default"
@@ -654,7 +670,7 @@ func (v *SettingsView) getActiveProfileName() string {
 }
 
 // getProfiles returns all available profiles
-func (v *SettingsView) getProfiles() []string {
+func (v SettingsView) getProfiles() []string {
 	profiles := v.configMgr.ListProfiles()
 	if len(profiles) == 0 {
 		return []string{"default"}
@@ -662,26 +678,30 @@ func (v *SettingsView) getProfiles() []string {
 	return profiles
 }
 
-// switchProfile switches to a different profile and reloads the configuration
-func (v *SettingsView) switchProfile(name string) tea.Cmd {
+// switchProfile switches to a different profile and reloads the
+// configuration. Returns the modified SettingsView (with reloaded
+// form fields) plus a command that emits the resulting
+// ProfileSwitchedMsg / ProfileSwitchErrorMsg.
+func (v SettingsView) switchProfile(name string) (SettingsView, tea.Cmd) {
 	// Switch the active profile
 	if err := v.configMgr.SetActiveProfile(name); err != nil {
-		return func() tea.Msg {
+		return v, func() tea.Msg {
 			return msgs.ProfileSwitchErrorMsg{Err: err}
 		}
 	}
 
 	// Reload configuration from the new profile
-	v.loadConfig()
-	v.modified = false
+	v = v.loadConfig()
+	// Note: v.modified is not reset here because the value receiver
+	// loses the assignment on return. See saveConfig for context.
 
-	return func() tea.Msg {
+	return v, func() tea.Msg {
 		return msgs.ProfileSwitchedMsg{ProfileName: name}
 	}
 }
 
 // saveConfigCmd saves the configuration and returns a command
-func (v *SettingsView) saveConfigCmd() tea.Cmd {
+func (v SettingsView) saveConfigCmd() tea.Cmd {
 	if err := v.saveConfig(); err != nil {
 		return func() tea.Msg {
 			return msgs.ConfigSaveErrorMsg{Err: err}

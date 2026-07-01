@@ -8,13 +8,21 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
-	"github.com/anibaldeboni/rapper/internal/ui/views"
 )
 
 func tickCmd() tea.Cmd {
 	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
 		return msgs.TickMsg(t)
 	})
+}
+
+// emit returns a tea.Cmd that yields m when run. Use in tea.Batch
+// compositions to inject messages into the message stream without
+// allocating a dedicated helper per message type. Mirrors the
+// emitItemSelected pattern in views/files.go so the two read
+// consistently.
+func emit(m tea.Msg) tea.Cmd {
+	return func() tea.Msg { return m }
 }
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -29,18 +37,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, kbind.ViewFiles):
 			m.nav.Set(ViewFiles)
-			m.logsView.SetMetricsVisible(false)
-			return m, nil
+			return m, m.routeToAllViews(msgs.MetricsVisibilityMsg{Visible: false})
 
 		case key.Matches(msg, kbind.ViewLogs):
 			m.nav.Set(ViewLogs)
-			m.logsView.SetMetricsVisible(true)
-			return m, nil
+			return m, m.routeToAllViews(msgs.MetricsVisibilityMsg{Visible: true})
 
 		case key.Matches(msg, kbind.ViewSettings):
 			m.nav.Set(ViewSettings)
-			m.logsView.SetMetricsVisible(false)
-			return m, nil
+			return m, m.routeToAllViews(msgs.MetricsVisibilityMsg{Visible: false})
 
 		case key.Matches(msg, kbind.CancelOperation):
 			if m.cancel != nil {
@@ -54,14 +59,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Delegate to current view
+		// Delegate to current view only — not the whole map.
 		return m.updateCurrentView(msg)
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.broadcastResize()
-		return m, nil
+		// Synthesize a chrome-adjusted per-view ViewportSizeMsg and
+		// route it to every view. The historical imperative dispatch
+		// is gone; this is the message-based equivalent.
+		aw := m.chrome.AvailableWidth(m.width)
+		ah := max(m.chrome.AvailableHeight(m.height), 10)
+		return m, m.routeToAllViews(msgs.ViewportSizeMsg{Width: aw, Height: ah})
 
 	case tea.BackgroundColorMsg:
 		if msg.IsDark() != m.isDark {
@@ -90,7 +99,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if hasCancel {
 			// Forward progress message to LogsView to update content
 			metrics := m.processor.GetMetrics()
-			logsCmd := m.logsView.Update(msgs.ProcessingProgressMsg{
+			next, logsCmd := m.views[ViewLogs].Update(msgs.ProcessingProgressMsg{
 				TotalRequests:   metrics.TotalRequests,
 				SuccessRequests: metrics.SuccessRequests,
 				ErrorRequests:   metrics.ErrorRequests,
@@ -100,20 +109,36 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				StartTime:       metrics.StartTime,
 				IsProcessing:    metrics.IsProcessing,
 			})
+			m.views[ViewLogs] = next
 			cmds = append(cmds, logsCmd)
 		}
 
-		// Forward metrics tick to LogsView only when active. The metrics
-		// panel owns its own tick chain and stops it via SetVisible(false)
-		// when the user navigates away.
-		if m.nav.Current() == ViewLogs {
-			metricsCmd := m.logsView.Update(msgs.MetricsTickMsg(msg))
-			cmds = append(cmds, metricsCmd)
-		}
+		// MetricsTickMsg forwarding was removed: the dedicated
+		// `case msgs.MetricsTickMsg` below now broadcasts the tick
+		// to every view, so duplicating it here would tick the
+		// LogsView's panel twice per interval (2x refresh rate).
 
 	case msgs.ProcessingStartedMsg:
-		cmd := m.logsView.Update(msg)
+		next, cmd := m.views[ViewLogs].Update(msg)
+		m.views[ViewLogs] = next
 		return m, cmd
+
+	case msgs.MetricsTickMsg:
+		// Broadcast MetricsTickMsg to every view. Only LogsView is
+		// required to act on it; the others no-op and return their
+		// model unchanged with a nil command. The chain self-sustains
+		// because LogsView.Update(MetricsTickMsg) returns the next
+		// metricsTickCmd via the embedded panel.
+		return m, m.routeToAllViews(msg)
+
+	case msgs.MetricsVisibilityMsg:
+		// Broadcast MetricsVisibilityMsg to every view. Only LogsView
+		// flips the embedded MetricsPanel.Visible flag and schedules
+		// (or stops) the tick chain; the others no-op. This case is
+		// what the selectFile batch relies on: the batched message
+		// is delivered by the framework on the next Update tick and
+		// must reach the LogsView for the chain to self-sustain.
+		return m, m.routeToAllViews(msg)
 
 	case msgs.ProcessingStoppedMsg:
 		// Clear cancel function
@@ -122,7 +147,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cancelMu.Unlock()
 
 		// Forward message to LogsView
-		logsCmd := m.logsView.Update(msg)
+		next, logsCmd := m.views[ViewLogs].Update(msg)
+		m.views[ViewLogs] = next
 
 		if msg.Err != nil {
 			m.toastMgr.Error("Processing failed: " + msg.Err.Error())
@@ -146,38 +172,47 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgs.ProfileSwitchErrorMsg:
 		m.toastMgr.Error("Failed to switch profile: " + msg.Err.Error())
 		return m, nil
+
+	case msgs.ItemSelectedMsg:
+		// FilesView (Phase 4) emits ItemSelectedMsg on Select. The
+		// AppModel routes it to selectFile which starts processing
+		// and switches to the LogsView. This is the unidirectional
+		// equivalent of the historical AppModel interception +
+		// SelectedItem() query.
+		return m.selectFile(msg.FilePath)
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
-func (m AppModel) updateCurrentView(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
-	switch m.nav.Current() {
-	case ViewFiles:
-		// Handle file selection
-		if key.Matches(msg, kbind.Select) {
-			item := m.filesView.SelectedItem()
-			if opt, ok := item.(views.Option[string]); ok {
-				newModel, cmd := m.selectFile(opt.Value)
-				return newModel, cmd
-			}
+// routeToAllViews broadcasts a message to every view in the views map,
+// captures the returned model for each, and batches the returned cmds.
+// This is the only mechanism for cross-cutting messages (size, theme,
+// visibility) — AppModel never calls a view-specific method.
+func (m AppModel) routeToAllViews(msg tea.Msg) tea.Cmd {
+	var cmds []tea.Cmd
+	for k, v := range m.views {
+		next, cmd := v.Update(msg)
+		m.views[k] = next
+		if cmd != nil {
+			cmds = append(cmds, cmd)
 		}
-
-		cmd = m.filesView.Update(msg)
-
-	case ViewLogs:
-		cmd = m.logsView.Update(msg)
-
-	case ViewSettings:
-		cmd = m.settingsView.Update(msg)
 	}
+	return tea.Batch(cmds...)
+}
 
+// updateCurrentView routes a keypress to the active view only. The
+// returned next is captured into the views map; the returned cmd is
+// routed back through the top-level Update so ItemSelectedMsg and
+// other messages produced by the view flow through the normal dispatch.
+func (m AppModel) updateCurrentView(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	active := m.nav.Current()
+	next, cmd := m.views[active].Update(msg)
+	m.views[active] = next
 	return m, cmd
 }
 
-func (m AppModel) selectFile(filePath string) (AppModel, tea.Cmd) {
+func (m AppModel) selectFile(filePath string) (tea.Model, tea.Cmd) {
 	m.cancelMu.RLock()
 	hasCancel := m.cancel != nil
 	m.cancelMu.RUnlock()
@@ -199,11 +234,17 @@ func (m AppModel) selectFile(filePath string) (AppModel, tea.Cmd) {
 		// Switch to logs view when processing starts
 		m.nav.Set(ViewLogs)
 
-		// Return batch of commands: emit ProcessingStartedMsg and wait for completion
+		// Return batch of commands: emit ProcessingStartedMsg,
+		// start the metrics tick chain via MetricsVisibilityMsg,
+		// and wait for completion. The visibility message is
+		// routed to every view; only LogsView acts on it (it flips
+		// the embedded MetricsPanel.Visible flag and schedules the
+		// first metrics tick cmd).
 		return m, tea.Batch(
 			func() tea.Msg {
 				return msgs.ProcessingStartedMsg{FilePath: filePath}
 			},
+			emit(msgs.MetricsVisibilityMsg{Visible: true}),
 			m.waitCompletion(ctx),
 		)
 	}
@@ -223,13 +264,4 @@ func (m *AppModel) waitCompletion(ctx context.Context) tea.Cmd {
 			Err:     nil,
 		}
 	}
-}
-
-func (m AppModel) broadcastResize() {
-	availableHeight := max(m.chrome.AvailableHeight(m.height), 10)
-	availableWidth := m.chrome.AvailableWidth(m.width)
-
-	m.filesView.Resize(availableWidth, availableHeight)
-	m.logsView.Resize(availableWidth, availableHeight)
-	m.settingsView.Resize(availableWidth, availableHeight)
 }

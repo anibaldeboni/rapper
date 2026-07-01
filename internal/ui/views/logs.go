@@ -2,6 +2,7 @@ package views
 
 import (
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
@@ -41,10 +42,13 @@ const metricsDefaultWidth = 36
 const logsMarginLeft = 2
 
 // LogsView displays execution logs alongside the live metrics panel.
+// It is a value-type tea.Model so AppModel can store it behind a
+// uniform `map[View]viewModel` and broadcast messages to every view
+// without re-dispatching on the concrete type.
 type LogsView struct {
 	viewport   viewport.Model
 	logger     ports.LogProvider
-	metrics    *components.MetricsPanel
+	metrics    components.MetricsPanel
 	title      string
 	width      int
 	height     int
@@ -52,12 +56,22 @@ type LogsView struct {
 	autoScroll bool
 }
 
+// Compile-time guard: LogsView must satisfy tea.Model with a value
+// receiver. Phase 2 converts the historical pointer-receiver surface
+// to value receivers; this assertion fails at build time if the
+// conversion regresses.
+var _ tea.Model = LogsView{}
+
 // NewLogsView creates a LogsView. The proc parameter is required so the
 // in-view metrics panel can refresh from the processor state.
-func NewLogsView(logger ports.LogProvider, proc ports.ProcessorController) *LogsView {
+//
+// The view is a value (not a pointer) so AppModel can store it
+// behind the unified viewModel type. Callers must capture the value
+// returned by Update to preserve state.
+func NewLogsView(logger ports.LogProvider, proc ports.ProcessorController) LogsView {
 	vp := viewport.New(viewport.WithWidth(0), viewport.WithHeight(0))
 
-	v := &LogsView{
+	v := LogsView{
 		viewport:   vp,
 		logger:     logger,
 		metrics:    components.NewMetricsPanel(proc),
@@ -66,22 +80,46 @@ func NewLogsView(logger ports.LogProvider, proc ports.ProcessorController) *Logs
 		autoScroll: true,
 	}
 	// Load initial logs
-	v.updateLogs()
+	v = v.updateLogs()
 	return v
 }
 
-// SetMetricsVisible starts or stops the metrics tick chain. AppModel calls
-// this with true when the Logs view becomes active and false when it leaves.
-func (v *LogsView) SetMetricsVisible(visible bool) {
-	v.metrics.SetVisible(visible)
-}
+// Init returns nil. The metrics tick chain is started via
+// Update(MetricsVisibilityMsg{Visible: true}), not Init, so the chain
+// only ticks when the Logs view is the active view.
+func (v LogsView) Init() tea.Cmd { return nil }
 
-// Update handles messages for the logs view. The metrics panel owns its own
-// tick chain; we only forward the MetricsTickMsg to it.
-func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
+// Update handles messages for the logs view. The view returns a
+// value-receiver copy (LogsView) plus an optional command. Callers
+// MUST capture the returned LogsView to preserve state — the value
+// receiver means the original struct is never mutated.
+//
+// Recognised messages:
+//   - msgs.ViewportSizeMsg: re-partition the available width between
+//     the log viewport (left) and the metrics panel (right).
+//   - msgs.MetricsVisibilityMsg: start (true) or stop (false) the
+//     metrics tick chain. The chain is self-sustaining once started:
+//     MetricsPanel.Update(MetricsTickMsg) reschedules itself.
+func (v LogsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case msgs.ViewportSizeMsg:
+		v = v.applyViewportSize(msg.Width, msg.Height)
+
+	case msgs.MetricsVisibilityMsg:
+		// Start or stop the metrics tick chain. The panel's Visible
+		// flag is the source of truth; LogsView owns the scheduling
+		// (the tea.Tick cmd) per R-7 / D-5. The chain becomes
+		// self-sustaining because the next MetricsTickMsg (delivered
+		// by the tick cmd we return) is forwarded to the panel which
+		// reschedules via LogsView at the top of Update.
+		v.metrics.Visible = msg.Visible
+		if msg.Visible {
+			return v, metricsTickCmd()
+		}
+		return v, nil
+
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, kbind.GotoBottom):
@@ -109,9 +147,16 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 			v.viewport.ScrollLeft(1)
 			v.autoScroll = false
 		}
+
 	case msgs.MetricsTickMsg:
-		v.metrics, cmd = v.metrics.Update(msg)
-		return cmd
+		// Forward to the embedded panel so it can refresh the cached
+		// metrics snapshot and reschedule its own tick cmd.
+		next, mcmd := v.metrics.Update(msg)
+		v.metrics = next.(components.MetricsPanel)
+		cmd = mcmd
+		v = v.updateLogs()
+		return v, cmd
+
 	default:
 		switch msg.(type) {
 		case msgs.ProcessingStartedMsg:
@@ -120,14 +165,18 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 		case msgs.ProcessingProgressMsg:
 		}
 	}
-	v.updateLogs()
+	v = v.updateLogs()
 	v.viewport, cmd = v.viewport.Update(msg)
-	return cmd
+	return v, cmd
 }
 
-// Resize updates the view dimensions and re-partitions the available width
-// between the log viewport (left) and the metrics panel (right).
-func (v *LogsView) Resize(width, height int) {
+// applyViewportSize re-partitions the available width between the log
+// viewport (left) and the metrics panel (right). The partition math
+// matches the historical Resize behaviour: the right column is the
+// default (36) capped to ~30% of the available width with a floor of
+// 24, then the left column takes whatever is left minus the
+// view-local MarginLeft (2).
+func (v LogsView) applyViewportSize(width, height int) LogsView {
 	v.width = width
 	v.height = height
 
@@ -146,19 +195,19 @@ func (v *LogsView) Resize(width, height int) {
 	v.viewport.SetWidth(left)
 	v.viewport.SetHeight(height - 3)
 	v.rightCol = right
+	return v
 }
 
-// View renders the logs view with the log viewport on the left and the
-// metrics panel on the right. Both panels together cover the full content
-// width assigned to the view.
-func (v *LogsView) View() string {
+// View renders the logs view as a tea.View whose Content holds the
+// joined (viewport + metrics panel) body.
+func (v LogsView) View() tea.View {
 	body := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		v.viewport.View(),
-		v.metrics.View(),
+		v.metrics.View().Content,
 	)
 
-	return lipgloss.NewStyle().
+	return tea.NewView(lipgloss.NewStyle().
 		MarginLeft(2).
 		MarginTop(1).
 		Render(
@@ -167,14 +216,51 @@ func (v *LogsView) View() string {
 				logTitleStyle.Render(v.title),
 				body,
 			),
-		)
+		))
 }
 
-// updateLogs updates the viewport content with latest logs and auto-scrolls if processing
-func (v *LogsView) updateLogs() {
+// updateLogs updates the viewport content with latest logs and
+// auto-scrolls to the bottom when autoScroll is true. Operates on a
+// value-receiver copy and returns the modified LogsView so callers
+// preserve the new viewport state. The returned value MUST be
+// captured by every call site — the value receiver means the
+// original struct is never mutated.
+func (v LogsView) updateLogs() LogsView {
 	content := strings.Join(v.logger.Get(), "\n")
 	v.viewport.SetContent(content)
 	if v.autoScroll {
 		v.viewport.GotoBottom()
 	}
+	return v
+}
+
+// MetricsVisible returns true if the embedded metrics panel is
+// currently ticking. Used by AppModel tests to assert the visibility
+// state after a nav switch.
+func (v LogsView) MetricsVisible() bool { return v.metrics.Visible }
+
+// ViewportWidth returns the assigned viewport width. Diagnostic
+// accessor for the flow tests.
+func (v LogsView) ViewportWidth() int { return v.viewport.Width() }
+
+// ViewportHeight returns the assigned viewport height. Diagnostic
+// accessor for the flow tests.
+func (v LogsView) ViewportHeight() int { return v.viewport.Height() }
+
+// ViewportContent returns the current viewport content. Diagnostic
+// accessor for the flow tests.
+func (v LogsView) ViewportContent() string { return v.viewport.GetContent() }
+
+// metricsTickInterval is the metrics refresh cadence. Matches the
+// MetricsPanel.tickInterval constant so the two stay in sync; the
+// panel's own Update uses its own copy for the reschedule path.
+const metricsTickInterval = 100 * time.Millisecond
+
+// metricsTickCmd schedules the next MetricsTickMsg after the metrics
+// interval. LogsView owns the scheduling; the panel just receives the
+// resulting tick and reschedules by replying through Update.
+func metricsTickCmd() tea.Cmd {
+	return tea.Tick(metricsTickInterval, func(t time.Time) tea.Msg {
+		return msgs.MetricsTickMsg(t)
+	})
 }

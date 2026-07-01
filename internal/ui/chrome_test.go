@@ -140,8 +140,8 @@ func TestChromeLayout_AvailableHeight_DegenerateInput(t *testing.T) {
 
 func TestChromeLayout_AvailableWidth_DegenerateInput(t *testing.T) {
 	// Spec requirement 5: AvailableWidth returns windowWidth - marginCols.
-	// No lower bound is applied; the caller (broadcastResize) does not
-	// need one because the only consumer is the view Resize chain which
+	// No lower bound is applied; the AppModel's WindowSizeMsg handler does
+	// not need one because the only consumer is the view Update path which
 	// handles non-positive widths by leaving the view at its previous
 	// state. This test pins the contract for the zero / negative case so
 	// a future "defensive clamp" cannot silently change the result.

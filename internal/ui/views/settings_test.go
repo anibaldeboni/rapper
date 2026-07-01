@@ -1,12 +1,14 @@
 package views
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
+	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -53,14 +55,17 @@ func TestSettingsView_SliderFocusedOnConstruction_PlusKeyIncrements(t *testing.T
 	// Step 1: press - to lower the count, confirming the slider received
 	// the key and the processor was updated.
 	proc.EXPECT().SetWorkers(current - 1).Times(1)
-	_ = v.Update(settingsKeyMsg(kbind.SliderDec.Keys()[0]))
+	var next tea.Model
+	next, _ = v.Update(settingsKeyMsg(kbind.SliderDec.Keys()[0]))
+	v = next.(SettingsView)
 	assert.Equal(t, current-1, v.slider.Value, "slider value should drop after -")
 
 	// Step 2: press + to raise the count back. This is the actual bug
 	// scenario: the user lands in Settings, presses +, and expects the
 	// worker count to grow.
 	proc.EXPECT().SetWorkers(current).Times(1)
-	_ = v.Update(settingsKeyMsg(kbind.SliderInc.Keys()[0]))
+	next, _ = v.Update(settingsKeyMsg(kbind.SliderInc.Keys()[0]))
+	v = next.(SettingsView)
 	assert.Equal(t, current, v.slider.Value, "slider value should rise after +")
 }
 
@@ -161,7 +166,9 @@ func TestSettingsView_SliderAcceptsKittyProtocolPlusKey(t *testing.T) {
 	// sends the legacy {Text:"-", Code:'-'} form. The binding accepts
 	// both "-" and "shift+-", so this works in any layout.
 	proc.EXPECT().SetWorkers(current - 1).Times(1)
-	_ = v.Update(settingsKeyMsg(kbind.SliderDec.Keys()[0]))
+	var next tea.Model
+	next, _ = v.Update(settingsKeyMsg(kbind.SliderDec.Keys()[0]))
+	v = next.(SettingsView)
 	assert.Equal(t, current-1, v.slider.Value, "slider value drops after -")
 
 	// Step 2: the real Kitty-protocol `+` keypress. Before the fix
@@ -170,7 +177,8 @@ func TestSettingsView_SliderAcceptsKittyProtocolPlusKey(t *testing.T) {
 	// After the fix the binding includes "shift+=" and the value
 	// grows back to current.
 	proc.EXPECT().SetWorkers(current).Times(1)
-	_ = v.Update(kittyPlusKeyMsg())
+	next, _ = v.Update(kittyPlusKeyMsg())
+	v = next.(SettingsView)
 	assert.Equal(t, current, v.slider.Value,
 		"slider value must grow after Kitty-protocol `+` keypress; "+
 			"the binding must match the shift+= keystroke representation")
@@ -215,7 +223,9 @@ func TestSettingsView_SliderFocused_TabMovesFocus(t *testing.T) {
 	v := NewSettingsView(configMgr, proc)
 	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
 
-	_ = v.Update(settingsKeyMsg(kbind.NextField.Keys()[0]))
+	var next tea.Model
+	next, _ = v.Update(settingsKeyMsg(kbind.NextField.Keys()[0]))
+	v = next.(SettingsView)
 	assert.NotEqual(t, sliderField, v.focused,
 		"Tab must move focus away from the slider when the slider is focused; "+
 			"the slider key-handling block must not swallow global navigation keys")
@@ -246,7 +256,10 @@ func TestSettingsView_SliderFocused_CtrlS_TriggersSave(t *testing.T) {
 	v := NewSettingsView(configMgr, proc)
 	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
 
-	cmd := v.Update(settingsKeyMsg("ctrl+s"))
+	var next tea.Model
+	cmd := tea.Cmd(nil)
+	next, cmd = v.Update(settingsKeyMsg("ctrl+s"))
+	v = next.(SettingsView)
 	assert.NotNil(t, cmd,
 		"Ctrl+S must trigger saveConfigCmd when the slider is focused; "+
 			"the slider key-handling block must not swallow the Save global shortcut")
@@ -274,7 +287,9 @@ func TestSettingsView_SliderFocused_CtrlP_TogglesProfileSelector(t *testing.T) {
 	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
 	require.False(t, v.showProfileSelector, "profile selector should be closed on construction")
 
-	_ = v.Update(settingsKeyMsg("ctrl+p"))
+	var next tea.Model
+	next, _ = v.Update(settingsKeyMsg("ctrl+p"))
+	v = next.(SettingsView)
 	assert.True(t, v.showProfileSelector,
 		"Ctrl+P must toggle the profile selector open when the slider is focused; "+
 			"the slider key-handling block must not swallow the Profile global shortcut")
@@ -309,7 +324,9 @@ func TestSettingsView_ModalOpen_CtrlP_ClosesSelector(t *testing.T) {
 	v.showProfileSelector = true
 	v.profileListIndex = 0
 
-	_ = v.Update(settingsKeyMsg("ctrl+p"))
+	var next tea.Model
+	next, _ = v.Update(settingsKeyMsg("ctrl+p"))
+	v = next.(SettingsView)
 	assert.False(t, v.showProfileSelector,
 		"Ctrl+P must close the profile selector when the modal is open; "+
 			"the modal block must handle the Profile key, not only Esc")
@@ -341,11 +358,14 @@ func TestSettingsView_CtrlP_TwiceIsIdempotent(t *testing.T) {
 	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
 	require.False(t, v.showProfileSelector, "profile selector should be closed on construction")
 
-	_ = v.Update(settingsKeyMsg("ctrl+p"))
+	var next tea.Model
+	next, _ = v.Update(settingsKeyMsg("ctrl+p"))
+	v = next.(SettingsView)
 	assert.True(t, v.showProfileSelector,
 		"first Ctrl+P must open the profile selector when the slider is focused")
 
-	_ = v.Update(settingsKeyMsg("ctrl+p"))
+	next, _ = v.Update(settingsKeyMsg("ctrl+p"))
+	v = next.(SettingsView)
 	assert.False(t, v.showProfileSelector,
 		"second Ctrl+P must close the profile selector (re-entrancy)")
 	assert.Equal(t, sliderField, v.focused,
@@ -355,12 +375,12 @@ func TestSettingsView_CtrlP_TwiceIsIdempotent(t *testing.T) {
 // TestSettingsView_Resize_AccountsForOwnMargin is the regression test
 // for BUG-002: SettingsView.Resize() subtracted height-4 from the
 // viewport height, but the chrome (marginRows + headerHeight +
-// statusBarHeight) is already deducted by broadcastResize, so the
-// `height` argument here is the post-chrome area. The view's own
-// settingsAppStyle.Margin(1, 2) consumes 2 rows (1 top + 1 bottom),
-// so the viewport must be set to height-2 — not height-4. The bug
-// produced 2 rows of dead space at the bottom of the form (the user
-// reported "settings com muito espaço vazio em baixo").
+// statusBarHeight) is already deducted by the AppModel's WindowSizeMsg
+// handler, so the `height` argument here is the post-chrome area. The
+// view's own settingsAppStyle.Margin(1, 2) consumes 2 rows (1 top + 1
+// bottom), so the viewport must be set to height-2 — not height-4. The
+// bug produced 2 rows of dead space at the bottom of the form (the
+// user reported "settings com muito espaço vazio em baixo").
 //
 // Root cause: Resize was double-subtracting chrome. The fix changes
 // `height - 4` to `height - 2`. The width deduction (`width - 4`) is
@@ -381,9 +401,112 @@ func TestSettingsView_Resize_AccountsForOwnMargin(t *testing.T) {
 	v := NewSettingsView(configMgr, proc)
 
 	const width, height = 80, 20
-	v.Resize(width, height)
+	next, _ := v.Update(msgs.ViewportSizeMsg{Width: width, Height: height})
+	v = next.(SettingsView)
 
 	assert.Equal(t, height-2, v.viewport.Height(),
 		"viewport height must equal (height - 2) — the view's own Margin(1,2); "+
 			"subtracting 4 double-counts the chrome and leaves 2 rows of dead space")
+}
+
+// TestSettingsView_Init_ReturnsNil — Init must return nil per R-6.
+func TestSettingsView_Init_ReturnsNil(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	configMgr := mock_ui.NewMockConfigManager(ctrl)
+	proc := mock_ui.NewMockProcessorController(ctrl)
+	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
+	configMgr.EXPECT().Get().Return(nil).AnyTimes()
+	v := NewSettingsView(configMgr, proc)
+	if cmd := v.Init(); cmd != nil {
+		t.Fatalf("Init must return nil; got %T", cmd)
+	}
+}
+
+// TestSettingsView_LoadConfig_PopulatesInputs is the regression test
+// for the value-receiver mutation-loss bug in loadConfig. Before the
+// fix the function populated the value-receiver copy's inputs and
+// returned nothing, so the form started empty and stayed empty after
+// a profile switch. The fix returns the modified SettingsView so the
+// populated form state is captured at the call site.
+//
+// Test contract:
+//   - The mock ConfigManager.Get() returns a fully-populated *config.Config.
+//   - The returned SettingsView's form inputs reflect the config values.
+//   - When Request.Method is empty, the method input defaults to "POST".
+//   - loadConfig called directly (post-construction) returns a SettingsView
+//     whose inputs also reflect the new config — this is the path the
+//     spec's switchProfile scenario exercises.
+func TestSettingsView_LoadConfig_PopulatesInputs(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	configMgr := mock_ui.NewMockConfigManager(ctrl)
+	proc := mock_ui.NewMockProcessorController(ctrl)
+	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
+
+	cfg := &config.Config{
+		Request: config.RequestConfig{
+			URLTemplate:  "http://example.com/api",
+			Method:       "PUT",
+			BodyTemplate: `{"name":"{{.name}}"}`,
+			Headers:      map[string]string{"Authorization": "Bearer xyz", "Content-Type": "application/json"},
+		},
+		CSV: config.CSVConfig{Fields: []string{"id", "name"}},
+	}
+	configMgr.EXPECT().Get().Return(cfg).AnyTimes()
+
+	v := NewSettingsView(configMgr, proc)
+	require.Equal(t, sliderField, v.focused, "slider is the initial focus")
+
+	assert.Equal(t, "http://example.com/api", v.urlInput.Value(),
+		"urlInput must reflect config.Request.URLTemplate")
+	assert.Equal(t, "PUT", v.methodInput.Value(),
+		"methodInput must reflect config.Request.Method when set")
+	assert.Equal(t, `{"name":"{{.name}}"}`, v.bodyInput.Value(),
+		"bodyInput must reflect config.Request.BodyTemplate")
+
+	// Headers are converted to "Key: Value" lines joined by newline.
+	// map iteration order is not stable in Go, so we assert each line is
+	// present in the textarea's value rather than asserting the exact
+	// joined string.
+	headersVal := v.headersInput.Value()
+	assert.Contains(t, headersVal, "Authorization: Bearer xyz",
+		"headersInput must contain the Authorization header line")
+	assert.Contains(t, headersVal, "Content-Type: application/json",
+		"headersInput must contain the Content-Type header line")
+	assert.Equal(t, 2, strings.Count(headersVal, "\n")+1,
+		"headersInput must contain exactly two header lines")
+
+	assert.Equal(t, "id\nname", v.csvFieldsInput.Value(),
+		"csvFieldsInput must reflect config.CSV.Fields joined by newline")
+}
+
+// TestSettingsView_LoadConfig_EmptyMethodDefaultsToPost is the
+// regression test for the "empty method defaults to POST" scenario
+// from the spec.
+func TestSettingsView_LoadConfig_EmptyMethodDefaultsToPost(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	configMgr := mock_ui.NewMockConfigManager(ctrl)
+	proc := mock_ui.NewMockProcessorController(ctrl)
+	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
+
+	cfg := &config.Config{
+		Request: config.RequestConfig{
+			URLTemplate: "http://x",
+			Method:      "", // empty — must default to "POST"
+		},
+		CSV: config.CSVConfig{Fields: []string{"id"}},
+	}
+	configMgr.EXPECT().Get().Return(cfg).AnyTimes()
+
+	v := NewSettingsView(configMgr, proc)
+
+	assert.Equal(t, "POST", v.methodInput.Value(),
+		"empty Request.Method must default to POST in the form")
 }
