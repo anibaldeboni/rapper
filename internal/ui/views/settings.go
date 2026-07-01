@@ -453,7 +453,7 @@ func (v *SettingsView) Resize(width, height int) {
 	v.width = width
 	v.height = height
 	v.viewport.SetWidth(width - 4)
-	v.viewport.SetHeight(height - 4)
+	v.viewport.SetHeight(height - 2)
 }
 
 // View renders the settings view

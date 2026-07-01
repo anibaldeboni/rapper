@@ -108,3 +108,57 @@ func TestMetricsPanel_Render_IsDeterministicForGivenMetrics(t *testing.T) {
 	second := p.View()
 	assert.Equal(t, first, second, "metrics panel must be deterministic for the same metrics")
 }
+
+// TestLogsView_Resize_AccountsForMarginLeft is the regression test for
+// BUG-001: LogsView's View() applies MarginLeft(2) to the rendered body,
+// but the Resize() math ignored it. With Resize(80, 20) and a fixed
+// right pane of 24, the viewport was set to 56 columns even though the
+// left pane rendered into 54 visible columns (56 - 2 from MarginLeft).
+// The bug surfaced as 2 columns of overflow on the right edge of the
+// logs pane (clipping the last 2 characters of every line).
+//
+// Root cause: `left := max(width-right, 0)` did not subtract the
+// view-local MarginLeft. The fix introduces a named constant
+// logsMarginLeft and uses it in the partition math so the rendered
+// total (left + right + marginLeft) fits the assigned width exactly.
+func TestLogsView_Resize_AccountsForMarginLeft(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	proc := mock_ui.NewMockProcessorController(ctrl)
+	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{IsProcessing: false}).AnyTimes()
+	logger := mock_ui.NewMockLogProvider(ctrl)
+	logger.EXPECT().Get().Return([]string{}).AnyTimes()
+
+	v := NewLogsView(logger, proc)
+
+	// Cover a representative range of terminal widths. Each pair asserts
+	// the partition is exact: left + right + logsMarginLeft == width, so
+	// the rendered body (which adds MarginLeft to the joined output) fits
+	// the assigned area without clipping.
+	tests := []struct {
+		name   string
+		width  int
+		height int
+	}{
+		{name: "narrow 40-col", width: 40, height: 20},
+		{name: "common 80-col", width: 80, height: 20},
+		{name: "wide 120-col", width: 120, height: 20},
+		{name: "extra-wide 200-col", width: 200, height: 20},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v.Resize(tt.width, tt.height)
+
+			// v.viewport.Width is the left-pane width assigned to the
+			// viewport. v.rightCol is the metrics-pane width. The View()
+			// body joins the two and then applies MarginLeft(2), so the
+			// invariant for an exact fit is:
+			//   viewport.Width + rightCol + logsMarginLeft == width
+			assert.Equal(t, tt.width, v.viewport.Width()+v.rightCol+logsMarginLeft,
+				"logs body (left + right + marginLeft) must equal the assigned width; "+
+					"a mismatch means the rendered output will overflow or leave dead space")
+		})
+	}
+}

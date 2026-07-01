@@ -351,3 +351,39 @@ func TestSettingsView_CtrlP_TwiceIsIdempotent(t *testing.T) {
 	assert.Equal(t, sliderField, v.focused,
 		"two consecutive Ctrl+P presses must leave focus unchanged")
 }
+
+// TestSettingsView_Resize_AccountsForOwnMargin is the regression test
+// for BUG-002: SettingsView.Resize() subtracted height-4 from the
+// viewport height, but the chrome (marginRows + headerHeight +
+// statusBarHeight) is already deducted by broadcastResize, so the
+// `height` argument here is the post-chrome area. The view's own
+// settingsAppStyle.Margin(1, 2) consumes 2 rows (1 top + 1 bottom),
+// so the viewport must be set to height-2 — not height-4. The bug
+// produced 2 rows of dead space at the bottom of the form (the user
+// reported "settings com muito espaço vazio em baixo").
+//
+// Root cause: Resize was double-subtracting chrome. The fix changes
+// `height - 4` to `height - 2`. The width deduction (`width - 4`) is
+// kept unchanged because the view-local Margin(1, 2) consumes 2
+// columns on each side and the chrome already deducted 4 columns
+// (marginCols), so the total horizontal margin is correctly 4.
+func TestSettingsView_Resize_AccountsForOwnMargin(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	configMgr := mock_ui.NewMockConfigManager(ctrl)
+	proc := mock_ui.NewMockProcessorController(ctrl)
+
+	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
+	configMgr.EXPECT().Get().Return(nil).AnyTimes()
+
+	v := NewSettingsView(configMgr, proc)
+
+	const width, height = 80, 20
+	v.Resize(width, height)
+
+	assert.Equal(t, height-2, v.viewport.Height(),
+		"viewport height must equal (height - 2) — the view's own Margin(1,2); "+
+			"subtracting 4 double-counts the chrome and leaves 2 rows of dead space")
+}

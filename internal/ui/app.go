@@ -113,6 +113,9 @@ type AppModel struct {
 	isDark           bool
 	hasKeyEventTypes bool
 
+	// Chrome dimensions (single source of truth for available area).
+	chrome ChromeLayout
+
 	// Context for cancellation
 	cancel   context.CancelFunc
 	cancelMu *sync.RWMutex
@@ -138,6 +141,7 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 		spinner:      createSpinner(),
 		toastMgr:     components.NewToastManager(),
 		cancelMu:     &sync.RWMutex{},
+		chrome:       NewChromeLayout(),
 		isDark:       true,
 	}
 

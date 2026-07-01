@@ -226,8 +226,8 @@ func (m *AppModel) waitCompletion(ctx context.Context) tea.Cmd {
 }
 
 func (m AppModel) broadcastResize() {
-	availableHeight := max(m.height-4, 10)
-	availableWidth := m.width - 4
+	availableHeight := max(m.chrome.AvailableHeight(m.height), 10)
+	availableWidth := m.chrome.AvailableWidth(m.width)
 
 	m.filesView.Resize(availableWidth, availableHeight)
 	m.logsView.Resize(availableWidth, availableHeight)

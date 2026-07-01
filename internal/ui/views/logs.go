@@ -31,6 +31,15 @@ const metricsMinWidth = 24
 // digits + " req/s") without lipgloss clipping the right edge.
 const metricsDefaultWidth = 36
 
+// logsMarginLeft is the left margin applied to the rendered logs body
+// (see logs.go View() — lipgloss.NewStyle().MarginLeft(2)). It is a
+// view-local concern, NOT a chrome dimension: the value is consumed
+// inside the LogsView's own render path and must be subtracted from the
+// available width when partitioning the viewport (left) from the metrics
+// panel (right). Exported as a package constant so the regression test
+// in logs_test.go can assert the partition math is exact.
+const logsMarginLeft = 2
+
 // LogsView displays execution logs alongside the live metrics panel.
 type LogsView struct {
 	viewport   viewport.Model
@@ -132,7 +141,7 @@ func (v *LogsView) Resize(width, height int) {
 			right = metricsMinWidth
 		}
 	}
-	left := max(width-right, 0)
+	left := max(width-right-logsMarginLeft, 0)
 
 	v.viewport.SetWidth(left)
 	v.viewport.SetHeight(height - 3)
