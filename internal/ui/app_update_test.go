@@ -16,15 +16,27 @@ import (
 func contextTODO() context.Context { return context.TODO() }
 
 // newTestApp builds an AppModel with all mock dependencies ready and
-// returns the AppModel plus the processor mock for tests that need
-// to set up additional expectations (e.g. Do). Tests that don't need
-// the processor mock just use the first return value.
-func newTestApp(t *testing.T) (*AppModel, *mock_ui.MockProcessorController) {
+// returns the AppModel plus the mock handles for tests that need to set
+// up additional expectations (e.g. Do, Update, Save). Tests that don't
+// need a particular mock just discard its return value.
+//
+// csvPaths is variadic: a zero-arg call preserves the legacy behavior
+// (NewApp([]string{}, ...)) and a non-empty call passes the supplied
+// paths verbatim to NewApp. All 7 default EXPECT().AnyTimes() calls are
+// registered on the returned mocks so tests can add stricter .Times(n)
+// expectations after the helper call (gomock matches specific
+// expectations before AnyTimes fallbacks).
+func newTestApp(t *testing.T, csvPaths ...string) (
+	*AppModel,
+	*mock_ui.MockLogService,
+	*mock_ui.MockConfigManager,
+	*mock_ui.MockProcessorController,
+) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	logManagerMock := mock_ui.NewMockLogService(ctrl)
-	processorMock := mock_ui.NewMockProcessorController(ctrl)
 	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
+	processorMock := mock_ui.NewMockProcessorController(ctrl)
 
 	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
 	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
@@ -34,8 +46,8 @@ func newTestApp(t *testing.T) (*AppModel, *mock_ui.MockProcessorController) {
 	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
 	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
 
-	app := NewApp([]string{}, processorMock, logManagerMock, configMgrMock)
-	return app, processorMock
+	app := NewApp(csvPaths, processorMock, logManagerMock, configMgrMock)
+	return app, logManagerMock, configMgrMock, processorMock
 }
 
 // TestAppModel_Update_WindowSizeMsg_RoutesToViewMap — on
@@ -44,7 +56,7 @@ func newTestApp(t *testing.T) (*AppModel, *mock_ui.MockProcessorController) {
 // every view in the views map. We assert the FilesView list's
 // dimensions match the formula (116/4*3=87, 36).
 func TestAppModel_Update_WindowSizeMsg_RoutesToViewMap(t *testing.T) {
-	app, _ := newTestApp(t)
+	app, _, _, _ := newTestApp(t)
 
 	app.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
@@ -65,7 +77,7 @@ func TestAppModel_Update_WindowSizeMsg_RoutesToViewMap(t *testing.T) {
 // kbind.ViewLogs on the AppModel must route MetricsVisibilityMsg{Visible:true}
 // to the LogsView. Visible flag must flip on the embedded metrics panel.
 func TestAppModel_NavSwitchToLogs_EmitsMetricsVisibilityTrue(t *testing.T) {
-	app, _ := newTestApp(t)
+	app, _, _, _ := newTestApp(t)
 
 	app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
 	logsView, ok := app.views[ViewLogs].(views.LogsView)
@@ -81,7 +93,7 @@ func TestAppModel_NavSwitchToLogs_EmitsMetricsVisibilityTrue(t *testing.T) {
 // kbind.ViewFiles must route MetricsVisibilityMsg{Visible:false} to
 // the LogsView (so the tick chain stops).
 func TestAppModel_NavSwitchToFiles_EmitsMetricsVisibilityFalse(t *testing.T) {
-	app, _ := newTestApp(t)
+	app, _, _, _ := newTestApp(t)
 
 	app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
 	app.Update(tea.KeyPressMsg{Code: tea.KeyF1})
@@ -100,7 +112,7 @@ func TestAppModel_NavSwitchToFiles_EmitsMetricsVisibilityFalse(t *testing.T) {
 // start processing (m.cancel becomes non-nil) and switch to the
 // LogsView. The processor.Do mock asserts the call.
 func TestAppModel_Update_ItemSelectedMsg_StartsProcessing(t *testing.T) {
-	app, procMock := newTestApp(t)
+	app, _, _, procMock := newTestApp(t)
 	procMock.EXPECT().Do(gomock.Any(), "x.csv").Return(contextTODO(), func() {})
 
 	updated, _ := app.Update(msgs.ItemSelectedMsg{FilePath: "x.csv"})
@@ -121,7 +133,7 @@ func TestAppModel_Update_ItemSelectedMsg_StartsProcessing(t *testing.T) {
 // Update and asserting each view is present (the theme application
 // is idempotent and the views don't expose Visible state for theme).
 func TestAppModel_Update_ThemeAppliedMsg_PropagatesToAllViews(t *testing.T) {
-	app, _ := newTestApp(t)
+	app, _, _, _ := newTestApp(t)
 
 	// The applyTheme method is what we want to test the broadcast for;
 	// it runs on every BackgroundColorMsg whose IsDark differs from
@@ -151,7 +163,7 @@ func TestAppModel_Update_ThemeAppliedMsg_PropagatesToAllViews(t *testing.T) {
 // stay true. Before the fix the message was silently dropped, so the
 // tick was never rescheduled and the regression test was a no-op.
 func TestAppModel_Update_CapturesAllViewReturns(t *testing.T) {
-	app, _ := newTestApp(t)
+	app, _, _, _ := newTestApp(t)
 
 	// Start the tick chain so the next MetricsTickMsg has work to do.
 	_, _ = app.Update(msgs.MetricsVisibilityMsg{Visible: true})
@@ -192,7 +204,7 @@ func TestAppModel_Update_CapturesAllViewReturns(t *testing.T) {
 // returned command MUST be non-nil. Before the fix AppModel had no
 // MetricsTickMsg case, so the message was silently dropped.
 func TestAppModel_Update_MetricsTickMsg_Broadcast(t *testing.T) {
-	app, _ := newTestApp(t)
+	app, _, _, _ := newTestApp(t)
 
 	// Pre-start the tick chain so the panel will reschedule.
 	_, _ = app.Update(msgs.MetricsVisibilityMsg{Visible: true})
@@ -231,7 +243,7 @@ func TestAppModel_Update_MetricsTickMsg_Broadcast(t *testing.T) {
 // closure and the waitCompletion command, so the metrics tick chain
 // was never started when the user picked a file from FilesView.
 func TestAppModel_SelectFile_StartsMetricsTick(t *testing.T) {
-	app, procMock := newTestApp(t)
+	app, _, _, procMock := newTestApp(t)
 	procMock.EXPECT().Do(gomock.Any(), "x.csv").Return(contextTODO(), func() {})
 
 	// The selectFile call returns (model, cmd) where cmd is the
