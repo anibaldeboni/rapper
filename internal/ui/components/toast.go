@@ -17,6 +17,33 @@ const (
 	ToastWarning
 )
 
+// toastOverlayWidth is the width reserved for each toast layer in
+// columns. The metric panel in the Logs view uses ~36 columns by
+// default, so 40 leaves a small visual gap between the two top-right
+// elements. Kept package-private: the dimension is an internal detail
+// of the toast rendering pipeline and is not part of any public
+// contract.
+const toastOverlayWidth = 40
+
+// toastOverlayRightMargin is the number of blank columns kept between
+// the right edge of each toast and the right edge of the terminal.
+// Mirrors the 2-col margin that the previous spliceRight implementation
+// enforced so the visual stays identical.
+const toastOverlayRightMargin = 2
+
+// toastOverlayHeaderOffset is the Y offset (in rows) of the first toast
+// from the top of the bg layer. Set to 1 to skip the global header
+// line, so toasts always land in the content area, never on top of the
+// navigation help bar.
+const toastOverlayHeaderOffset = 1
+
+// toastOverlayZ is the Z-index used for every toast layer. The bg
+// layer is rendered at Z=0; toasts sit at Z=1 so they always appear
+// above the background content. Z is per-layer in
+// Compositor.flattenRecursive (it is NOT inherited parent→child), so
+// each toast sets this value explicitly.
+const toastOverlayZ = 1
+
 // Toast represents a temporary notification message
 type Toast struct {
 	Message   string
@@ -117,23 +144,36 @@ func (tm *ToastManager) Render() string {
 	return rendered.String()
 }
 
-// RenderOverlay returns the active toasts joined vertically with a trailing
-// newline, each row constrained to the given width. Designed to be spliced
-// into the top-right corner of the global view by app_view.go: the per-toast
-// fade (Faint in the last 25% of lifetime) is preserved so the visual feel
-// is unchanged from the previous side-panel rendering.
-func (tm *ToastManager) RenderOverlay(width int) string {
-	if !tm.HasActive() || width <= 0 {
-		return ""
+// Layers returns one positioned *lipgloss.Layer per active toast,
+// ready to be added to a lipgloss.Compositor alongside a background
+// layer. Each toast is anchored to the right edge of the terminal with
+// a 2-column margin and stacked vertically below the global header
+// (Y starts at 1). The Z-index is 1, above the bg layer's Z=0.
+//
+// Returns nil when there are no active toasts or when terminalWidth is
+// non-positive — the caller can use this to skip the compositor
+// entirely on the no-toast path.
+//
+// Stacking uses Layer.Height() (not a hardcoded "+1") so multi-line
+// toasts (currently 3 rows tall due to Padding(1, 2)) stack without
+// overlap, and future style changes that change the per-toast height
+// are picked up automatically.
+func (tm *ToastManager) Layers(terminalWidth int) []*lipgloss.Layer {
+	if !tm.HasActive() || terminalWidth <= 0 {
+		return nil
 	}
 
-	rowStyle := lipgloss.NewStyle().Width(width).Align(lipgloss.Left)
-	rows := make([]string, 0, len(tm.toasts))
+	rowStyle := lipgloss.NewStyle().Width(toastOverlayWidth).Align(lipgloss.Left)
+	layers := make([]*lipgloss.Layer, 0, len(tm.toasts))
+	yOffset := toastOverlayHeaderOffset
 	for _, toast := range tm.toasts {
-		rows = append(rows, rowStyle.Render(renderToast(toast)))
+		content := rowStyle.Render(renderToast(toast))
+		x := max(terminalWidth-lipgloss.Width(content)-toastOverlayRightMargin, 0)
+		layer := lipgloss.NewLayer(content).X(x).Y(yOffset).Z(toastOverlayZ)
+		layers = append(layers, layer)
+		yOffset += layer.Height()
 	}
-
-	return strings.Join(rows, "\n")
+	return layers
 }
 
 // renderToast renders a single toast notification
