@@ -5,11 +5,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
-	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
 // TestView_NoToastsSkipsCompositor verifies the no-toast fast path in
@@ -19,23 +16,7 @@ import (
 // expected to be bypassed entirely on this path (see the
 // `if len(toastLayers) == 0` short-circuit in the new View()).
 func TestView_NoToastsSkipsCompositor(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	logManagerMock := mock_ui.NewMockLogService(ctrl)
-	processorMock := mock_ui.NewMockProcessorController(ctrl)
-	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
-
-	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
-	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
-	csvPath := "../../tests/example.csv"
-	app := NewApp([]string{csvPath}, processorMock, logManagerMock, configMgrMock)
+	app, _, _, _ := newTestApp(t, "../../tests/example.csv")
 	app.width = 100
 	app.height = 40
 	app.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
@@ -61,23 +42,7 @@ func TestView_NoToastsSkipsCompositor(t *testing.T) {
 // output must contain the toast message text overlaid on the top-right
 // of the content area.
 func TestView_WithOneToastIncludesContent(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	logManagerMock := mock_ui.NewMockLogService(ctrl)
-	processorMock := mock_ui.NewMockProcessorController(ctrl)
-	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
-
-	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
-	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
-	csvPath := "../../tests/example.csv"
-	app := NewApp([]string{csvPath}, processorMock, logManagerMock, configMgrMock)
+	app, _, _, _ := newTestApp(t, "../../tests/example.csv")
 	app.width = 100
 	app.height = 40
 	app.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
@@ -98,23 +63,7 @@ func TestView_WithOneToastIncludesContent(t *testing.T) {
 // shift the bg layer down (toasts are absolutely positioned via Y, not
 // inserted into the bg flow).
 func TestView_HeaderOnLineZeroWithToast(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	logManagerMock := mock_ui.NewMockLogService(ctrl)
-	processorMock := mock_ui.NewMockProcessorController(ctrl)
-	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
-
-	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
-	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
-	csvPath := "../../tests/example.csv"
-	app := NewApp([]string{csvPath}, processorMock, logManagerMock, configMgrMock)
+	app, _, _, _ := newTestApp(t, "../../tests/example.csv")
 	app.width = 100
 	app.height = 40
 	app.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
@@ -142,23 +91,7 @@ func TestView_HeaderOnLineZeroWithToast(t *testing.T) {
 // The compositor does not extend the bg layer to make room for toasts;
 // toasts overlay in the content area only.
 func TestView_StatusBarOnLastLineWithToast(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	logManagerMock := mock_ui.NewMockLogService(ctrl)
-	processorMock := mock_ui.NewMockProcessorController(ctrl)
-	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
-
-	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
-	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
-	csvPath := "../../tests/example.csv"
-	app := NewApp([]string{csvPath}, processorMock, logManagerMock, configMgrMock)
+	app, _, _, _ := newTestApp(t, "../../tests/example.csv")
 	app.width = 100
 	app.height = 40
 	app.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
@@ -219,25 +152,8 @@ func TestView_StatusBarOnLastLineWithToast(t *testing.T) {
 // We probe Files, Logs, and Settings at three terminal heights (24,
 // 40, 80) to cover the common range. A 0-line top gap is the invariant.
 func TestView_HeaderAlwaysOnLineZero(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	logManagerMock := mock_ui.NewMockLogService(ctrl)
-	processorMock := mock_ui.NewMockProcessorController(ctrl)
-	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
-
-	// Common expectations for all view initialisations.
-	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
-	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
 	// Use a representative CSV path so the Files view has real content.
-	csvPath := "../../tests/example.csv"
-	app := NewApp([]string{csvPath}, processorMock, logManagerMock, configMgrMock)
+	app, _, _, _ := newTestApp(t, "../../tests/example.csv")
 
 	// Mark Settings as modified so its "⚠️ Unsaved changes" help line
 	// is visible — this exercises the worst-case Settings content
