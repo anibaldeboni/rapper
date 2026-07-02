@@ -33,24 +33,66 @@ func kittyPlusKeyMsg() tea.KeyPressMsg {
 	return tea.KeyPressMsg{Text: "", Code: '=', Mod: tea.ModShift}
 }
 
-func TestSettingsView_SliderFocusedOnConstruction_PlusKeyIncrements(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+// settingsViewOpt mutates the settingsViewOpts carried by newTestSettingsView.
+type settingsViewOpt func(*settingsViewOpts)
 
+type settingsViewOpts struct {
+	cfg         *config.Config
+	workerCount int
+	maxWorkers  int
+}
+
+func withConfig(c *config.Config) settingsViewOpt {
+	return func(o *settingsViewOpts) { o.cfg = c }
+}
+
+func withWorkerCount(n int) settingsViewOpt {
+	return func(o *settingsViewOpts) { o.workerCount = n }
+}
+
+func withMaxWorkers(n int) settingsViewOpt {
+	return func(o *settingsViewOpts) { o.maxWorkers = n }
+}
+
+// newTestSettingsView builds a SettingsView with gomock-backed
+// ConfigManager and ProcessorController and returns all three. Default
+// expectations: Get→nil, GetWorkerCount→1, GetMaxWorkers→1,
+// ListProfiles→["default"], GetActiveProfile→"default" — all .AnyTimes().
+// Tests that need different values pass withConfig / withWorkerCount /
+// withMaxWorkers; tests that need stricter expectations on Update/Save
+// layer them on the returned mocks after the helper call.
+func newTestSettingsView(t *testing.T, opts ...settingsViewOpt) (
+	SettingsView,
+	*mock_ui.MockConfigManager,
+	*mock_ui.MockProcessorController,
+) {
+	t.Helper()
+	o := settingsViewOpts{workerCount: 1, maxWorkers: 1}
+	for _, opt := range opts {
+		opt(&o)
+	}
+
+	ctrl := gomock.NewController(t)
 	configMgr := mock_ui.NewMockConfigManager(ctrl)
 	proc := mock_ui.NewMockProcessorController(ctrl)
 
+	configMgr.EXPECT().Get().Return(o.cfg).AnyTimes()
+	configMgr.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
+	configMgr.EXPECT().GetActiveProfile().Return("default").AnyTimes()
+	proc.EXPECT().GetWorkerCount().Return(o.workerCount).AnyTimes()
+	proc.EXPECT().GetMaxWorkers().Return(o.maxWorkers).AnyTimes()
+
+	return NewSettingsView(configMgr, proc), configMgr, proc
+}
+
+func TestSettingsView_SliderFocusedOnConstruction_PlusKeyIncrements(t *testing.T) {
 	// The processor is seeded at 4 workers on startup, so the slider is
 	// constructed with min=1, max=4, current=4. The user must first drop
 	// the count with - to free a slot, then + to confirm the keys dispatch
 	// to the slider. Before the fix, + was swallowed by the URL input
 	// because focus defaulted to urlField.
 	const current = 4
-	proc.EXPECT().GetWorkerCount().Return(current).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(current).AnyTimes()
-	configMgr.EXPECT().Get().Return(nil).AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, proc := newTestSettingsView(t, withWorkerCount(current), withMaxWorkers(current))
 
 	// Step 1: press - to lower the count, confirming the slider received
 	// the key and the processor was updated.
@@ -70,17 +112,7 @@ func TestSettingsView_SliderFocusedOnConstruction_PlusKeyIncrements(t *testing.T
 }
 
 func TestSettingsView_SliderFocusedOnConstruction_RendersFocusIndicator(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-
-	proc.EXPECT().GetWorkerCount().Return(2).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(2).AnyTimes()
-	configMgr.EXPECT().Get().Return(nil).AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, _ := newTestSettingsView(t, withWorkerCount(2), withMaxWorkers(2))
 
 	assert.True(t, v.slider.Focused, "slider must be focused on construction so + / - work immediately")
 }
@@ -100,22 +132,12 @@ func TestSettingsView_SliderFocusedOnConstruction_RendersFocusIndicator(t *testi
 // its return value as the slider's Max. The hexagonal boundary is preserved
 // because the views package continues to depend only on the port interface.
 func TestSettingsView_SliderMaxEqualsProcessorMaxWorkers(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-
 	// Seed the processor at a worker count below NumCPU so that the
 	// difference between current and max is visible. On an 8-core machine
 	// the user should be able to climb from 2 up to 8.
 	const current = 2
 	const maxWorkers = 8
-	proc.EXPECT().GetWorkerCount().Return(current).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(maxWorkers).AnyTimes()
-	configMgr.EXPECT().Get().Return(nil).AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, _ := newTestSettingsView(t, withWorkerCount(current), withMaxWorkers(maxWorkers))
 
 	assert.Equal(t, maxWorkers, v.slider.Max,
 		"slider Max must equal processor.MaxWorkers, not the current worker count; "+
@@ -145,20 +167,10 @@ func TestSettingsView_SliderMaxEqualsProcessorMaxWorkers(t *testing.T) {
 // call silently no-ops and SetWorkers(4) is never invoked; with the
 // fix SetWorkers(4) is called and v.slider.Value climbs back to 4.
 func TestSettingsView_SliderAcceptsKittyProtocolPlusKey(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-
 	// Seed the slider at max (processor init convention) so we can
 	// exercise the same real-world sequence: - first, + second.
 	const current = 4
-	proc.EXPECT().GetWorkerCount().Return(current).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(current).AnyTimes()
-	configMgr.EXPECT().Get().Return(nil).AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, proc := newTestSettingsView(t, withWorkerCount(current), withMaxWorkers(current))
 	assert.Equal(t, current, v.slider.Value, "slider initialised at current worker count")
 	assert.True(t, v.slider.Focused, "slider must be focused so + is dispatched to it")
 
@@ -210,17 +222,7 @@ func TestSettingsView_SliderAcceptsKittyProtocolPlusKey(t *testing.T) {
 // has focus. This test will fail in the red phase with `v.focused == sliderField`
 // still true.
 func TestSettingsView_SliderFocused_TabMovesFocus(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-
-	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	configMgr.EXPECT().Get().Return(nil).AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, _ := newTestSettingsView(t)
 	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
 
 	var next tea.Model
@@ -238,22 +240,12 @@ func TestSettingsView_SliderFocused_TabMovesFocus(t *testing.T) {
 // before the global Save handler runs, so neither Update nor Save is called
 // and the test fails on the gomock expectation mismatch.
 func TestSettingsView_SliderFocused_CtrlS_TriggersSave(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-
-	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
 	// Get is called once by loadConfig during NewSettingsView and again by
 	// saveConfig when the save command runs. Returning a fresh, empty Config
 	// keeps the test realistic and avoids the loadConfig early-return on nil.
-	configMgr.EXPECT().Get().Return(&config.Config{}).AnyTimes()
+	v, configMgr, _ := newTestSettingsView(t, withConfig(&config.Config{}))
 	configMgr.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
 	configMgr.EXPECT().Save().Return(nil).Times(1)
-
-	v := NewSettingsView(configMgr, proc)
 	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
 
 	var next tea.Model
@@ -271,19 +263,7 @@ func TestSettingsView_SliderFocused_CtrlS_TriggersSave(t *testing.T) {
 // v.showProfileSelector. The mock stubs ListProfiles/GetActiveProfile because
 // the Profile handler (settings.go:359-371) seeds profileListIndex from them.
 func TestSettingsView_SliderFocused_CtrlP_TogglesProfileSelector(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-
-	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	configMgr.EXPECT().Get().Return(nil).AnyTimes()
-	configMgr.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	configMgr.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, _ := newTestSettingsView(t)
 	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
 	require.False(t, v.showProfileSelector, "profile selector should be closed on construction")
 
@@ -302,19 +282,7 @@ func TestSettingsView_SliderFocused_CtrlP_TogglesProfileSelector(t *testing.T) {
 // bare `return nil` at line 350, so the modal stays open. After the fix the
 // modal block handles Ctrl+P and sets v.showProfileSelector to false.
 func TestSettingsView_ModalOpen_CtrlP_ClosesSelector(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-
-	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	configMgr.EXPECT().Get().Return(nil).AnyTimes()
-	configMgr.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	configMgr.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, _ := newTestSettingsView(t)
 	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
 
 	// Pre-set the modal-open state the test is exercising. The view does
@@ -342,19 +310,7 @@ func TestSettingsView_ModalOpen_CtrlP_ClosesSelector(t *testing.T) {
 // assertion (modal closed after the second press) is the re-entrancy
 // guarantee: toggling twice must be a no-op on the modal state.
 func TestSettingsView_CtrlP_TwiceIsIdempotent(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-
-	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	configMgr.EXPECT().Get().Return(nil).AnyTimes()
-	configMgr.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	configMgr.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, _ := newTestSettingsView(t)
 	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
 	require.False(t, v.showProfileSelector, "profile selector should be closed on construction")
 
@@ -388,17 +344,7 @@ func TestSettingsView_CtrlP_TwiceIsIdempotent(t *testing.T) {
 // columns on each side and the chrome already deducted 4 columns
 // (marginCols), so the total horizontal margin is correctly 4.
 func TestSettingsView_Resize_AccountsForOwnMargin(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-
-	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	configMgr.EXPECT().Get().Return(nil).AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, _ := newTestSettingsView(t)
 
 	const width, height = 80, 20
 	next, _ := v.Update(msgs.ViewportSizeMsg{Width: width, Height: height})
@@ -411,14 +357,7 @@ func TestSettingsView_Resize_AccountsForOwnMargin(t *testing.T) {
 
 // TestSettingsView_Init_ReturnsNil — Init must return nil per R-6.
 func TestSettingsView_Init_ReturnsNil(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	configMgr.EXPECT().Get().Return(nil).AnyTimes()
-	v := NewSettingsView(configMgr, proc)
+	v, _, _ := newTestSettingsView(t)
 	if cmd := v.Init(); cmd != nil {
 		t.Fatalf("Init must return nil; got %T", cmd)
 	}
@@ -439,14 +378,6 @@ func TestSettingsView_Init_ReturnsNil(t *testing.T) {
 //     whose inputs also reflect the new config — this is the path the
 //     spec's switchProfile scenario exercises.
 func TestSettingsView_LoadConfig_PopulatesInputs(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-
 	cfg := &config.Config{
 		Request: config.RequestConfig{
 			URLTemplate:  "http://example.com/api",
@@ -456,9 +387,7 @@ func TestSettingsView_LoadConfig_PopulatesInputs(t *testing.T) {
 		},
 		CSV: config.CSVConfig{Fields: []string{"id", "name"}},
 	}
-	configMgr.EXPECT().Get().Return(cfg).AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, _ := newTestSettingsView(t, withConfig(cfg))
 	require.Equal(t, sliderField, v.focused, "slider is the initial focus")
 
 	assert.Equal(t, "http://example.com/api", v.urlInput.Value(),
@@ -488,14 +417,6 @@ func TestSettingsView_LoadConfig_PopulatesInputs(t *testing.T) {
 // regression test for the "empty method defaults to POST" scenario
 // from the spec.
 func TestSettingsView_LoadConfig_EmptyMethodDefaultsToPost(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	configMgr := mock_ui.NewMockConfigManager(ctrl)
-	proc := mock_ui.NewMockProcessorController(ctrl)
-	proc.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	proc.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-
 	cfg := &config.Config{
 		Request: config.RequestConfig{
 			URLTemplate: "http://x",
@@ -503,9 +424,7 @@ func TestSettingsView_LoadConfig_EmptyMethodDefaultsToPost(t *testing.T) {
 		},
 		CSV: config.CSVConfig{Fields: []string{"id"}},
 	}
-	configMgr.EXPECT().Get().Return(cfg).AnyTimes()
-
-	v := NewSettingsView(configMgr, proc)
+	v, _, _ := newTestSettingsView(t, withConfig(cfg))
 
 	assert.Equal(t, "POST", v.methodInput.Value(),
 		"empty Request.Method must default to POST in the form")
