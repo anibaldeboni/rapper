@@ -16,11 +16,26 @@ import (
 
 var _ tea.Msg = msgs.MetricsTickMsg(time.Now()) // keep import warm in case future tests need it
 
-func TestMetricsPanel_View_RendersAllMetricRows(t *testing.T) {
+// newTestMetricsPanel builds a MetricsPanel with a gomock-backed
+// ProcessorController and returns both. The default GetMetrics return is
+// `ports.ProcessorMetrics{}` (zero value); tests that need richer metrics
+// pass them via the variadic `metrics` argument. The expectation is
+// registered as `.AnyTimes()` so tests can layer additional constraints
+// after the helper call.
+func newTestMetricsPanel(t *testing.T, metrics ...ports.ProcessorMetrics) (MetricsPanel, *mock_ui.MockProcessorController) {
+	t.Helper()
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	proc := mock_ui.NewMockProcessorController(ctrl)
-	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{
+	m := ports.ProcessorMetrics{}
+	if len(metrics) > 0 {
+		m = metrics[0]
+	}
+	proc.EXPECT().GetMetrics().Return(m).AnyTimes()
+	return NewMetricsPanel(proc), proc
+}
+
+func TestMetricsPanel_View_RendersAllMetricRows(t *testing.T) {
+	p, _ := newTestMetricsPanel(t, ports.ProcessorMetrics{
 		TotalRequests:   10,
 		SuccessRequests: 8,
 		ErrorRequests:   2,
@@ -28,9 +43,7 @@ func TestMetricsPanel_View_RendersAllMetricRows(t *testing.T) {
 		ActiveWorkers:   4,
 		RequestsPerSec:  1.5,
 		IsProcessing:    true,
-	}).AnyTimes()
-
-	p := NewMetricsPanel(proc)
+	})
 
 	out := p.View().Content
 
@@ -41,18 +54,13 @@ func TestMetricsPanel_View_RendersAllMetricRows(t *testing.T) {
 }
 
 func TestMetricsPanel_Update_TickRefreshesMetrics(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	proc := mock_ui.NewMockProcessorController(ctrl)
-	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{
+	p, _ := newTestMetricsPanel(t, ports.ProcessorMetrics{
 		TotalRequests:  42,
 		ActiveWorkers:  3,
 		IsProcessing:   true,
 		StartTime:      time.Now().Add(-2 * time.Second),
 		RequestsPerSec: 21,
-	}).AnyTimes()
-
-	p := NewMetricsPanel(proc)
+	})
 	p = p.SetVisible(true)
 
 	next, cmd := p.Update(msgs.MetricsTickMsg(time.Now()))
@@ -64,12 +72,7 @@ func TestMetricsPanel_Update_TickRefreshesMetrics(t *testing.T) {
 }
 
 func TestMetricsPanel_SetVisible_StopsTickWhenHidden(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	proc := mock_ui.NewMockProcessorController(ctrl)
-	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
-	p := NewMetricsPanel(proc)
+	p, _ := newTestMetricsPanel(t)
 	p = p.SetVisible(false)
 
 	_, cmd := p.Update(msgs.MetricsTickMsg(time.Now()))
@@ -81,12 +84,7 @@ func TestMetricsPanel_SetVisible_StopsTickWhenHidden(t *testing.T) {
 // tea.Model: Update(MetricsVisibilityMsg{Visible: true}) flips Visible
 // and returns a tick cmd.
 func TestMetricsPanel_Update_MetricsVisibilityMsg_StartsTick(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	proc := mock_ui.NewMockProcessorController(ctrl)
-	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
-	p := NewMetricsPanel(proc)
+	p, _ := newTestMetricsPanel(t)
 	require.False(t, p.Visible, "panel starts hidden")
 
 	next, cmd := p.Update(msgs.MetricsVisibilityMsg{Visible: true})
@@ -99,12 +97,7 @@ func TestMetricsPanel_Update_MetricsVisibilityMsg_StartsTick(t *testing.T) {
 // TestMetricsPanel_Update_MetricsVisibilityMsg_StopsTick — Update({Visible:
 // false}) clears Visible and returns nil cmd.
 func TestMetricsPanel_Update_MetricsVisibilityMsg_StopsTick(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	proc := mock_ui.NewMockProcessorController(ctrl)
-	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
-	p := NewMetricsPanel(proc)
+	p, _ := newTestMetricsPanel(t)
 	p.Visible = true
 
 	next, cmd := p.Update(msgs.MetricsVisibilityMsg{Visible: false})
@@ -116,22 +109,14 @@ func TestMetricsPanel_Update_MetricsVisibilityMsg_StopsTick(t *testing.T) {
 
 // TestMetricsPanel_Init_ReturnsNil — Init must return nil per R-6.
 func TestMetricsPanel_Init_ReturnsNil(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	proc := mock_ui.NewMockProcessorController(ctrl)
-	p := NewMetricsPanel(proc)
+	p, _ := newTestMetricsPanel(t)
 	if cmd := p.Init(); cmd != nil {
 		t.Fatalf("Init must return nil; got %T", cmd)
 	}
 }
 
 func TestMetricsPanel_View_ShowsIdleStatusWhenNotProcessing(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	proc := mock_ui.NewMockProcessorController(ctrl)
-	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{IsProcessing: false}).AnyTimes()
-
-	p := NewMetricsPanel(proc)
+	p, _ := newTestMetricsPanel(t, ports.ProcessorMetrics{IsProcessing: false})
 
 	out := p.View().Content
 
