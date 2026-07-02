@@ -1,7 +1,6 @@
 package components
 
 import (
-	"strings"
 	"time"
 
 	"charm.land/lipgloss/v2"
@@ -23,26 +22,28 @@ const (
 // elements. Kept package-private: the dimension is an internal detail
 // of the toast rendering pipeline and is not part of any public
 // contract.
-const toastOverlayWidth = 40
+const (
+	toastOverlayWidth = 40
 
-// toastOverlayRightMargin is the number of blank columns kept between
-// the right edge of each toast and the right edge of the terminal.
-// Mirrors the 2-col margin that the previous spliceRight implementation
-// enforced so the visual stays identical.
-const toastOverlayRightMargin = 2
+	// toastOverlayRightMargin is the number of blank columns kept between
+	// the right edge of each toast and the right edge of the terminal.
+	// Mirrors the 2-col margin that the previous spliceRight implementation
+	// enforced so the visual stays identical.
+	toastOverlayRightMargin = 2
 
-// toastOverlayHeaderOffset is the Y offset (in rows) of the first toast
-// from the top of the bg layer. Set to 1 to skip the global header
-// line, so toasts always land in the content area, never on top of the
-// navigation help bar.
-const toastOverlayHeaderOffset = 1
+	// toastOverlayHeaderOffset is the Y offset (in rows) of the first toast
+	// from the top of the bg layer. Set to 1 to skip the global header
+	// line, so toasts always land in the content area, never on top of the
+	// navigation help bar.
+	toastOverlayHeaderOffset = 1
 
-// toastOverlayZ is the Z-index used for every toast layer. The bg
-// layer is rendered at Z=0; toasts sit at Z=1 so they always appear
-// above the background content. Z is per-layer in
-// Compositor.flattenRecursive (it is NOT inherited parent→child), so
-// each toast sets this value explicitly.
-const toastOverlayZ = 1
+	// toastOverlayZ is the Z-index used for every toast layer. The bg
+	// layer is rendered at Z=0; toasts sit at Z=1 so they always appear
+	// above the background content. Z is per-layer in
+	// Compositor.flattenRecursive (it is NOT inherited parent→child), so
+	// each toast sets this value explicitly.
+	toastOverlayZ = 1
+)
 
 // Toast represents a temporary notification message
 type Toast struct {
@@ -50,6 +51,12 @@ type Toast struct {
 	Type      ToastType
 	CreatedAt time.Time
 	Duration  time.Duration
+}
+
+// isFading returns true when the toast is in the last 25% of its lifetime.
+func (t Toast) isFading() bool {
+	remaining := t.Duration - time.Since(t.CreatedAt)
+	return remaining < t.Duration/4
 }
 
 // ToastManager manages a queue of toast notifications
@@ -127,23 +134,6 @@ func (tm *ToastManager) HasActive() bool {
 	return len(tm.toasts) > 0
 }
 
-// Render renders all active toasts
-func (tm *ToastManager) Render() string {
-	if !tm.HasActive() {
-		return ""
-	}
-
-	var rendered strings.Builder
-
-	for _, toast := range tm.toasts {
-		rendered.WriteString("\n")
-		rendered.WriteString(renderToast(toast))
-		rendered.WriteString("\n")
-	}
-
-	return rendered.String()
-}
-
 // Layers returns one positioned *lipgloss.Layer per active toast,
 // ready to be added to a lipgloss.Compositor alongside a background
 // layer. Each toast is anchored to the right edge of the terminal with
@@ -163,11 +153,14 @@ func (tm *ToastManager) Layers(terminalWidth int) []*lipgloss.Layer {
 		return nil
 	}
 
-	rowStyle := lipgloss.NewStyle().Width(toastOverlayWidth).Align(lipgloss.Left)
 	layers := make([]*lipgloss.Layer, 0, len(tm.toasts))
 	yOffset := toastOverlayHeaderOffset
 	for _, toast := range tm.toasts {
-		content := rowStyle.Render(renderToast(toast))
+		rs := lipgloss.NewStyle().Width(toastOverlayWidth).Align(lipgloss.Left)
+		if toast.isFading() {
+			rs = rs.Faint(true)
+		}
+		content := rs.Render(renderToast(toast))
 		x := max(terminalWidth-lipgloss.Width(content)-toastOverlayRightMargin, 0)
 		layer := lipgloss.NewLayer(content).X(x).Y(yOffset).Z(toastOverlayZ)
 		layers = append(layers, layer)
@@ -212,17 +205,6 @@ func renderToast(toast Toast) string {
 			Background(lipgloss.Color("39")).
 			Foreground(lipgloss.Color("15")).
 			Bold(true)
-	}
-
-	// Calculate remaining time percentage for fade effect
-	elapsed := time.Since(toast.CreatedAt)
-	remaining := toast.Duration - elapsed
-	fadeThreshold := toast.Duration / 4 // Start fading in last 25%
-
-	// Apply fade effect if nearing expiration
-	if remaining < fadeThreshold {
-		// Reduce opacity by adjusting style (simplified approach)
-		style = style.Faint(true)
 	}
 
 	message := icon + " " + toast.Message

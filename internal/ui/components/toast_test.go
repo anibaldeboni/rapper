@@ -151,6 +151,51 @@ func TestToastManager_Layers_ExpiredToastExcluded(t *testing.T) {
 	assert.Nil(t, layers, "Layers must return nil after the only active toast has expired")
 }
 
+// TestToastManager_Layers_FadingToastHasFaintEscape locks in the
+// fade-out behavior: a toast that is in the last 25% of its lifetime
+// must have its layer content wrapped with the ANSI faint SGR escape
+// (\x1b[2m) so the whole 40-column layer renders dim. We seed a toast
+// with a 100ms duration and rewind CreatedAt by 80ms so isFading()
+// returns true without sleeping.
+func TestToastManager_Layers_FadingToastHasFaintEscape(t *testing.T) {
+	tm := NewToastManager()
+	tm.Success("fading")
+	require.Len(t, tm.GetActive(), 1)
+
+	// 80ms into a 100ms window → remaining = 20ms < 25ms (= 100/4) → fading.
+	tm.toasts[0].Duration = 100 * time.Millisecond
+	tm.toasts[0].CreatedAt = time.Now().Add(-80 * time.Millisecond)
+
+	require.True(t, tm.toasts[0].isFading(),
+		"sanity: toast with 20ms remaining of a 100ms duration must report as fading")
+
+	layers := tm.Layers(120)
+	require.Len(t, layers, 1)
+
+	assert.Contains(t, layers[0].GetContent(), "\x1b[2m",
+		"fading toast content must include the ANSI faint escape so the full row renders dim")
+}
+
+// TestToastManager_Layers_FreshToastHasNoFaintEscape is the
+// counter-test: a toast that is NOT yet in the last 25% of its
+// lifetime must NOT have the faint escape in its rendered content.
+// This guards against the fade being applied unconditionally.
+func TestToastManager_Layers_FreshToastHasNoFaintEscape(t *testing.T) {
+	tm := NewToastManager()
+	tm.Success("fresh")
+	require.Len(t, tm.GetActive(), 1)
+
+	// 4s total, 0ms elapsed → remaining = 4s, not less than 1s (25%).
+	require.False(t, tm.toasts[0].isFading(),
+		"sanity: a brand-new toast must not report as fading")
+
+	layers := tm.Layers(120)
+	require.Len(t, layers, 1)
+
+	assert.NotContains(t, layers[0].GetContent(), "\x1b[2m",
+		"non-fading toast content must NOT include the ANSI faint escape")
+}
+
 // itoa is a tiny helper used by the table-driven non-positive-width
 // test. We avoid strconv here to keep the test file free of an
 // otherwise-unused import.
