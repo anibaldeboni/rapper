@@ -7,30 +7,12 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
-	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
-	"go.uber.org/mock/gomock"
 )
 
 func TestLogsFlow(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	logManagerMock := mock_ui.NewMockLogService(ctrl)
-	processorMock := mock_ui.NewMockProcessorController(ctrl)
-	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
-
-	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
-	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
-	app := NewApp([]string{"test.csv"}, processorMock, logManagerMock, configMgrMock)
+	app, logManagerMock, _, _ := newTestApp(t, "test.csv")
 
 	app.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
