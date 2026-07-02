@@ -255,7 +255,7 @@ func TestView_HeaderAlwaysOnLineZero(t *testing.T) {
 		app.Update(tea.WindowSizeMsg{Width: 100, Height: termH})
 
 		for _, viewName := range []View{ViewFiles, ViewLogs, ViewSettings} {
-			app.nav.Set(viewName)
+			app.currentView = viewName
 			view := app.View()
 			// tea.View.Content holds the rendered frame.
 			lines := strings.Split(view.Content, "\n")

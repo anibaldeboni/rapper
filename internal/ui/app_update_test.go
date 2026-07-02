@@ -103,10 +103,15 @@ func TestAppModel_Update_ItemSelectedMsg_StartsProcessing(t *testing.T) {
 	app, procMock := newTestApp(t)
 	procMock.EXPECT().Do(gomock.Any(), "x.csv").Return(contextTODO(), func() {})
 
-	app.Update(msgs.ItemSelectedMsg{FilePath: "x.csv"})
+	updated, _ := app.Update(msgs.ItemSelectedMsg{FilePath: "x.csv"})
+	next, ok := updated.(AppModel)
+	if !ok {
+		t.Fatalf("AppModel.Update must return AppModel; got %T", updated)
+	}
+	app = &next
 
-	if app.nav.Current() != ViewLogs {
-		t.Errorf("nav should be ViewLogs after ItemSelectedMsg; got %v", app.nav.Current())
+	if app.currentView != ViewLogs {
+		t.Errorf("current should be ViewLogs after ItemSelectedMsg; got %v", app.currentView)
 	}
 }
 

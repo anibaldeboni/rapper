@@ -36,15 +36,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, kbind.ViewFiles):
-			m.nav.Set(ViewFiles)
+			m.currentView = ViewFiles
 			return m, m.routeToAllViews(msgs.MetricsVisibilityMsg{Visible: false})
 
 		case key.Matches(msg, kbind.ViewLogs):
-			m.nav.Set(ViewLogs)
+			m.currentView = ViewLogs
 			return m, m.routeToAllViews(msgs.MetricsVisibilityMsg{Visible: true})
 
 		case key.Matches(msg, kbind.ViewSettings):
-			m.nav.Set(ViewSettings)
+			m.currentView = ViewSettings
 			return m, m.routeToAllViews(msgs.MetricsVisibilityMsg{Visible: false})
 
 		case key.Matches(msg, kbind.CancelOperation):
@@ -206,7 +206,7 @@ func (m AppModel) routeToAllViews(msg tea.Msg) tea.Cmd {
 // routed back through the top-level Update so ItemSelectedMsg and
 // other messages produced by the view flow through the normal dispatch.
 func (m AppModel) updateCurrentView(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	active := m.nav.Current()
+	active := m.currentView
 	next, cmd := m.views[active].Update(msg)
 	m.views[active] = next
 	return m, cmd
@@ -220,7 +220,7 @@ func (m AppModel) selectFile(filePath string) (tea.Model, tea.Cmd) {
 	if hasCancel {
 		// Already processing - show error
 		m.logger.Add(operationError())
-		m.nav.Set(ViewLogs)
+		m.currentView = ViewLogs
 		return m, nil
 	}
 
@@ -232,7 +232,7 @@ func (m AppModel) selectFile(filePath string) (tea.Model, tea.Cmd) {
 		m.cancelMu.Unlock()
 
 		// Switch to logs view when processing starts
-		m.nav.Set(ViewLogs)
+		m.currentView = ViewLogs
 
 		// Return batch of commands: emit ProcessingStartedMsg,
 		// start the metrics tick chain via MetricsVisibilityMsg,
@@ -249,7 +249,7 @@ func (m AppModel) selectFile(filePath string) (tea.Model, tea.Cmd) {
 		)
 	}
 
-	m.nav.Set(ViewLogs)
+	m.currentView = ViewLogs
 	return m, nil
 }
 

@@ -100,8 +100,8 @@ type viewModel = tea.Model
 
 // AppModel is the new multi-view model
 type AppModel struct {
-	// Navigation
-	nav *Navigation
+	// currentView is the active top-level view. Defaults to ViewFiles (the app boots into the Files view).
+	currentView View
 
 	// State
 	logger    ports.LogService
@@ -139,10 +139,10 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 	}
 
 	app := &AppModel{
-		nav:       NewNavigation(),
-		logger:    log,
-		processor: fileProcessor,
-		configMgr: configMgr,
+		currentView: ViewFiles,
+		logger:      log,
+		processor:   fileProcessor,
+		configMgr:   configMgr,
 		views: map[View]viewModel{
 			ViewFiles:    views.NewFilesView(items),
 			ViewLogs:     views.NewLogsView(log, fileProcessor),

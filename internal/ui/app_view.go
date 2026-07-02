@@ -13,7 +13,7 @@ func (m AppModel) View() tea.View {
 	// Render the active view into the full content area; each view owns its
 	// own internal layout (see views-own-layout decision, Engram #46).
 	var content string
-	if v, ok := m.views[m.nav.Current()]; ok && v != nil {
+	if v, ok := m.views[m.currentView]; ok && v != nil {
 		content = v.View().Content
 	}
 
@@ -68,7 +68,7 @@ func (m AppModel) renderHeader() string {
 		Background(lipgloss.Color("235"))
 
 		// App tag
-	viewName := LogoStyle(m.nav.Current().String())
+	viewName := LogoStyle(m.currentView.String())
 	helpText := viewName + " " + m.help.View(globalKeys)
 
 	// Truncate if needed
@@ -91,7 +91,7 @@ func (m AppModel) renderStatusBar() string {
 	appName := LogoStyle(fmt.Sprintf("%s@%s", AppName, AppVersion))
 
 	// Get view-specific commands
-	viewSpecificKeys := getViewSpecificKeyMap(m.nav.Current())
+	viewSpecificKeys := getViewSpecificKeyMap(m.currentView)
 	helpText := m.help.View(viewSpecificKeys)
 
 	// Truncate help text if needed
