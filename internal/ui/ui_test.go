@@ -7,58 +7,19 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/anibaldeboni/rapper/internal/ui"
-	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
-	"github.com/anibaldeboni/rapper/internal/ui/ports"
-	"go.uber.org/mock/gomock"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewUI(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	logManagerMock := mock_ui.NewMockLogService(ctrl)
-	processorMock := mock_ui.NewMockProcessorController(ctrl)
-	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
-
 	t.Run("When the path contains CSV files", func(t *testing.T) {
-		filePaths := []string{"../../tests/example.csv"}
-
-		// Mock Logger.Get() which is called during UI initialization in updateLogs()
-		logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
-		// Mock ConfigManager.Get() which is called during settings view initialization
-		configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-		// Mock Processor.GetWorkerCount() which is called during settings view
-		// initialization to seed the worker-count slider at the top of the view.
-		processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-		// Mock Processor.GetMaxWorkers() which is called during settings view
-		// initialization to bound the worker-count slider to runtime.NumCPU().
-		processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-
-		c := ui.NewApp(filePaths, processorMock, logManagerMock, configMgrMock)
+		c, _, _, _ := ui.NewTestApp(t, "../../tests/example.csv")
 
 		assert.NotNil(t, c)
 	})
 }
 func TestSmallWindowHandling(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	logManagerMock := mock_ui.NewMockLogService(ctrl)
-	processorMock := mock_ui.NewMockProcessorController(ctrl)
-	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
-
-	filePaths := []string{"../../tests/example.csv"}
-
-	// Setup mocks
-	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
-	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
-	app := ui.NewApp(filePaths, processorMock, logManagerMock, configMgrMock)
+	app, _, _, _ := ui.NewTestApp(t, "../../tests/example.csv")
 
 	testCases := []struct {
 		name   string
@@ -91,24 +52,7 @@ func TestSmallWindowHandling(t *testing.T) {
 }
 
 func TestProgramWithWindowSizeIntegration(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	logManagerMock := mock_ui.NewMockLogService(ctrl)
-	processorMock := mock_ui.NewMockProcessorController(ctrl)
-	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
-
-	filePaths := []string{"../../tests/example.csv"}
-
-	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
-	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
-
-	app := ui.NewApp(filePaths, processorMock, logManagerMock, configMgrMock)
+	app, _, _, _ := ui.NewTestApp(t, "../../tests/example.csv")
 
 	var in bytes.Buffer
 	var out bytes.Buffer
