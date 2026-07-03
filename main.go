@@ -53,7 +53,7 @@ func main() {
 		return // handleExit calls os.Exit, but this helps the linter
 	}
 
-	logger := logs.NewLoggger(*outputFile)
+	logger := logs.NewLogger(*outputFile)
 
 	// Create HTTP gateway with flexible headers
 	hg, err := web.NewHttpGateway(

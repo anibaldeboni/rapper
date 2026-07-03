@@ -41,7 +41,7 @@ func (m *MockLogService) EXPECT() *MockLogServiceMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockLogService) Add(msg logs.Message) {
+func (m *MockLogService) Add(msg logs.LogMessage) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Add", msg)
 }
@@ -52,11 +52,23 @@ func (mr *MockLogServiceMockRecorder) Add(msg any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockLogService)(nil).Add), msg)
 }
 
+// Clear mocks base method.
+func (m *MockLogService) Clear() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Clear")
+}
+
+// Clear indicates an expected call of Clear.
+func (mr *MockLogServiceMockRecorder) Clear() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clear", reflect.TypeOf((*MockLogService)(nil).Clear))
+}
+
 // Get mocks base method.
-func (m *MockLogService) Get() []string {
+func (m *MockLogService) Get() []logs.LogMessage {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get")
-	ret0, _ := ret[0].([]string)
+	ret0, _ := ret[0].([]logs.LogMessage)
 	return ret0
 }
 

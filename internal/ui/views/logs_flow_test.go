@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/anibaldeboni/rapper/internal/logs"
 	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
@@ -20,6 +21,7 @@ func TestLogsView_ContentAfterTick(t *testing.T) {
 	processorMock := mock_ui.NewMockProcessorController(ctrl)
 
 	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
+	logManagerMock.EXPECT().Clear().AnyTimes()
 
 	// Build a counter-based mock that returns the empty list for the
 	// first 5 calls (NewLogsView + Update(Size) + 3×Update(Tick)) and
@@ -28,15 +30,15 @@ func TestLogsView_ContentAfterTick(t *testing.T) {
 	// order — the first AnyTimes expectation would catch every call
 	// and the second one would never be reached.
 	var calls int32
-	logManagerMock.EXPECT().Get().DoAndReturn(func() []string {
+	logManagerMock.EXPECT().Get().DoAndReturn(func() []logs.LogMessage {
 		// atomic add to avoid a race; the test is single-goroutine
 		// so a plain int would also work, but this keeps the helper
 		// future-safe.
 		calls++
 		if calls <= 5 {
-			return []string{}
+			return []logs.LogMessage{}
 		}
-		return []string{"Test log message"}
+		return []logs.LogMessage{logs.NewGeneralMessage("", "", "Test log message")}
 	}).AnyTimes()
 
 	v := NewLogsView(logManagerMock, processorMock)

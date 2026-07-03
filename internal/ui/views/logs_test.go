@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
+	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/ui/components"
 	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
@@ -47,7 +48,8 @@ func TestLogsView_Resize_AllocatesEnoughWidthForMetricsPanel(t *testing.T) {
 	}).AnyTimes()
 
 	logger := mock_ui.NewMockLogProvider(ctrl)
-	logger.EXPECT().Get().Return([]string{}).AnyTimes()
+	logger.EXPECT().Get().Return([]logs.LogMessage{}).AnyTimes()
+	logger.EXPECT().Clear().AnyTimes()
 
 	v := NewLogsView(logger, proc)
 	next, _ := v.Update(msgs.ViewportSizeMsg{Width: 120, Height: 40})
@@ -76,7 +78,8 @@ func TestLogsView_Resize_DefaultMetricsWidthExceedsSmallestLabels(t *testing.T) 
 		IsProcessing:  false,
 	}).AnyTimes()
 	logger := mock_ui.NewMockLogProvider(ctrl)
-	logger.EXPECT().Get().Return([]string{}).AnyTimes()
+	logger.EXPECT().Get().Return([]logs.LogMessage{}).AnyTimes()
+	logger.EXPECT().Clear().AnyTimes()
 
 	v := NewLogsView(logger, proc)
 	next, _ := v.Update(msgs.ViewportSizeMsg{Width: 120, Height: 40})
@@ -132,7 +135,8 @@ func TestLogsView_Resize_AccountsForMarginLeft(t *testing.T) {
 	proc := mock_ui.NewMockProcessorController(ctrl)
 	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{IsProcessing: false}).AnyTimes()
 	logger := mock_ui.NewMockLogProvider(ctrl)
-	logger.EXPECT().Get().Return([]string{}).AnyTimes()
+	logger.EXPECT().Get().Return([]logs.LogMessage{}).AnyTimes()
+	logger.EXPECT().Clear().AnyTimes()
 
 	v := NewLogsView(logger, proc)
 
@@ -181,7 +185,8 @@ func TestLogsView_Update_ViewportSizeMsg_PartitionInvariant(t *testing.T) {
 	proc := mock_ui.NewMockProcessorController(ctrl)
 	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{IsProcessing: false}).AnyTimes()
 	logger := mock_ui.NewMockLogProvider(ctrl)
-	logger.EXPECT().Get().Return([]string{}).AnyTimes()
+	logger.EXPECT().Get().Return([]logs.LogMessage{}).AnyTimes()
+	logger.EXPECT().Clear().AnyTimes()
 
 	v := NewLogsView(logger, proc)
 
@@ -216,7 +221,8 @@ func TestLogsView_Update_MetricsVisibilityMsg_StartsTick(t *testing.T) {
 	proc := mock_ui.NewMockProcessorController(ctrl)
 	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{IsProcessing: false}).AnyTimes()
 	logger := mock_ui.NewMockLogProvider(ctrl)
-	logger.EXPECT().Get().Return([]string{}).AnyTimes()
+	logger.EXPECT().Get().Return([]logs.LogMessage{}).AnyTimes()
+	logger.EXPECT().Clear().AnyTimes()
 
 	v := NewLogsView(logger, proc)
 
@@ -241,7 +247,8 @@ func TestLogsView_Update_MetricsVisibilityMsg_StopsTick(t *testing.T) {
 	proc := mock_ui.NewMockProcessorController(ctrl)
 	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{IsProcessing: false}).AnyTimes()
 	logger := mock_ui.NewMockLogProvider(ctrl)
-	logger.EXPECT().Get().Return([]string{}).AnyTimes()
+	logger.EXPECT().Get().Return([]logs.LogMessage{}).AnyTimes()
+	logger.EXPECT().Clear().AnyTimes()
 
 	v := NewLogsView(logger, proc)
 
@@ -266,7 +273,8 @@ func TestLogsView_Init_ReturnsNil(t *testing.T) {
 	proc := mock_ui.NewMockProcessorController(ctrl)
 	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
 	logger := mock_ui.NewMockLogProvider(ctrl)
-	logger.EXPECT().Get().Return([]string{}).AnyTimes()
+	logger.EXPECT().Get().Return([]logs.LogMessage{}).AnyTimes()
+	logger.EXPECT().Clear().AnyTimes()
 	v := NewLogsView(logger, proc)
 	if cmd := v.Init(); cmd != nil {
 		t.Fatalf("Init must return nil; got %T", cmd)
@@ -295,7 +303,11 @@ func TestLogsView_UpdateLogs_PersistsContent(t *testing.T) {
 	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{IsProcessing: false}).AnyTimes()
 
 	logger := mock_ui.NewMockLogProvider(ctrl)
-	logger.EXPECT().Get().Return([]string{"line A", "line B"}).AnyTimes()
+	logger.EXPECT().Get().Return([]logs.LogMessage{
+		logs.NewGeneralMessage("", "", "line A"),
+		logs.NewGeneralMessage("", "", "line B"),
+	}).AnyTimes()
+	logger.EXPECT().Clear().AnyTimes()
 
 	v := NewLogsView(logger, proc)
 	require.NotEmpty(t, v.viewport.GetContent(),

@@ -198,8 +198,6 @@ func (m *AppModel) applyTheme(isDark bool) {
 	m.help = createHelp()
 }
 
-func operationError() logs.Message {
-	return logs.NewMessage().
-		WithIcon(IconInformation).
-		WithMessage("Please wait the current operation to finish or cancel pressing ESC")
+func operationError() logs.LogMessage {
+	return logs.NewGeneralMessage(IconInformation, "", "Please wait the current operation to finish or cancel pressing ESC")
 }

@@ -208,8 +208,17 @@ func (v LogsView) View() tea.View {
 // preserve the new viewport state. The returned value MUST be
 // captured by every call site — the value receiver means the
 // original struct is never mutated.
+//
+// Phase 1: render each LogMessage as a flat string via String() to
+// keep the viewport-based layout compiling. Phase 3 replaces this
+// body with a DetailedList[logs.LogMessage] and a typed renderer.
 func (v LogsView) updateLogs() LogsView {
-	content := strings.Join(v.logger.Get(), "\n")
+	msgs := v.logger.Get()
+	lines := make([]string, 0, len(msgs))
+	for _, m := range msgs {
+		lines = append(lines, m.String())
+	}
+	content := strings.Join(lines, "\n")
 	v.viewport.SetContent(content)
 	if v.autoScroll {
 		v.viewport.GotoBottom()

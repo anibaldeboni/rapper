@@ -25,7 +25,7 @@ type HttpGateway interface {
 //go:generate mockgen -destination mock/request_logger_mock.go -package mock_processor github.com/anibaldeboni/rapper/internal/processor RequestLogger
 type RequestLogger interface {
 	// Add adds a log message to the in-memory buffer
-	Add(msg logs.Message)
+	Add(msg logs.LogMessage)
 
 	// WriteToFile writes a log line to the output file
 	WriteToFile(line logs.Line)

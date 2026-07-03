@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/anibaldeboni/rapper/internal/logs"
 	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
@@ -38,7 +39,8 @@ func newTestApp(t *testing.T, csvPaths ...string) (
 	configMgrMock := mock_ui.NewMockConfigManager(ctrl)
 	processorMock := mock_ui.NewMockProcessorController(ctrl)
 
-	logManagerMock.EXPECT().Get().Return([]string{}).AnyTimes()
+	logManagerMock.EXPECT().Get().Return([]logs.LogMessage{}).AnyTimes()
+	logManagerMock.EXPECT().Clear().AnyTimes()
 	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
 	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
 	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()

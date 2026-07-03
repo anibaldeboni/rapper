@@ -6,9 +6,13 @@ import (
 	"net/http"
 )
 
-// Response represents an HTTP response.
+// Response represents an HTTP response. Method is captured by the
+// client alongside URL so downstream consumers (logs.NewHTTPMessage)
+// can render "METHOD URL status" without re-deriving the verb from
+// the gateway config.
 type Response struct {
 	Headers    http.Header
+	Method     string
 	URL        string
 	Body       []byte
 	StatusCode int
@@ -86,6 +90,7 @@ func buildResponse(response *http.Response, err error) (Response, error) {
 	body, _ := io.ReadAll(response.Body)
 
 	return Response{
+		Method:     response.Request.Method,
 		URL:        response.Request.URL.String(),
 		StatusCode: response.StatusCode,
 		Headers:    response.Header,

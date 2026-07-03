@@ -41,7 +41,7 @@ func (m *MockRequestLogger) EXPECT() *MockRequestLoggerMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockRequestLogger) Add(msg logs.Message) {
+func (m *MockRequestLogger) Add(msg logs.LogMessage) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Add", msg)
 }

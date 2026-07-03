@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
 )
@@ -21,7 +22,7 @@ func TestLogsFlow(t *testing.T) {
 		app.Update(msgs.TickMsg(time.Now()))
 	}
 
-	logManagerMock.EXPECT().Get().Return([]string{"Test log message"}).AnyTimes()
+	logManagerMock.EXPECT().Get().Return([]logs.LogMessage{logs.NewGeneralMessage("", "", "Test log message")}).AnyTimes()
 
 	for i := 0; i < 3; i++ {
 		app.Update(msgs.TickMsg(time.Now()))

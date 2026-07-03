@@ -78,8 +78,10 @@ type ProcessorMetrics = processor.Metrics
 //
 //go:generate mockgen -destination ../mock/log_provider_mock.go -package mock_ui github.com/anibaldeboni/rapper/internal/ui/ports LogProvider
 type LogProvider interface {
-	// Get returns all log messages as strings
-	Get() []string
+	// Get returns all log messages.
+	Get() []logs.LogMessage
+	// Clear empties the in-memory log buffer.
+	Clear()
 }
 
 // RequestLogger defines the interface for adding log messages.
@@ -88,7 +90,7 @@ type LogProvider interface {
 //go:generate mockgen -destination ../mock/request_logger_mock.go -package mock_ui github.com/anibaldeboni/rapper/internal/ui/ports RequestLogger
 type RequestLogger interface {
 	// Add adds a log message
-	Add(msg logs.Message)
+	Add(msg logs.LogMessage)
 }
 
 // LogService combines log provider and logger behaviors.
@@ -97,10 +99,4 @@ type RequestLogger interface {
 type LogService interface {
 	LogProvider
 	RequestLogger
-}
-
-// LogMessage represents a displayable log message.
-// Deprecated: prefer logs.Message directly via RequestLogger.
-type LogMessage interface {
-	String() string
 }

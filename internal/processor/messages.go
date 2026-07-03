@@ -12,25 +12,20 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-func cancelationMsg() logs.Message {
-	return logs.NewMessage().
-		WithIcon(styles.IconSkull).
-		WithKind("Cancelation").
-		WithMessage(fmt.Sprintf("Read %d lines and executed %d requests", linesCount.Load(), reqCount.Load()))
+func cancelationMsg() logs.LogMessage {
+	return logs.NewGeneralMessage(
+		styles.IconSkull,
+		"Cancelation",
+		fmt.Sprintf("Read %d lines and executed %d requests", linesCount.Load(), reqCount.Load()),
+	)
 }
 
-func requestError(message string) logs.Message {
-	return logs.NewMessage().
-		WithIcon(styles.IconSkull).
-		WithKind("Request").
-		WithMessage(message)
+func requestError(message string) logs.LogMessage {
+	return logs.NewGeneralMessage(styles.IconSkull, "Request", message)
 }
 
-func csvError(message string) logs.Message {
-	return logs.NewMessage().
-		WithIcon(styles.IconSkull).
-		WithKind("CSV").
-		WithMessage(message)
+func csvError(message string) logs.LogMessage {
+	return logs.NewGeneralMessage(styles.IconSkull, "CSV", message)
 }
 
 func mapResponse(record map[string]string, status int) string {
@@ -49,13 +44,21 @@ func mapResponse(record map[string]string, status int) string {
 
 	return builder.String()
 }
-func httpStatusError(record map[string]string, status int) logs.Message {
-	return logs.NewMessage().
-		WithIcon(styles.IconWarning).
-		WithMessage(mapResponse(record, status))
+
+// httpStatusError produces the "non-2xx" log line. NewGeneralMessage is
+// used (not NewHTTPMessage) because the body would clutter the
+// always-visible title; the renderer can still color the row via the
+// Status field if the consumer chooses to project it back into a
+// LogType.
+func httpStatusError(record map[string]string, status int) logs.LogMessage {
+	return logs.NewGeneralMessage(
+		styles.IconWarning,
+		"HTTP",
+		mapResponse(record, status),
+	)
 }
 
-func doneMessage(errs uint64) logs.Message {
+func doneMessage(errs uint64) logs.LogMessage {
 	errMsg := styles.Green("no errors")
 	icon := styles.IconTrophy
 
@@ -64,15 +67,15 @@ func doneMessage(errs uint64) logs.Message {
 		icon = styles.IconError
 	}
 
-	return logs.NewMessage().
-		WithIcon(icon).
-		WithMessage(fmt.Sprintf("Finished with %s\n", errMsg))
+	return logs.NewGeneralMessage(icon, "Done", "Finished with "+errMsg)
 }
 
-func processingMessage(file string, workers int) logs.Message {
-	return logs.NewMessage().
-		WithIcon(styles.IconWomanDancing).
-		WithMessage(fmt.Sprintf("Processing file %s using %s", styles.Green(file), workersMsg(workers)))
+func processingMessage(file string, workers int) logs.LogMessage {
+	return logs.NewGeneralMessage(
+		styles.IconWomanDancing,
+		"Processing",
+		fmt.Sprintf("Processing file %s using %s", styles.Green(file), workersMsg(workers)),
+	)
 }
 
 func workersMsg(workers int) string {
@@ -83,13 +86,21 @@ func workersMsg(workers int) string {
 	return fmt.Sprintf("%d %s", workers, w)
 }
 
+// RequestLine is the per-request record streamed to the on-disk
+// output file. The body is included even on errors so the user can
+// inspect what the server actually said; the field is omitted from
+// the JSON when nil to keep success-only output compact.
 type RequestLine struct {
 	Error  error  `json:"error"`
 	URL    string `json:"url"`
+	Method string `json:"method"`
 	Body   []byte `json:"body"`
 	Status int    `json:"status"`
 }
 
+// Bytes serialises the request line as JSON. Used by
+// logger.WriteToFile to stream the line to the configured output
+// file.
 func (r RequestLine) Bytes() []byte {
 	m, _ := json.Marshal(r)
 	return m

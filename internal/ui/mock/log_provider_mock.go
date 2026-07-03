@@ -12,6 +12,7 @@ package mock_ui
 import (
 	reflect "reflect"
 
+	logs "github.com/anibaldeboni/rapper/internal/logs"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -39,11 +40,23 @@ func (m *MockLogProvider) EXPECT() *MockLogProviderMockRecorder {
 	return m.recorder
 }
 
+// Clear mocks base method.
+func (m *MockLogProvider) Clear() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Clear")
+}
+
+// Clear indicates an expected call of Clear.
+func (mr *MockLogProviderMockRecorder) Clear() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clear", reflect.TypeOf((*MockLogProvider)(nil).Clear))
+}
+
 // Get mocks base method.
-func (m *MockLogProvider) Get() []string {
+func (m *MockLogProvider) Get() []logs.LogMessage {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get")
-	ret0, _ := ret[0].([]string)
+	ret0, _ := ret[0].([]logs.LogMessage)
 	return ret0
 }
 
