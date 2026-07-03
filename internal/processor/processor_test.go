@@ -5,9 +5,13 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/anibaldeboni/rapper/internal/config"
+	"github.com/anibaldeboni/rapper/internal/logs"
+	"github.com/anibaldeboni/rapper/internal/web"
 	mock_processor "github.com/anibaldeboni/rapper/internal/processor/mock"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
@@ -96,6 +100,103 @@ func TestProcessor_UpdateConfig(t *testing.T) {
 
 	// Swap the field filter before running Do. The next run must honor it.
 	p.UpdateConfig(config.CSVConfig{Fields: []string{"header2"}, Separator: ","})
+
+	p.Do(context.Background(), tempFile.Name())
+	wg.Wait()
+}
+
+// TestProcessor_Do_LogsSuccessOnTwoXX proves the success path: when
+// the gateway returns a 2xx response, the worker calls
+// logger.Add(logs.NewHTTPMessage(res)). Before the fix the success
+// branch was missing entirely, so successful runs were invisible in
+// the TUI logs view.
+func TestProcessor_Do_LogsSuccessOnTwoXX(t *testing.T) {
+	execDone := make(chan struct{})
+	csvData := "header1\nvalue1\n"
+	tempFile := createCsvFile(t, csvData)
+	defer os.Remove(tempFile.Name())
+
+	csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
+	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg, 1)
+
+	gatewayMock.EXPECT().
+		Exec(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, _ map[string]string) (web.Response, error) {
+			return web.Response{
+				Method:     "GET",
+				URL:        "https://example.com/users/1",
+				StatusCode: 200,
+				Body:       []byte(`{"id":1}`),
+			}, nil
+		}).Times(1)
+
+	var (
+		mu    sync.Mutex
+		added []logs.LogMessage
+	)
+	loggerMock.EXPECT().Add(gomock.Any()).DoAndReturn(func(m logs.LogMessage) {
+		mu.Lock()
+		added = append(added, m)
+		mu.Unlock()
+		if m.Type == logs.LogTypeSuccess {
+			select {
+			case <-execDone:
+				// already closed
+			default:
+				close(execDone)
+			}
+		}
+	}).AnyTimes()
+	loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
+
+	p.Do(context.Background(), tempFile.Name())
+
+	select {
+	case <-execDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the success-path log message")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	var sawSuccess bool
+	for _, m := range added {
+		if m.Type == logs.LogTypeSuccess {
+			assert.Equal(t, 200, m.StatusCode)
+			assert.Equal(t, "GET", m.Method)
+			assert.Equal(t, "https://example.com/users/1", m.URL)
+			sawSuccess = true
+		}
+	}
+	assert.True(t, sawSuccess, "worker must call logger.Add with LogTypeSuccess for a 2xx response")
+}
+
+// TestProcessor_Do_LogsClientErrorOnFourXX proves the existing 4xx
+// error path is preserved (regression guard for the success-path
+// refactor).
+func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	csvData := "header1\nvalue1\n"
+	tempFile := createCsvFile(t, csvData)
+	defer os.Remove(tempFile.Name())
+
+	csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
+	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg, 1)
+
+	gatewayMock.EXPECT().
+		Exec(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, _ map[string]string) (web.Response, error) {
+			wg.Done()
+			return web.Response{
+				Method:     "GET",
+				URL:        "https://example.com/missing",
+				StatusCode: 404,
+			}, nil
+		}).Times(1)
+
+	loggerMock.EXPECT().Add(gomock.Any()).AnyTimes()
+	loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
 
 	p.Do(context.Background(), tempFile.Name())
 	wg.Wait()

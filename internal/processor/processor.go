@@ -3,7 +3,6 @@ package processor
 import (
 	"context"
 	"io"
-	"net/http"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/anibaldeboni/rapper/internal/config"
+	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/utils"
 )
 
@@ -117,14 +117,27 @@ requests:
 		default:
 			res, err := p.gateway.Exec(ctx, row)
 			reqCount.Add(1)
-			if err != nil {
+			switch {
+			case err != nil:
 				errCount.Add(1)
 				p.logger.Add(requestError(err.Error()))
-			} else if res.StatusCode != http.StatusOK {
+			case res.StatusCode >= 200 && res.StatusCode < 300:
+				// Success path: surface the response in the in-memory
+				// log so the TUI shows every successful request, not
+				// just failures. The TUI renderer picks the row color
+				// from the LogType embedded in the message.
+				p.logger.Add(logs.NewHTTPMessage(res))
+			default:
 				errCount.Add(1)
 				p.logger.Add(httpStatusError(row, res.StatusCode))
 			}
-			p.logger.WriteToFile(&RequestLine{URL: res.URL, Status: res.StatusCode, Body: res.Body, Error: err})
+			p.logger.WriteToFile(&RequestLine{
+				URL:    res.URL,
+				Method: res.Method,
+				Status: res.StatusCode,
+				Body:   res.Body,
+				Error:  err,
+			})
 		}
 	}
 }
