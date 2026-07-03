@@ -303,11 +303,17 @@ func (l DetailedList[T]) View() tea.View {
 			style = l.renderer.SelectedStyle(item)
 		}
 		if l.width > 0 {
-			// Pin each row to exactly l.width: MaxWidth truncates long
-			// titles (prevents overflow into adjacent columns), Width
-			// pads short ones (keeps the column at a stable width so
-			// JoinHorizontal doesn't shift).
-			style = style.MaxWidth(l.width).Width(l.width)
+			if i == l.cursor {
+				// Selected row: MaxWidth only — the background from
+				// SelectedStyle covers only the actual content (badge +
+				// URL + padding). The column width is preserved by the
+				// unselected rows which still use Width(l.width).
+				style = style.MaxWidth(l.width)
+			} else {
+				// Unselected rows: pin to exactly l.width so JoinHorizontal
+				// in the parent view places the right-side panel correctly.
+				style = style.MaxWidth(l.width).Width(l.width)
+			}
 		}
 		title := l.renderer.Title(item)
 		rows = append(rows, style.Render(title))
@@ -315,10 +321,10 @@ func (l DetailedList[T]) View() tea.View {
 		if l.expanded == i {
 			detail := l.renderer.Detail(item)
 			if detail != "" {
-				// Detail is rendered without the row's selected background
-				// so the body always appears on a black/terminal-default
-				// background — only MaxWidth is applied to prevent overflow.
-				detailStyle := lipgloss.NewStyle()
+				// Detail inherits the selected row's background (same
+				// gray) but is not padded to l.width — the background
+				// covers only the rendered JSON content.
+				detailStyle := l.renderer.SelectedStyle(l.items[i])
 				if l.width > 0 {
 					detailStyle = detailStyle.MaxWidth(l.width)
 				}
