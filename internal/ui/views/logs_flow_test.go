@@ -24,18 +24,14 @@ func TestLogsView_ContentAfterTick(t *testing.T) {
 	logManagerMock.EXPECT().Clear().AnyTimes()
 
 	// Build a counter-based mock that returns the empty list for the
-	// first 5 calls (NewLogsView + Update(Size) + 3×Update(Tick)) and
-	// the populated list for every call after that. This replaces the
-	// previous two-expectation setup, which gomock matched in FIFO
-	// order — the first AnyTimes expectation would catch every call
-	// and the second one would never be reached.
+	// first call and a populated list thereafter. The previous
+	// two-expectation setup would gomock-match in FIFO order — the
+	// first AnyTimes would catch every call and the second one would
+	// never be reached.
 	var calls int32
 	logManagerMock.EXPECT().Get().DoAndReturn(func() []logs.LogMessage {
-		// atomic add to avoid a race; the test is single-goroutine
-		// so a plain int would also work, but this keeps the helper
-		// future-safe.
 		calls++
-		if calls <= 5 {
+		if calls == 1 {
 			return []logs.LogMessage{}
 		}
 		return []logs.LogMessage{logs.NewGeneralMessage("", "", "Test log message")}
@@ -47,28 +43,16 @@ func TestLogsView_ContentAfterTick(t *testing.T) {
 	next, _ := v.Update(msgs.ViewportSizeMsg{Width: 120, Height: 40})
 	v = next.(LogsView)
 
-	fmt.Println("After resize - Viewport width:", v.viewport.Width(), "height:", v.viewport.Height())
-	fmt.Println("Lines count:", len(v.viewport.GetContent()))
+	fmt.Println("After resize - list width:", v.list.Width(), "height:", v.list.Height())
+	fmt.Println("Items count:", v.list.Len())
 
-	// Ticks
-	for i := 0; i < 3; i++ {
-		next, _ = v.Update(msgs.TickMsg(time.Now()))
-		v = next.(LogsView)
-	}
+	// Tick
+	next, _ = v.Update(msgs.MetricsTickMsg(time.Now()))
+	v = next.(LogsView)
 
-	fmt.Println("After ticks - Viewport width:", v.viewport.Width(), "height:", v.viewport.Height())
-	fmt.Println("Lines count:", len(v.viewport.GetContent()))
-
-	// Call updateLogs manually. After the elm-messaging-logs-fix the
-	// function returns the modified LogsView, so the call site MUST
-	// capture the return — otherwise the viewport content is lost
-	// (the value-receiver mutation never reaches the caller).
-	v = v.updateLogs()
-
-	fmt.Println("After manual updateLogs - Viewport width:", v.viewport.Width(), "height:", v.viewport.Height())
-	fmt.Println("Lines count:", len(v.viewport.GetContent()))
-	fmt.Println("Content:", v.viewport.GetContent())
-	fmt.Println("View raw:", v.viewport.View())
+	fmt.Println("After tick - list width:", v.list.Width(), "height:", v.list.Height())
+	fmt.Println("Items count:", v.list.Len())
+	fmt.Println("Content:", v.View().Content)
 
 	lv := v.View()
 	fmt.Println("=== LogsView Content ===")

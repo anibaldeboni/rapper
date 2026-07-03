@@ -22,17 +22,17 @@ func TestLogsFlow(t *testing.T) {
 		app.Update(msgs.TickMsg(time.Now()))
 	}
 
-	logManagerMock.EXPECT().Get().Return([]logs.LogMessage{logs.NewGeneralMessage("", "", "Test log message")}).AnyTimes()
+	logManagerMock.EXPECT().Get().Return([]logs.LogMessage{
+		logs.NewGeneralMessage("", "", "Test log message"),
+	}).AnyTimes()
+	logManagerMock.EXPECT().Clear().AnyTimes()
 
 	for i := 0; i < 3; i++ {
 		app.Update(msgs.TickMsg(time.Now()))
 	}
 
 	logsView := app.views[ViewLogs].(views.LogsView)
-	fmt.Println("Viewport width:", logsView.ViewportWidth())
-	fmt.Println("Viewport height:", logsView.ViewportHeight())
-	fmt.Println("Viewport content set:", logsView.ViewportContent())
-
+	fmt.Println("List width:", logsView.RightCol())
 	lv := logsView.View()
 	fmt.Println("=== LogsView Content ===")
 	fmt.Println(lv.Content)

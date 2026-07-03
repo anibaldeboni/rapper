@@ -168,6 +168,14 @@ func (l DetailedList[T]) SetSize(width, height int) DetailedList[T] {
 	return l
 }
 
+// Width returns the width previously set via SetSize. Diagnostic
+// accessor used by views/logs_test.go to assert the partition
+// invariant.
+func (l DetailedList[T]) Width() int { return l.width }
+
+// Height returns the height previously set via SetSize.
+func (l DetailedList[T]) Height() int { return l.height }
+
 // Update handles a single tea message. Only key presses are
 // recognised; every other message is a no-op and the returned
 // command is nil. Recognised keys (from the LogsView keymap):

@@ -35,15 +35,21 @@ func (k filesViewKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{kbind.Up, kbind.Down, kbind.Select}}
 }
 
-// logsViewKeyMap shows only logs view specific keys
+// logsViewKeyMap shows only logs view specific keys. The list is
+// vertical-only — Left/Right are not handled by the DetailedList
+// anymore — so the keymap reflects the available navigation
+// (Up/Down/PgUp/PgDn/Home/End) plus Enter to expand a row.
 type logsViewKeyMap struct{}
 
 func (k logsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.Left, kbind.Up, kbind.Down, kbind.Right}
+	return []key.Binding{kbind.Up, kbind.Down, kbind.Select, kbind.GotoBottom}
 }
 
 func (k logsViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{kbind.Left, kbind.Up, kbind.Down, kbind.Right}}
+	return [][]key.Binding{{
+		kbind.Up, kbind.Down, kbind.GotoTop, kbind.GotoBottom,
+		kbind.PageUp, kbind.PageDown, kbind.Select,
+	}}
 }
 
 // settingsViewKeyMap shows only settings view specific keys.

@@ -1,13 +1,12 @@
 package views
 
 import (
-	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/ui/components"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
@@ -28,21 +27,23 @@ const (
 // It is a value-type tea.Model so AppModel can store it behind a
 // uniform `map[View]viewModel` and broadcast messages to every view
 // without re-dispatching on the concrete type.
+//
+// The log list itself is a generic DetailedList[logs.LogMessage]
+// driven by a LogMessageRenderer — the view does not know how to
+// render a row, only how to lay out the column that contains the
+// list.
 type LogsView struct {
-	viewport   viewport.Model
-	logger     ports.LogProvider
-	metrics    components.MetricsPanel
-	title      string
-	width      int
-	height     int
-	rightCol   int
-	autoScroll bool
+	list     components.DetailedList[logs.LogMessage]
+	logger   ports.LogProvider
+	metrics  components.MetricsPanel
+	title    string
+	width    int
+	height   int
+	rightCol int
 }
 
 // Compile-time guard: LogsView must satisfy tea.Model with a value
-// receiver. Phase 2 converts the historical pointer-receiver surface
-// to value receivers; this assertion fails at build time if the
-// conversion regresses.
+// receiver.
 var _ tea.Model = LogsView{}
 
 // NewLogsView creates a LogsView. The proc parameter is required so the
@@ -52,19 +53,14 @@ var _ tea.Model = LogsView{}
 // behind the unified viewModel type. Callers must capture the value
 // returned by Update to preserve state.
 func NewLogsView(logger ports.LogProvider, proc ports.ProcessorController) LogsView {
-	vp := viewport.New(viewport.WithWidth(0), viewport.WithHeight(0))
-
 	v := LogsView{
-		viewport:   vp,
-		logger:     logger,
-		metrics:    components.NewMetricsPanel(proc),
-		title:      "📝 Execution logs",
-		rightCol:   metricsDefaultWidth,
-		autoScroll: true,
+		list:     components.NewDetailedList[logs.LogMessage](components.LogMessageRenderer{}),
+		logger:   logger,
+		metrics:  components.NewMetricsPanel(proc),
+		title:    "📝 Execution logs",
+		rightCol: metricsDefaultWidth,
 	}
-	// Load initial logs
-	v = v.updateLogs()
-	return v
+	return v.refreshLogs()
 }
 
 // Init returns nil. The metrics tick chain is started via
@@ -79,10 +75,17 @@ func (v LogsView) Init() tea.Cmd { return nil }
 //
 // Recognised messages:
 //   - msgs.ViewportSizeMsg: re-partition the available width between
-//     the log viewport (left) and the metrics panel (right).
+//     the log list (left) and the metrics panel (right).
 //   - msgs.MetricsVisibilityMsg: start (true) or stop (false) the
-//     metrics tick chain. The chain is self-sustaining once started:
-//     MetricsPanel.Update(MetricsTickMsg) reschedules itself.
+//     metrics tick chain.
+//   - msgs.ProcessingStartedMsg: clear the list (each run starts
+//     fresh) and re-enable autoScroll.
+//   - msgs.MetricsTickMsg: refresh the list with any new log
+//     messages; forward to the embedded metrics panel.
+//   - tea.KeyPressMsg: forward navigation keys to the list.
+//
+// Horizontal navigation (Left/Right) is intentionally not handled —
+// DetailedList is a vertical list.
 func (v LogsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -91,12 +94,6 @@ func (v LogsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		v = v.applyViewportSize(msg.Width, msg.Height)
 
 	case msgs.MetricsVisibilityMsg:
-		// Start or stop the metrics tick chain. The panel's Visible
-		// flag is the source of truth; LogsView owns the scheduling
-		// (the tea.Tick cmd) per R-7 / D-5. The chain becomes
-		// self-sustaining because the next MetricsTickMsg (delivered
-		// by the tick cmd we return) is forwarded to the panel which
-		// reschedules via LogsView at the top of Update.
 		v.metrics.Visible = msg.Visible
 		if msg.Visible {
 			return v, metricsTickCmd()
@@ -105,30 +102,16 @@ func (v LogsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		switch {
-		case key.Matches(msg, kbind.GotoBottom):
-			v.viewport.GotoBottom()
-			v.autoScroll = true
-		case key.Matches(msg, kbind.Up):
-			v.viewport.ScrollUp(1)
-			v.autoScroll = false
-		case key.Matches(msg, kbind.Down):
-			v.viewport.ScrollDown(1)
-			v.autoScroll = false
-		case key.Matches(msg, kbind.PageUp):
-			v.viewport.PageUp()
-			v.autoScroll = false
-		case key.Matches(msg, kbind.PageDown):
-			v.viewport.PageDown()
-			v.autoScroll = false
-		case key.Matches(msg, kbind.GotoTop):
-			v.viewport.GotoTop()
-			v.autoScroll = false
-		case key.Matches(msg, kbind.Right):
-			v.viewport.ScrollRight(1)
-			v.autoScroll = false
-		case key.Matches(msg, kbind.Left):
-			v.viewport.ScrollLeft(1)
-			v.autoScroll = false
+		case key.Matches(msg, kbind.GotoBottom),
+			key.Matches(msg, kbind.Up),
+			key.Matches(msg, kbind.Down),
+			key.Matches(msg, kbind.PageUp),
+			key.Matches(msg, kbind.PageDown),
+			key.Matches(msg, kbind.GotoTop),
+			key.Matches(msg, kbind.Select):
+			next, kcmd := v.list.Update(msg)
+			v.list = next.(components.DetailedList[logs.LogMessage])
+			return v, kcmd
 		}
 
 	case msgs.MetricsTickMsg:
@@ -137,24 +120,24 @@ func (v LogsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, mcmd := v.metrics.Update(msg)
 		v.metrics = next.(components.MetricsPanel)
 		cmd = mcmd
-		v = v.updateLogs()
+		v = v.refreshLogs()
 		return v, cmd
 
-	default:
-		switch msg.(type) {
-		case msgs.ProcessingStartedMsg:
-			v.autoScroll = true
-		case msgs.ProcessingStoppedMsg:
-		case msgs.ProcessingProgressMsg:
-		}
+	case msgs.ProcessingStartedMsg:
+		// Clear both the in-memory buffer and the embedded list so
+		// each run starts from a clean slate. Clear() must run
+		// before Reset() — otherwise the next MetricsTickMsg would
+		// see the old messages in the buffer and re-append them.
+		v.logger.Clear()
+		v.list = v.list.Reset()
+		return v, nil
 	}
-	v = v.updateLogs()
-	v.viewport, cmd = v.viewport.Update(msg)
+
 	return v, cmd
 }
 
 // applyViewportSize re-partitions the available width between the log
-// viewport (left) and the metrics panel (right). The partition math
+// list (left) and the metrics panel (right). The partition math
 // matches the historical Resize behaviour: the right column is the
 // default (36) capped to ~30% of the available width with a floor of
 // 24, then the left column takes whatever is left minus the
@@ -175,18 +158,17 @@ func (v LogsView) applyViewportSize(width, height int) LogsView {
 	}
 	left := max(width-right-logsMarginLeft, 0)
 
-	v.viewport.SetWidth(left)
-	v.viewport.SetHeight(height - 3)
+	v.list = v.list.SetSize(left, max(height-3, 0))
 	v.rightCol = right
 	return v
 }
 
 // View renders the logs view as a tea.View whose Content holds the
-// joined (viewport + metrics panel) body.
+// joined (list + metrics panel) body.
 func (v LogsView) View() tea.View {
 	body := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		v.viewport.View(),
+		v.list.View().Content,
 		v.metrics.View().Content,
 	)
 
@@ -202,26 +184,27 @@ func (v LogsView) View() tea.View {
 		))
 }
 
-// updateLogs updates the viewport content with latest logs and
-// auto-scrolls to the bottom when autoScroll is true. Operates on a
-// value-receiver copy and returns the modified LogsView so callers
-// preserve the new viewport state. The returned value MUST be
-// captured by every call site — the value receiver means the
-// original struct is never mutated.
+// refreshLogs reads the current log buffer and appends any new
+// messages to the embedded DetailedList. The List's Append honours
+// autoScroll — when the user is at the tail, the cursor follows
+// the new entries; when the user has scrolled away, the cursor
+// stays put and the new entries queue up below.
 //
-// Phase 1: render each LogMessage as a flat string via String() to
-// keep the viewport-based layout compiling. Phase 3 replaces this
-// body with a DetailedList[logs.LogMessage] and a typed renderer.
-func (v LogsView) updateLogs() LogsView {
-	msgs := v.logger.Get()
-	lines := make([]string, 0, len(msgs))
-	for _, m := range msgs {
-		lines = append(lines, m.String())
+// Operates on a value-receiver copy and returns the modified
+// LogsView so callers preserve the new list state. The returned
+// value MUST be captured by every call site — the value receiver
+// means the original struct is never mutated.
+func (v LogsView) refreshLogs() LogsView {
+	all := v.logger.Get()
+	if len(all) < v.list.Len() {
+		// The buffer shrank (e.g. Clear() was called). Reset the list
+		// so we don't keep stale expanded rows and the cursor
+		// repositions correctly.
+		v.list = v.list.Reset()
 	}
-	content := strings.Join(lines, "\n")
-	v.viewport.SetContent(content)
-	if v.autoScroll {
-		v.viewport.GotoBottom()
+	if len(all) > v.list.Len() {
+		newOnes := all[v.list.Len():]
+		v.list = v.list.Append(newOnes)
 	}
 	return v
 }
@@ -231,17 +214,15 @@ func (v LogsView) updateLogs() LogsView {
 // state after a nav switch.
 func (v LogsView) MetricsVisible() bool { return v.metrics.Visible }
 
-// ViewportWidth returns the assigned viewport width. Diagnostic
+// RightCol returns the assigned right-pane width. Diagnostic
 // accessor for the flow tests.
-func (v LogsView) ViewportWidth() int { return v.viewport.Width() }
+func (v LogsView) RightCol() int { return v.rightCol }
 
-// ViewportHeight returns the assigned viewport height. Diagnostic
-// accessor for the flow tests.
-func (v LogsView) ViewportHeight() int { return v.viewport.Height() }
-
-// ViewportContent returns the current viewport content. Diagnostic
-// accessor for the flow tests.
-func (v LogsView) ViewportContent() string { return v.viewport.GetContent() }
+// listWidthHeight returns the assigned left-pane (list) width and
+// height. Diagnostic accessor for the partition-invariant tests.
+func (v LogsView) listWidthHeight() (int, int) {
+	return v.list.Width(), v.list.Height()
+}
 
 // metricsTickInterval is the metrics refresh cadence. Matches the
 // MetricsPanel.tickInterval constant so the two stay in sync; the
