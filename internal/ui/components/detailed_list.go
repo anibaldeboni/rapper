@@ -285,6 +285,11 @@ func (l DetailedList[T]) View() tea.View {
 	}
 
 	if len(l.items) == 0 {
+		// Return a correctly-sized empty block so JoinHorizontal in the
+		// parent view places any right-side panel at the right offset.
+		if l.width > 0 {
+			return tea.NewView(lipgloss.NewStyle().Width(l.width).Render(""))
+		}
 		return tea.NewView("")
 	}
 
@@ -296,6 +301,13 @@ func (l DetailedList[T]) View() tea.View {
 		style := l.renderer.Style(item)
 		if i == l.cursor {
 			style = l.renderer.SelectedStyle(item)
+		}
+		if l.width > 0 {
+			// Pin each row to exactly l.width: MaxWidth truncates long
+			// titles (prevents overflow into adjacent columns), Width
+			// pads short ones (keeps the column at a stable width so
+			// JoinHorizontal doesn't shift).
+			style = style.MaxWidth(l.width).Width(l.width)
 		}
 		title := l.renderer.Title(item)
 		rows = append(rows, style.Render(title))
