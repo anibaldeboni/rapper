@@ -256,3 +256,106 @@ func TestDetailedList_Init_ReturnsNil(t *testing.T) {
 	l := components.NewDetailedList[string](stubRenderer{})
 	assert.Nil(t, l.Init())
 }
+
+// TestDetailedList_HeightConstrainedRendering is a table-driven
+// group covering the viewport windowing behavior added when
+// SetSize(height>0) wired the visible-row count to the parent's
+// viewport. The list is configured with the default stubRenderer
+// (title = item string, detail = "detail-of:<item>") and a custom
+// detail for the expanded-row test.
+func TestDetailedList_HeightConstrainedRendering(t *testing.T) {
+	tenItems := []string{"i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9"}
+
+	t.Run("height 0 renders all", func(t *testing.T) {
+		// height=0 is the legacy "no viewport info" path: every
+		// item must render so callers that never called SetSize
+		// keep working unchanged.
+		l := newStubList(tenItems).SetSize(0, 0)
+
+		out := l.View().Content
+
+		for i := 0; i < 10; i++ {
+			assert.True(t, strings.Contains(out, tenItems[i]),
+				"height=0 must render all items; missing %q in %q", tenItems[i], out)
+		}
+	})
+
+	t.Run("height clips to window", func(t *testing.T) {
+		// height=3 with 10 items and cursor at 0: the window
+		// shows items i0, i1, i2 and clips everything below.
+		l := newStubList(tenItems).SetSize(0, 3)
+
+		out := l.View().Content
+
+		assert.Contains(t, out, "i0", "first item must be visible")
+		assert.Contains(t, out, "i1", "second item must be visible")
+		assert.Contains(t, out, "i2", "third item must be visible")
+		assert.NotContains(t, out, "i3", "fourth item must be clipped")
+		assert.NotContains(t, out, "i4", "fifth item must be clipped")
+		assert.Len(t, strings.Split(out, "\n"), 3, "exactly 3 items must be visible")
+	})
+
+	t.Run("cursor at bottom scrolls window", func(t *testing.T) {
+		// End moves the cursor to the last item and re-enables
+		// autoScroll; the window must follow so the cursor stays
+		// visible.
+		l := newStubList(tenItems).SetSize(0, 3)
+		l = press(tea.KeyEnd, l) // cursor=9, autoScroll=true
+
+		out := l.View().Content
+
+		assert.Contains(t, out, "i7", "item 7 must be visible")
+		assert.Contains(t, out, "i8", "item 8 must be visible")
+		assert.Contains(t, out, "i9", "item 9 must be visible")
+		assert.NotContains(t, out, "i0", "item 0 must be scrolled off")
+		assert.Len(t, strings.Split(out, "\n"), 3, "exactly 3 items must be visible")
+	})
+
+	t.Run("autoScroll pins to tail", func(t *testing.T) {
+		// Default autoScroll=true + SetSize(0, 3) must pin the
+		// window to the last 3 items, just like the End-key case
+		// above. This is the running-log scenario: a new item
+		// arrives, the cursor follows the tail, and the window
+		// follows the cursor.
+		l := components.NewDetailedList[string](stubRenderer{}).Append(tenItems)
+		l = l.SetSize(0, 3)
+
+		out := l.View().Content
+
+		assert.Contains(t, out, "i7", "item 7 must be visible")
+		assert.Contains(t, out, "i8", "item 8 must be visible")
+		assert.Contains(t, out, "i9", "item 9 must be visible")
+		assert.NotContains(t, out, "i6", "item 6 must be scrolled off")
+		assert.Len(t, strings.Split(out, "\n"), 3, "exactly 3 items must be visible")
+	})
+
+	t.Run("pageSize derived from height", func(t *testing.T) {
+		// SetSize(0, 8) must propagate the height into pageSize
+		// so PgUp/PgDn jump by one full visible screen. The
+		// getter PageSize() exposes the field for tests.
+		l := newStubList(tenItems).SetSize(0, 8)
+
+		assert.Equal(t, 8, l.PageSize(), "SetSize must derive pageSize from height")
+	})
+
+	t.Run("expanded item uses extra lines", func(t *testing.T) {
+		// Item 0 is expanded with a 2-line detail, so it
+		// occupies 1 (title) + 2 (detail) = 3 lines of height.
+		// With height=3, only item 0 fits; items 1..4 are
+		// clipped.
+		r := stubRenderer{
+			detailOf: func(s string) string { return "line1\nline2" },
+		}
+		l := components.NewDetailedList[string](r).Append([]string{"a", "b", "c", "d", "e"})
+		l = l.WithAutoScroll(false)
+		l = l.SetSize(0, 3)
+		l = press(tea.KeyEnter, l) // expand item 0 (cursor is at 0)
+
+		out := l.View().Content
+
+		assert.Contains(t, out, "a", "expanded item title must render")
+		assert.Contains(t, out, "line1", "first detail line must render")
+		assert.Contains(t, out, "line2", "second detail line must render")
+		assert.NotContains(t, out, "b", "item 1 must be clipped (height exhausted by expanded item)")
+	})
+}

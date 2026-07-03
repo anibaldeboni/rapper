@@ -55,6 +55,7 @@ type DetailedList[T any] struct {
 	height     int
 	pageSize   int
 	autoScroll bool
+	viewStart  int
 }
 
 // Compile-time guard: DetailedList must satisfy tea.Model. The
@@ -159,12 +160,22 @@ func (l DetailedList[T]) Items() []T {
 }
 
 // SetSize updates the rendered width/height. Called by the parent
-// view on ViewportSizeMsg. The component does not paginate yet
-// (height is not used for visible-row calculation); the field is
-// reserved for a future viewport-based scroll implementation.
+// view on ViewportSizeMsg. The height drives viewport windowing
+// (see visibleWindow) and is also propagated to pageSize, so
+// PgUp/PgDn jump by one full visible screen.
+//
+// Calling SetSize with height > 0 overrides any pageSize previously
+// set via WithPageSize. Tests that need a deterministic pageSize
+// without sizing the viewport should keep height = 0 and use
+// WithPageSize.
 func (l DetailedList[T]) SetSize(width, height int) DetailedList[T] {
 	l.width = width
 	l.height = height
+	if height > 0 {
+		l.pageSize = height
+	}
+	start, _ := l.visibleWindow()
+	l.viewStart = start
 	return l
 }
 
@@ -175,6 +186,12 @@ func (l DetailedList[T]) Width() int { return l.width }
 
 // Height returns the height previously set via SetSize.
 func (l DetailedList[T]) Height() int { return l.height }
+
+// PageSize returns the page size used by PgUp/PgDn. SetSize derives
+// this from height when height > 0; otherwise it carries the value
+// set by WithPageSize (or the default of 5). Diagnostic accessor
+// for tests.
+func (l DetailedList[T]) PageSize() int { return l.pageSize }
 
 // Update handles a single tea message. Only key presses are
 // recognised; every other message is a no-op and the returned
@@ -242,6 +259,13 @@ func (l DetailedList[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Keep viewStart in sync with whatever change the key just
+	// made (cursor move, autoScroll flip, expand toggle). The
+	// next View() can then use l.viewStart as a hot starting
+	// point instead of scanning from index 0 every render.
+	start, _ := l.visibleWindow()
+	l.viewStart = start
+
 	return l, nil
 }
 
@@ -250,6 +274,11 @@ func (l DetailedList[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // row's Detail text is appended below the title. AutoScroll
 // silently moves the cursor to the last item so the freshly added
 // entry is visible after every Append.
+//
+// When SetSize has supplied a positive height, View renders only
+// the items that fit in the viewport (see visibleWindow); rows
+// outside the window are skipped, which is what keeps long log
+// runs from overflowing the terminal.
 func (l DetailedList[T]) View() tea.View {
 	if l.autoScroll && len(l.items) > 0 {
 		l.cursor = len(l.items) - 1
@@ -259,8 +288,11 @@ func (l DetailedList[T]) View() tea.View {
 		return tea.NewView("")
 	}
 
-	rows := make([]string, 0, len(l.items))
-	for i, item := range l.items {
+	start, end := l.visibleWindow()
+
+	rows := make([]string, 0, end-start)
+	for i := start; i < end; i++ {
+		item := l.items[i]
 		style := l.renderer.Style(item)
 		if i == l.cursor {
 			style = l.renderer.SelectedStyle(item)
@@ -276,6 +308,116 @@ func (l DetailedList[T]) View() tea.View {
 		}
 	}
 	return tea.NewView(strings.Join(rows, "\n"))
+}
+
+// visibleWindow computes the [start, end) item range that fits in
+// the configured height. The function is read-only (no mutation of
+// the receiver) and deterministic: given the same state it
+// returns the same window.
+//
+// Algorithm:
+//  1. If height is 0 or items is empty, return (0, len(items)) —
+//     backward-compat path used by callers that never call
+//     SetSize, so every row still renders.
+//  2. If autoScroll is on, pin the window to the tail: work
+//     backwards from the end, greedily including items until
+//     height is exhausted. This is the "running log" mode where
+//     new entries must stay visible.
+//  3. Otherwise, count lines from the cached viewStart forward
+//     until height is exhausted. An item takes 1 line (its title);
+//     the expanded item takes 1 + lines-in-Detail lines.
+//  4. Shift viewStart so the cursor stays inside the window: back
+//     if the cursor is above it, forward if the cursor is below it.
+func (l DetailedList[T]) visibleWindow() (int, int) {
+	n := len(l.items)
+	if l.height == 0 || n == 0 {
+		return 0, n
+	}
+
+	if l.autoScroll {
+		return l.windowPinnedToTail(n)
+	}
+	return l.windowFromViewStart(n)
+}
+
+// windowPinnedToTail returns the [start, n) window that fills the
+// last `height` lines of the buffer. Used when autoScroll is on
+// so the cursor (which View() pins to the last item) stays
+// visible as new items arrive.
+func (l DetailedList[T]) windowPinnedToTail(n int) (int, int) {
+	viewStart := n
+	lines := 0
+	for viewStart > 0 {
+		il := l.itemLineCount(viewStart - 1)
+		if lines+il > l.height {
+			break
+		}
+		viewStart--
+		lines += il
+	}
+	return viewStart, n
+}
+
+// windowFromViewStart returns the window anchored at the cached
+// viewStart, then shifted to keep the cursor visible. The cursor
+// can be at most `l.height` items above the window bottom, so the
+// inner loop always terminates.
+func (l DetailedList[T]) windowFromViewStart(n int) (int, int) {
+	viewStart := l.viewStart
+	if viewStart < 0 {
+		viewStart = 0
+	}
+	if viewStart > n-1 {
+		viewStart = n - 1
+	}
+
+	end := l.countLinesForward(viewStart, n)
+
+	if l.cursor < viewStart {
+		viewStart = l.cursor
+		end = l.countLinesForward(viewStart, n)
+	}
+
+	for l.cursor >= end && viewStart < l.cursor {
+		viewStart++
+		end = l.countLinesForward(viewStart, n)
+	}
+
+	return viewStart, end
+}
+
+// countLinesForward returns the smallest index `end` >= viewStart
+// such that the items [viewStart, end) consume no more than
+// l.height lines. An item consumes 1 line when collapsed and
+// 1 + detail-line-count when expanded (see itemLineCount).
+func (l DetailedList[T]) countLinesForward(viewStart, n int) int {
+	end := viewStart
+	lines := 0
+	for end < n {
+		il := l.itemLineCount(end)
+		if lines+il > l.height {
+			break
+		}
+		lines += il
+		end++
+	}
+	return end
+}
+
+// itemLineCount returns the number of terminal lines item i
+// occupies in the viewport. Collapsed items always take 1 line;
+// the expanded item takes 1 (title) + the number of newline-
+// separated lines in Detail(item). An empty Detail collapses the
+// row visually even when expanded is set, matching the
+// "Detail == "" means not expandable" contract.
+func (l DetailedList[T]) itemLineCount(i int) int {
+	lines := 1
+	if l.expanded == i {
+		if detail := l.renderer.Detail(l.items[i]); detail != "" {
+			lines += len(strings.Split(detail, "\n"))
+		}
+	}
+	return lines
 }
 
 // String renders the list as a plain string. Provided for callers
