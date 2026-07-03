@@ -168,9 +168,8 @@ func TestProcessor_Do_LogsSuccessOnTwoXX(t *testing.T) {
 	var sawSuccess bool
 	for _, m := range added {
 		if m.Type == logs.LogTypeSuccess {
-			assert.Equal(t, 200, m.StatusCode)
-			assert.Equal(t, "GET", m.Method)
-			assert.Equal(t, "https://example.com/users/1", m.URL)
+			assert.Equal(t, 200, m.BadgeIcon)
+			assert.Equal(t, "GET https://example.com/users/1", m.Text)
 			sawSuccess = true
 		}
 	}
@@ -211,7 +210,7 @@ func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
 		mu.Lock()
 		added = append(added, m)
 		mu.Unlock()
-		if m.Type == logs.LogTypeClientError {
+		if m.Type == logs.LogTypeWarning {
 			select {
 			case <-execDone:
 				// already closed
@@ -234,11 +233,10 @@ func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
 	defer mu.Unlock()
 	var sawClientError bool
 	for _, m := range added {
-		if m.Type == logs.LogTypeClientError {
-			assert.Equal(t, 404, m.StatusCode)
-			assert.Equal(t, "GET", m.Method)
-			assert.Equal(t, "https://example.com/missing", m.URL)
-			assert.Equal(t, []byte(`{"error":"not found"}`), m.Body)
+		if m.Type == logs.LogTypeWarning {
+			assert.Equal(t, 404, m.BadgeIcon)
+			assert.Equal(t, "POST https://example.com/missing", m.Text)
+			assert.Equal(t, []byte(`{"error":"not found"}`), m.Details)
 			sawClientError = true
 		}
 	}

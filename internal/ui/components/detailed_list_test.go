@@ -19,7 +19,7 @@ type stubRenderer struct {
 	detailOf func(string) string
 }
 
-func (r stubRenderer) Title(s string) string {
+func (r stubRenderer) Title(s string, selected bool) string {
 	if r.titleOf == nil {
 		return s
 	}

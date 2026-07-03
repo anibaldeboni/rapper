@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"path/filepath"
 	"runtime"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/utils"
 )
 
@@ -112,7 +114,13 @@ requests:
 	for row := range rows {
 		select {
 		case <-ctx.Done():
-			p.logger.Add(cancelationMsg())
+			p.logger.Add(
+				logs.NewMessage(
+					fmt.Sprintf("Read %d lines and executed %d requests", linesCount.Load(), reqCount.Load()),
+					logs.WithIcon(styles.IconSkull),
+					logs.AsError(),
+				),
+			)
 			break requests
 		default:
 			res, err := p.gateway.Exec(ctx, row)
@@ -120,7 +128,7 @@ requests:
 			switch {
 			case err != nil:
 				errCount.Add(1)
-				p.logger.Add(requestError(err.Error()))
+				p.logger.Add(logs.NewMessage("Could not connect to "+res.URL, logs.WithDetail(err.Error()), logs.WithIcon(styles.IconSkull), logs.AsError()))
 			case res.StatusCode >= 200 && res.StatusCode < 300:
 				// Success path: surface the response in the in-memory
 				// log so the TUI shows every successful request, not
@@ -166,7 +174,14 @@ func (p *processorImpl) mapCSV(ctx context.Context, filePath string) <-chan csvL
 	}
 
 	indexes := buildFilteredFieldIndex(headers, csvConfig.Fields)
-	p.logger.Add(processingMessage(filepath.Base(filePath), workers))
+
+	p.logger.Add(
+		logs.NewMessage(
+			fmt.Sprintf("Processing file %s using %s", styles.Green(filepath.Base(filePath)), workersMsg(workers)),
+			logs.WithIcon(styles.IconWomanDancing),
+			logs.AsGeneral(),
+		),
+	)
 
 	go func() {
 		defer file.Close()

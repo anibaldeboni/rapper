@@ -199,5 +199,5 @@ func (m *AppModel) applyTheme(isDark bool) {
 }
 
 func operationError() logs.LogMessage {
-	return logs.NewGeneralMessage(IconInformation, "", "Please wait the current operation to finish or cancel pressing ESC")
+	return logs.NewMessage("Please wait the current operation to finish or cancel pressing ESC", logs.WithIcon(styles.IconWarning), logs.AsGeneral())
 }

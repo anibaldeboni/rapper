@@ -23,7 +23,7 @@ func TestLogMessageRenderer_Title_FormatsHTTPRequestLine(t *testing.T) {
 		StatusCode: 201,
 	})
 
-	got := r.Title(msg)
+	got := r.Title(msg, false)
 
 	// The title must contain the status code and the URL.
 	// Method is no longer part of the title (badge + URL format).
@@ -42,7 +42,7 @@ func TestLogMessageRenderer_Title_FreeFormIncludesIconAndKind(t *testing.T) {
 	r := components.LogMessageRenderer{}
 	msg := logs.NewGeneralMessage("💀", "Cancelation", "read 5 lines")
 
-	got := r.Title(msg)
+	got := r.Title(msg, false)
 
 	assert.Contains(t, got, "💀")
 	assert.Contains(t, got, "Cancelation")

@@ -38,7 +38,7 @@ func NewLogger(filePath string) *logger {
 	var l logger
 	if filePath != "" {
 		if file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660); err != nil {
-			l.Add(errorMessage(err.Error()))
+			l.Add(NewMessage("Error opening log file", WithDetail(err.Error()), WithIcon(styles.IconWarning), AsWarning()))
 		} else {
 			l.file = file
 		}
@@ -78,13 +78,9 @@ func (l *logger) Clear() {
 func (l *logger) WriteToFile(line Line) {
 	if l.file != nil {
 		if err := write(l.file, line); err != nil {
-			l.Add(errorMessage(err.Error()))
+			l.Add(NewMessage("Error writing log to file", WithDetail(err.Error()), WithIcon(styles.IconWarning), AsWarning()))
 		}
 	}
-}
-
-func errorMessage(message string) LogMessage {
-	return NewGeneralMessage(styles.IconSkull, "Output", message)
 }
 
 func write(file *os.File, line Line) error {

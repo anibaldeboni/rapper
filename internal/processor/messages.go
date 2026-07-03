@@ -9,40 +9,20 @@ import (
 	"github.com/anibaldeboni/rapper/internal/styles"
 )
 
-func cancelationMsg() logs.LogMessage {
-	return logs.NewGeneralMessage(
-		styles.IconSkull,
-		"Cancelation",
-		fmt.Sprintf("Read %d lines and executed %d requests", linesCount.Load(), reqCount.Load()),
-	)
-}
-
-func requestError(message string) logs.LogMessage {
-	return logs.NewGeneralMessage(styles.IconSkull, "Request", message)
-}
-
 func csvError(message string) logs.LogMessage {
-	return logs.NewGeneralMessage(styles.IconSkull, "CSV", message)
+	return logs.NewMessage("CSV error", logs.WithDetail(message), logs.WithIcon(styles.IconSkull), logs.AsError())
 }
 
 func doneMessage(errs uint64) logs.LogMessage {
-	errMsg := styles.Green("no errors")
+	errMsg := "no errors"
 	icon := styles.IconTrophy
 
 	if errs > 0 {
-		errMsg = styles.Pink(strconv.FormatUint(errs, 10)) + " errors"
+		errMsg = strconv.FormatUint(errs, 10) + " errors"
 		icon = styles.IconError
 	}
 
-	return logs.NewGeneralMessage(icon, "Done", "Finished with "+errMsg)
-}
-
-func processingMessage(file string, workers int) logs.LogMessage {
-	return logs.NewGeneralMessage(
-		styles.IconWomanDancing,
-		"Processing",
-		fmt.Sprintf("Processing file %s using %s", styles.Green(file), workersMsg(workers)),
-	)
+	return logs.NewMessage("Finished with "+errMsg, logs.WithIcon(icon), logs.AsGeneral())
 }
 
 func workersMsg(workers int) string {

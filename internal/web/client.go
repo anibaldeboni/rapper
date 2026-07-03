@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"io"
+	"maps"
 	"net/http"
 )
 
@@ -64,9 +65,7 @@ func addHeaders(headers map[string]string, request *http.Request) {
 }
 func buildHeaders(m2 map[string]string) map[string]string {
 	m1 := map[string]string{"Content-Type": "application/json; charset=UTF-8"}
-	for k, v := range m2 {
-		m1[k] = v
-	}
+	maps.Copy(m1, m2)
 
 	return m1
 }
@@ -74,26 +73,23 @@ func buildHeaders(m2 map[string]string) map[string]string {
 func request(ctx context.Context, method string, url string, headers map[string]string, body io.Reader) (Response, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		return Response{}, err
+		return Response{Method: method, URL: url}, err
 	}
 	addHeaders(headers, req)
 	client := &http.Client{}
+	res, err := client.Do(req)
 
-	return buildResponse(client.Do(req))
-}
-
-func buildResponse(response *http.Response, err error) (Response, error) {
 	if err != nil {
-		return Response{}, err
+		return Response{Method: method, URL: url}, err
 	}
-	defer response.Body.Close()
-	body, _ := io.ReadAll(response.Body)
+	defer res.Body.Close()
+	resBody, _ := io.ReadAll(res.Body)
 
 	return Response{
-		Method:     response.Request.Method,
-		URL:        response.Request.URL.String(),
-		StatusCode: response.StatusCode,
-		Headers:    response.Header,
-		Body:       body,
+		Method:     res.Request.Method,
+		URL:        res.Request.URL.String(),
+		StatusCode: res.StatusCode,
+		Headers:    res.Header,
+		Body:       resBody,
 	}, nil
 }

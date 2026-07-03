@@ -19,7 +19,7 @@ import (
 // easy to implement and test.
 type ItemRenderer[T any] interface {
 	// Title returns the single-line title for the row. Always shown.
-	Title(item T) string
+	Title(item T, selected bool) string
 	// Detail returns the multi-line detail text for the row, or ""
 	// to signal "this row is not expandable". The component treats
 	// empty Detail as a no-op for Enter.
@@ -290,7 +290,7 @@ func (l DetailedList[T]) View() tea.View {
 		return tea.NewView(lipgloss.NewStyle().
 			Width(l.width).
 			Height(l.height).
-			Render(""))
+			Render(" "))
 	}
 
 	start, end := l.visibleWindow()
@@ -298,37 +298,20 @@ func (l DetailedList[T]) View() tea.View {
 	rows := make([]string, 0, end-start)
 	for i := start; i < end; i++ {
 		item := l.items[i]
-		style := l.renderer.Style(item)
-		if i == l.cursor {
-			style = l.renderer.SelectedStyle(item)
-		}
+		style := lipgloss.NewStyle()
 		if l.width > 0 {
-			if i == l.cursor {
-				// Selected row: truncate to (width-3) so there is a small
-				// transparent gap at the right edge. No Width padding — the
-				// #444444 background covers only badge+URL, not the full
-				// column. Column width is held by the unselected rows below.
-				style = style.MaxWidth(l.width - 3)
-			} else {
-				// Unselected rows: pad to exactly l.width so JoinHorizontal
-				// in the parent view places the right-side panel correctly.
-				style = style.MaxWidth(l.width).Width(l.width)
-			}
+			style = style.MaxWidth(l.width - 2).Width(l.width - 2)
 		}
-		title := l.renderer.Title(item)
+		if l.expanded != i {
+			style = style.PaddingBottom(1)
+		}
+		title := l.renderer.Title(item, i == l.cursor)
 		rows = append(rows, style.Render(title))
 
 		if l.expanded == i {
 			detail := l.renderer.Detail(item)
 			if detail != "" {
-				// Detail uses the same #444444 background as the selected
-				// row AND fills the full column width (Width + MaxWidth) to
-				// clear any ghost-text artifacts from the previous frame.
-				detailStyle := l.renderer.SelectedStyle(l.items[i])
-				if l.width > 0 {
-					detailStyle = detailStyle.Width(l.width).MaxWidth(l.width)
-				}
-				rows = append(rows, detailStyle.Render(detail))
+				rows = append(rows, style.PaddingBottom(1).Render(detail))
 			}
 		}
 	}

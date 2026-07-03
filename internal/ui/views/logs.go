@@ -54,7 +54,7 @@ var _ tea.Model = LogsView{}
 // returned by Update to preserve state.
 func NewLogsView(logger ports.LogProvider, proc ports.ProcessorController) LogsView {
 	v := LogsView{
-		list:     components.NewDetailedList[logs.LogMessage](components.LogMessageRenderer{}),
+		list:     components.NewDetailedList(components.LogMessageRenderer{}),
 		logger:   logger,
 		metrics:  components.NewMetricsPanel(proc),
 		title:    "📝 Execution logs",
