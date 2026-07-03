@@ -177,12 +177,14 @@ func TestProcessor_Do_LogsSuccessOnTwoXX(t *testing.T) {
 	assert.True(t, sawSuccess, "worker must call logger.Add with LogTypeSuccess for a 2xx response")
 }
 
-// TestProcessor_Do_LogsClientErrorOnFourXX proves the existing 4xx
-// error path is preserved (regression guard for the success-path
-// refactor).
+// TestProcessor_Do_LogsClientErrorOnFourXX proves that the worker
+// surfaces 4xx HTTP responses as logs.NewHTTPMessage — the TUI
+// renderer relies on LogTypeClientError to color the row and on
+// the populated Body to show the response on Enter. Before the
+// fix the default branch called NewGeneralMessage (no body, no
+// LogType), so 4xx errors had no detail view.
 func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	execDone := make(chan struct{})
 	csvData := "header1\nvalue1\n"
 	tempFile := createCsvFile(t, csvData)
 	defer os.Remove(tempFile.Name())
@@ -193,19 +195,54 @@ func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
 	gatewayMock.EXPECT().
 		Exec(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, _ map[string]string) (web.Response, error) {
-			wg.Done()
 			return web.Response{
 				Method:     "GET",
 				URL:        "https://example.com/missing",
 				StatusCode: 404,
+				Body:       []byte(`{"error":"not found"}`),
 			}, nil
 		}).Times(1)
 
-	loggerMock.EXPECT().Add(gomock.Any()).AnyTimes()
+	var (
+		mu    sync.Mutex
+		added []logs.LogMessage
+	)
+	loggerMock.EXPECT().Add(gomock.Any()).DoAndReturn(func(m logs.LogMessage) {
+		mu.Lock()
+		added = append(added, m)
+		mu.Unlock()
+		if m.Type == logs.LogTypeClientError {
+			select {
+			case <-execDone:
+				// already closed
+			default:
+				close(execDone)
+			}
+		}
+	}).AnyTimes()
 	loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
 
 	p.Do(context.Background(), tempFile.Name())
-	wg.Wait()
+
+	select {
+	case <-execDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the 4xx error log message")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	var sawClientError bool
+	for _, m := range added {
+		if m.Type == logs.LogTypeClientError {
+			assert.Equal(t, 404, m.StatusCode)
+			assert.Equal(t, "GET", m.Method)
+			assert.Equal(t, "https://example.com/missing", m.URL)
+			assert.Equal(t, []byte(`{"error":"not found"}`), m.Body)
+			sawClientError = true
+		}
+	}
+	assert.True(t, sawClientError, "worker must call logger.Add with LogTypeClientError for a 4xx response")
 }
 
 func createCsvFile(t *testing.T, csvData string) *os.File {

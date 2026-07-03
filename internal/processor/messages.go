@@ -3,13 +3,10 @@ package processor
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/styles"
-	"golang.org/x/exp/maps"
 )
 
 func cancelationMsg() logs.LogMessage {
@@ -26,36 +23,6 @@ func requestError(message string) logs.LogMessage {
 
 func csvError(message string) logs.LogMessage {
 	return logs.NewGeneralMessage(styles.IconSkull, "CSV", message)
-}
-
-func mapResponse(record map[string]string, status int) string {
-	keys := maps.Keys(record)
-	slices.Sort(keys)
-
-	var builder strings.Builder
-	for _, key := range keys {
-		builder.WriteString(styles.Bold(key))
-		builder.WriteString(": ")
-		builder.WriteString(record[key])
-		builder.WriteString(" ")
-	}
-	builder.WriteString("status: ")
-	builder.WriteString(styles.Pink(strconv.Itoa(status)))
-
-	return builder.String()
-}
-
-// httpStatusError produces the "non-2xx" log line. NewGeneralMessage is
-// used (not NewHTTPMessage) because the body would clutter the
-// always-visible title; the renderer can still color the row via the
-// Status field if the consumer chooses to project it back into a
-// LogType.
-func httpStatusError(record map[string]string, status int) logs.LogMessage {
-	return logs.NewGeneralMessage(
-		styles.IconWarning,
-		"HTTP",
-		mapResponse(record, status),
-	)
 }
 
 func doneMessage(errs uint64) logs.LogMessage {

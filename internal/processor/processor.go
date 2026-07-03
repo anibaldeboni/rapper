@@ -129,7 +129,7 @@ requests:
 				p.logger.Add(logs.NewHTTPMessage(res))
 			default:
 				errCount.Add(1)
-				p.logger.Add(httpStatusError(row, res.StatusCode))
+				p.logger.Add(logs.NewHTTPMessage(res))
 			}
 			p.logger.WriteToFile(&RequestLine{
 				URL:    res.URL,
