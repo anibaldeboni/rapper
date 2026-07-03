@@ -24,12 +24,14 @@ var (
 	logRowClientErrStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
 	logRowServerErrStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 
-	// Selected row — type-tinted dark background so the badge colours
-	// remain readable inside the highlighted row.
+	// Selected row — uniform dark-gray background so the badge colours
+	// (which are embedded as inline ANSI codes in the title string) remain
+	// readable. Only the URL text area gets the gray background; the badge
+	// pill keeps its own background regardless.
 	logRowSelectedGenSt  = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("237")).Foreground(lipgloss.Color("245"))
-	logRowSelectedSuccSt = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("22")).Foreground(lipgloss.Color("40"))
-	logRowSelectedCliSt  = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("58")).Foreground(lipgloss.Color("214"))
-	logRowSelectedServSt = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("52")).Foreground(lipgloss.Color("196"))
+	logRowSelectedSuccSt = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("237")).Foreground(lipgloss.Color("40"))
+	logRowSelectedCliSt  = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("237")).Foreground(lipgloss.Color("214"))
+	logRowSelectedServSt = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("237")).Foreground(lipgloss.Color("196"))
 )
 
 // LogMessageRenderer implements ItemRenderer[logs.LogMessage] so the
@@ -76,9 +78,11 @@ func (LogMessageRenderer) Title(m logs.LogMessage) string {
 // the DetailedList component uses to decide whether Enter is a
 // no-op (see DetailedList.Update).
 //
-// tidwall/pretty.Pretty reformats the body (indents, normalises
-// spacing); pretty.Color adds ANSI colors so the JSON stands out
-// in a terminal that supports them.
+// The returned string carries its own ANSI styling (tidwall/pretty.Color
+// for JSON syntax highlighting) plus 2-space left padding so the body
+// is visually indented below the row title. The DetailedList renders
+// this string without applying the row's selected background so the
+// detail always appears on a black/terminal-default background.
 func (LogMessageRenderer) Detail(m logs.LogMessage) string {
 	if m.Type != logs.LogTypeSuccess && m.Type != logs.LogTypeClientError && m.Type != logs.LogTypeServerError {
 		return ""
@@ -86,7 +90,8 @@ func (LogMessageRenderer) Detail(m logs.LogMessage) string {
 	if len(m.Body) == 0 {
 		return ""
 	}
-	return string(pretty.Color(pretty.Pretty(m.Body), nil))
+	body := string(pretty.Color(pretty.Pretty(m.Body), nil))
+	return lipgloss.NewStyle().PaddingLeft(2).Render(body)
 }
 
 // Style returns the per-row foreground style for unselected rows.

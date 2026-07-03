@@ -315,7 +315,14 @@ func (l DetailedList[T]) View() tea.View {
 		if l.expanded == i {
 			detail := l.renderer.Detail(item)
 			if detail != "" {
-				rows = append(rows, style.Render(detail))
+				// Detail is rendered without the row's selected background
+				// so the body always appears on a black/terminal-default
+				// background — only MaxWidth is applied to prevent overflow.
+				detailStyle := lipgloss.NewStyle()
+				if l.width > 0 {
+					detailStyle = detailStyle.MaxWidth(l.width)
+				}
+				rows = append(rows, detailStyle.Render(detail))
 			}
 		}
 	}
