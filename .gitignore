@@ -15,3 +15,5 @@ dist/
 CHANGELOG.md
 # Local AI runtime state
 .atl/
+# CodeGraph
+.codegraph/
