@@ -287,10 +287,10 @@ func (l DetailedList[T]) View() tea.View {
 	if len(l.items) == 0 {
 		// Return a correctly-sized empty block so JoinHorizontal in the
 		// parent view places any right-side panel at the right offset.
-		if l.width > 0 {
-			return tea.NewView(lipgloss.NewStyle().Width(l.width).Render(""))
-		}
-		return tea.NewView("")
+		return tea.NewView(lipgloss.NewStyle().
+			Width(l.width).
+			Height(l.height).
+			Render(""))
 	}
 
 	start, end := l.visibleWindow()
@@ -319,7 +319,17 @@ func (l DetailedList[T]) View() tea.View {
 			}
 		}
 	}
-	return tea.NewView(strings.Join(rows, "\n"))
+
+	content := strings.Join(rows, "\n")
+	if l.height > 0 {
+		// Pad the column to exactly l.height lines so JoinHorizontal
+		// always produces a body of fixed height regardless of how many
+		// items are currently visible.  Without this the metrics panel
+		// (fixed ~9 lines) can be taller than the list, making the body
+		// taller than the space LogsView reserved and causing overflow.
+		content = lipgloss.NewStyle().Height(l.height).Render(content)
+	}
+	return tea.NewView(content)
 }
 
 // visibleWindow computes the [start, end) item range that fits in
