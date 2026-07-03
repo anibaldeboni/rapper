@@ -9,8 +9,8 @@ import (
 
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
-	"github.com/anibaldeboni/rapper/internal/web"
 	mock_processor "github.com/anibaldeboni/rapper/internal/processor/mock"
+	"github.com/anibaldeboni/rapper/internal/web"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -20,6 +20,12 @@ import (
 // expectations — tests own the call-count assertions because Exec/Add/
 // WriteToFile semantics differ per test (some are .Times(n), some
 // MinTimes(1), some AnyTimes()).
+//
+// workers is currently always 1 in the tests; the parameter is
+// retained so future tests can exercise the worker-pool path
+// without changing the helper signature.
+//
+//nolint:unparam
 func newTestProcessor(t *testing.T, csvCfg config.CSVConfig, workers int) (
 	*processorImpl,
 	*mock_processor.MockHttpGateway,

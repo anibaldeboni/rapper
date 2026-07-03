@@ -9,6 +9,7 @@ require (
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/hashicorp/go-version v1.7.0
 	github.com/michaelquigley/figlet v0.0.0-20191015203154-054d06db54b4
+	github.com/tidwall/pretty v1.2.1
 	go.uber.org/mock v0.5.2
 	golang.org/x/term v0.32.0
 )
