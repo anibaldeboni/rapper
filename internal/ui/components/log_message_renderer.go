@@ -24,14 +24,15 @@ var (
 	logRowClientErrStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
 	logRowServerErrStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 
-	// Selected row — uniform dark-gray background so the badge colours
-	// (which are embedded as inline ANSI codes in the title string) remain
-	// readable. Only the URL text area gets the gray background; the badge
-	// pill keeps its own background regardless.
-	logRowSelectedGenSt  = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("237")).Foreground(lipgloss.Color("245"))
-	logRowSelectedSuccSt = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("237")).Foreground(lipgloss.Color("40"))
-	logRowSelectedCliSt  = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("237")).Foreground(lipgloss.Color("214"))
-	logRowSelectedServSt = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("237")).Foreground(lipgloss.Color("196"))
+	// Selected row — #444444 background so the cursor is clearly visible.
+	// Only the badge+URL portion gets this background; the column-filling
+	// Width is NOT applied so the background stops at the end of the URL.
+	// The detail block, however, does use full-column Width to prevent
+	// ghost-text artifacts from the previous render frame.
+	logRowSelectedGenSt  = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#444444")).Foreground(lipgloss.Color("245"))
+	logRowSelectedSuccSt = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#444444")).Foreground(lipgloss.Color("40"))
+	logRowSelectedCliSt  = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#444444")).Foreground(lipgloss.Color("214"))
+	logRowSelectedServSt = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#444444")).Foreground(lipgloss.Color("196"))
 )
 
 // LogMessageRenderer implements ItemRenderer[logs.LogMessage] so the
@@ -91,7 +92,7 @@ func (LogMessageRenderer) Detail(m logs.LogMessage) string {
 		return ""
 	}
 	body := string(pretty.Color(pretty.Pretty(m.Body), nil))
-	return lipgloss.NewStyle().PaddingLeft(2).Render(body)
+	return lipgloss.NewStyle().Padding(1, 2).Render(body)
 }
 
 // Style returns the per-row foreground style for unselected rows.

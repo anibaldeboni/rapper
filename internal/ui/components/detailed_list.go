@@ -304,13 +304,13 @@ func (l DetailedList[T]) View() tea.View {
 		}
 		if l.width > 0 {
 			if i == l.cursor {
-				// Selected row: MaxWidth only — the background from
-				// SelectedStyle covers only the actual content (badge +
-				// URL + padding). The column width is preserved by the
-				// unselected rows which still use Width(l.width).
-				style = style.MaxWidth(l.width)
+				// Selected row: truncate to (width-3) so there is a small
+				// transparent gap at the right edge. No Width padding — the
+				// #444444 background covers only badge+URL, not the full
+				// column. Column width is held by the unselected rows below.
+				style = style.MaxWidth(l.width - 3)
 			} else {
-				// Unselected rows: pin to exactly l.width so JoinHorizontal
+				// Unselected rows: pad to exactly l.width so JoinHorizontal
 				// in the parent view places the right-side panel correctly.
 				style = style.MaxWidth(l.width).Width(l.width)
 			}
@@ -321,12 +321,12 @@ func (l DetailedList[T]) View() tea.View {
 		if l.expanded == i {
 			detail := l.renderer.Detail(item)
 			if detail != "" {
-				// Detail inherits the selected row's background (same
-				// gray) but is not padded to l.width — the background
-				// covers only the rendered JSON content.
+				// Detail uses the same #444444 background as the selected
+				// row AND fills the full column width (Width + MaxWidth) to
+				// clear any ghost-text artifacts from the previous frame.
 				detailStyle := l.renderer.SelectedStyle(l.items[i])
 				if l.width > 0 {
-					detailStyle = detailStyle.MaxWidth(l.width)
+					detailStyle = detailStyle.Width(l.width).MaxWidth(l.width)
 				}
 				rows = append(rows, detailStyle.Render(detail))
 			}
