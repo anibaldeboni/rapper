@@ -12,8 +12,9 @@ import (
 
 // TestLogMessageRenderer_Title_FormatsHTTPRequestLine proves the
 // renderer produces a compact, scannable title for HTTP responses:
-// "METHOD URL status". This is the single-line entry the user sees
-// in the logs list and the one the cursor moves over.
+// "[STATUS_BADGE] URL". The status code appears inside an inline
+// coloured pill; the URL follows it. The HTTP method is intentionally
+// omitted from the title — the URL already carries enough context.
 func TestLogMessageRenderer_Title_FormatsHTTPRequestLine(t *testing.T) {
 	r := components.LogMessageRenderer{}
 	msg := logs.NewHTTPMessage(web.Response{
@@ -24,9 +25,12 @@ func TestLogMessageRenderer_Title_FormatsHTTPRequestLine(t *testing.T) {
 
 	got := r.Title(msg)
 
-	assert.Contains(t, got, "POST")
-	assert.Contains(t, got, "https://api.example.com/users")
+	// The title must contain the status code and the URL.
+	// Method is no longer part of the title (badge + URL format).
 	assert.Contains(t, got, "201")
+	assert.Contains(t, got, "https://api.example.com/users")
+	// Verify the HTTP method is NOT in the title (design decision).
+	assert.NotContains(t, got, "POST")
 }
 
 // TestLogMessageRenderer_Title_FreeFormIncludesIconAndKind proves the
