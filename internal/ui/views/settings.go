@@ -2,30 +2,51 @@ package views
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/config"
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/components"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
+	"github.com/anibaldeboni/rapper/internal/utils"
 )
 
 var (
 	settingsTitleStyle = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
-	settingsAppStyle   = lipgloss.NewStyle().Margin(1, 2)
 	labelStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Bold(true)
 	focusedStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	helpStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
 	headerStyle        = lipgloss.NewStyle().MarginBottom(1)
 	inputStyle         = lipgloss.NewStyle().MarginBottom(1)
 	profileBadgeStyle  = lipgloss.NewStyle().Background(lipgloss.Color("99")).Foreground(lipgloss.Color("230")).Padding(0, 1).MarginLeft(2)
+)
+
+// focus panes — the two-pane layout introduced by the persistent
+// profile sidebar. focusPane == paneList means keystrokes go to the
+// profile list; focusPane == paneForm means they go to the form
+// fields. Tab toggles between them.
+const (
+	paneList = 0
+	paneForm = 1
+)
+
+// sidebar width clamps. The sidebar is sized to 25 % of the viewport
+// width, but the result is clamped to [minListWidth, maxListWidth] so
+// profile names stay readable on narrow terminals and the sidebar
+// doesn't run away on wide ones.
+const (
+	minListWidth = 15
+	maxListWidth = 30
 )
 
 // focusable fields
@@ -62,8 +83,15 @@ type SettingsView struct {
 	headersInput   textarea.Model
 	csvFieldsInput textarea.Model
 
+	// Persistent profile sidebar. Always visible; cursor drives
+	// preview/activation. The bubbles list is a value type — its
+	// pointer-receiver Update/Select return the modified copy that
+	// the SettingsView captures locally before reassigning.
+	profileList list.Model
+
 	// Focus management
 	focused   int
+	focusPane int
 	focusable []int
 
 	// Profile selector
@@ -127,10 +155,34 @@ email`
 	initial := proc.GetWorkerCount()
 	slider := components.NewSlider("Worker Count", 1, proc.GetMaxWorkers(), initial)
 
+	// Seed the persistent profile sidebar. Size is 0×0 at construction
+	// — the first ViewportSizeMsg resizes the list to the actual
+	// viewport. The list accepts zero-size construction (same as
+	// FilesView, files.go:54-66). The cursor lands on the active
+	// profile so the highlight is correct on first paint.
+	profileNames := configMgr.ListProfiles()
+	items := make([]list.Item, len(profileNames))
+	for i, name := range profileNames {
+		items[i] = Option[string]{Value: name, Title: name}
+	}
+	profileList := list.New(items, profileItemDelegate{active: configMgr.GetActiveProfile()}, 0, 0)
+	profileList.InfiniteScrolling = true
+	profileList.SetShowStatusBar(false)
+	profileList.SetShowPagination(false)
+	profileList.SetFilteringEnabled(false)
+	profileList.SetShowHelp(false)
+	profileList.DisableQuitKeybindings()
+	profileList.KeyMap.CursorUp = kbind.Up
+	profileList.KeyMap.CursorDown = kbind.Down
+	if activeIdx := indexOf(profileNames, configMgr.GetActiveProfile()); activeIdx >= 0 {
+		profileList.Select(activeIdx)
+	}
+
 	v := SettingsView{
 		configMgr:      configMgr,
 		proc:           proc,
 		slider:         *slider,
+		profileList:    profileList,
 		urlInput:       urlInput,
 		methodInput:    methodInput,
 		bodyInput:      bodyInput,
@@ -140,6 +192,7 @@ email`
 		// the user lands in Settings. Tab still moves focus into the
 		// form fields, so typing '+' inside URL/headers remains possible.
 		focused:   sliderField,
+		focusPane: paneList,
 		focusable: []int{sliderField, urlField, methodField, bodyField, headersField, csvFieldsField},
 		viewport:  viewport.New(viewport.WithWidth(0), viewport.WithHeight(0)),
 	}
@@ -153,6 +206,49 @@ email`
 	return v
 }
 
+// indexOf returns the index of needle in haystack, or -1 if absent.
+// Used to seed the profile list's cursor at the active profile.
+func indexOf(haystack []string, needle string) int {
+	for i, s := range haystack {
+		if s == needle {
+			return i
+		}
+	}
+	return -1
+}
+
+// profileItemDelegate renders a single row of the profile sidebar.
+// The cursor row gets a "▶ " prefix; the active profile row gets
+// a " ●" suffix. The two decorations are independent so the
+// active profile on the cursor row shows both ("▶ name ●").
+type profileItemDelegate struct {
+	active string // injected at construction; the name of the active profile
+}
+
+func (d profileItemDelegate) Height() int                             { return 1 }
+func (d profileItemDelegate) Spacing() int                            { return 0 }
+func (d profileItemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d profileItemDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	opt, ok := item.(Option[string])
+	if !ok {
+		return
+	}
+	prefix := "  "
+	if index == m.Index() {
+		prefix = "▶ "
+	}
+	tag := ""
+	if opt.Value == d.active {
+		tag = " ●"
+	}
+	fmt.Fprintf(w, "%s%s%s", prefix, opt.Value, tag)
+}
+
+// FocusedPane returns the currently focused pane constant. Exposed
+// for test assertions (S-9.1, S-9.2) and for AppModel state
+// inspection; the value is one of {paneList, paneForm}.
+func (v SettingsView) FocusedPane() int { return v.focusPane }
+
 // Init returns nil per R-6.
 func (v SettingsView) Init() tea.Cmd { return nil }
 
@@ -162,7 +258,15 @@ func (v SettingsView) Init() tea.Cmd { return nil }
 // MUST capture the returned value — the value receiver means the
 // original struct is never mutated.
 func (v SettingsView) loadConfig() SettingsView {
-	cfg := v.configMgr.Get()
+	return v.loadFromConfig(v.configMgr.Get())
+}
+
+// loadFromConfig is the single form-population code path shared by
+// activation (loadConfig → Get) and preview (previewProfile →
+// GetProfile). Returns the modified SettingsView. Callers MUST
+// capture the returned value (value-receiver contract). A nil cfg
+// is a no-op (the form keeps its current values).
+func (v SettingsView) loadFromConfig(cfg *config.Config) SettingsView {
 	if cfg == nil {
 		return v
 	}
@@ -287,12 +391,6 @@ func (v SettingsView) updateFocus() SettingsView {
 	return v
 }
 
-// nextField moves focus to the next field and returns the modified copy.
-func (v SettingsView) nextField() SettingsView {
-	v.focused = (v.focused + 1) % maxFields
-	return v.updateFocus()
-}
-
 // prevField moves focus to the previous field and returns the modified copy.
 func (v SettingsView) prevField() SettingsView {
 	v.focused--
@@ -311,8 +409,26 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgs.ViewportSizeMsg:
 		v.width = msg.Width
 		v.height = msg.Height
-		v.viewport.SetWidth(msg.Width - 4)
+		// Two-pane layout: persistent profile sidebar on the left
+		// (≤25 % of viewport, clamped to [minListWidth, maxListWidth])
+		// and the form on the right. The form pane carries a
+		// 2-column margin on each side, so the viewport must be
+		// formWidth - 4 wide. The viewport height is height - 2 to
+		// account for the form's top + bottom margin (regression
+		// for TestSettingsView_Resize_AccountsForOwnMargin).
+		listW := utils.Clamp(msg.Width/4, minListWidth, maxListWidth)
+		formW := msg.Width - listW
+		v.profileList.SetSize(listW, msg.Height)
+		v.viewport.SetWidth(formW - 4)
 		v.viewport.SetHeight(msg.Height - 2)
+		// The text inputs/areas default to 40 cols and don't
+		// auto-fill lipgloss containers, so we have to set them
+		// explicitly on every resize.
+		v.urlInput.SetWidth(formW - 4)
+		v.methodInput.SetWidth(formW - 4)
+		v.bodyInput.SetWidth(formW - 4)
+		v.headersInput.SetWidth(formW - 4)
+		v.csvFieldsInput.SetWidth(formW - 4)
 		return v, nil
 
 	case tea.KeyPressMsg:
@@ -343,10 +459,24 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return v, nil
 
 		case key.Matches(msg, kbind.NextField) && !v.showProfileSelector:
-			return v.nextField(), nil
+			// Tab toggles the focus pane: paneList ↔ paneForm. It
+			// does NOT cycle the focused form field — that role
+			// moves to Shift+Tab in paneForm (see WU-4). The
+			// focused field index is preserved across the toggle so
+			// the user lands back on the same form field when they
+			// return to the form.
+			v.focusPane = paneForm - v.focusPane
+			return v, nil
 
 		case key.Matches(msg, kbind.PrevField) && !v.showProfileSelector:
-			return v.prevField(), nil
+			// Shift+Tab cycles the focused form field backward,
+			// but only when the form pane has focus. In paneList
+			// it is a no-op — the key is pane-incongruent and
+			// must not crash or change state. See S-22.1.
+			if v.focusPane == paneForm {
+				return v.prevField(), nil
+			}
+			return v, nil
 		}
 
 		// Handle viewport scrolling when not in profile selector or editing textareas
@@ -365,6 +495,57 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				v.viewport.GotoBottom()
 				return v, nil
 			}
+		}
+
+		// Slider key handling — only when the slider is focused, the
+		// profile selector modal is not in front of the form, AND the key
+		// is one the slider actually handles. This is the root-cause fix
+		// for the blanket-return pattern that swallowed Tab, Shift+Tab,
+		// Ctrl+S and Ctrl+P. Non-slider keys when the slider is focused
+		// fall through to the text-field dispatch below, which is a
+		// no-op for the slider (correct).
+		//
+		// The slider fires regardless of focusPane — the + / - keys are
+		// the slider's job when the slider is focused, and that job
+		// does not depend on which pane the user happens to be in.
+		// (The pane branch above runs first; it calls list.Update on
+		// +/-, which the list ignores, then returns. We need to keep
+		// the slider branch reachable even from paneList.)
+		if v.focused == sliderField && !v.showProfileSelector &&
+			(key.Matches(msg, kbind.SliderInc) || key.Matches(msg, kbind.SliderDec)) {
+			prev := v.slider.Value
+			updated, _ := v.slider.Update(msg)
+			v.slider = updated
+			if v.slider.Value != prev {
+				v.proc.SetWorkers(v.slider.Value)
+			}
+			return v, nil
+		}
+
+		// paneList branch: keystrokes drive the profile sidebar.
+		// Up/Down move the cursor; the list may emit its own cmd
+		// (e.g. a tick for visual feedback) that we return.
+		// Enter activates the selected profile via
+		// activateProfile.
+		if v.focusPane == paneList {
+			oldIdx := v.profileList.Index()
+			var listCmd tea.Cmd
+			v.profileList, listCmd = v.profileList.Update(msg)
+			// Cursor moved: preview the newly-selected
+			// profile's config in the form.
+			if v.profileList.Index() != oldIdx {
+				if opt, ok := v.profileList.SelectedItem().(Option[string]); ok {
+					v = v.previewProfile(opt.Value)
+				}
+			}
+			// Enter activates the selected profile.
+			if key.Matches(msg, kbind.Select) {
+				if opt, ok := v.profileList.SelectedItem().(Option[string]); ok {
+					return v.activateProfile(opt.Value)
+				}
+				return v, listCmd
+			}
+			return v, listCmd
 		}
 
 		// Profile-selector modal. Handles Up / Down / Enter / Esc as
@@ -391,7 +572,7 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Switch to selected profile
 				if v.profileListIndex >= 0 && v.profileListIndex < len(profiles) {
 					v.showProfileSelector = false
-					return v.switchProfile(profiles[v.profileListIndex])
+					return v.activateProfile(profiles[v.profileListIndex])
 				}
 				v.showProfileSelector = false
 				return v, nil
@@ -404,24 +585,6 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Close the modal without changing focus
 				v.showProfileSelector = false
 				return v, nil
-			}
-			return v, nil
-		}
-
-		// Slider key handling — only when the slider is focused, the
-		// profile selector modal is not in front of the form, AND the key
-		// is one the slider actually handles. This is the root-cause fix
-		// for the blanket-return pattern that swallowed Tab, Shift+Tab,
-		// Ctrl+S and Ctrl+P. Non-slider keys when the slider is focused
-		// fall through to the text-field dispatch below, which is a
-		// no-op for the slider (correct).
-		if v.focused == sliderField && !v.showProfileSelector &&
-			(key.Matches(msg, kbind.SliderInc) || key.Matches(msg, kbind.SliderDec)) {
-			prev := v.slider.Value
-			updated, _ := v.slider.Update(msg)
-			v.slider = updated
-			if v.slider.Value != prev {
-				v.proc.SetWorkers(v.slider.Value)
 			}
 			return v, nil
 		}
@@ -472,20 +635,38 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the settings view as a tea.View whose Content holds the
-// form body.
+// two-pane layout: profile list sidebar on the left, config form on
+// the right. The focused pane carries the #414141 background; the
+// unfocused pane has no background.
 func (v SettingsView) View() tea.View {
-	// Show profile selector modal if active
+	// Legacy modal path is dead after WU-11; left as a defensive
+	// guard until the modal fields are removed in that WU.
 	if v.showProfileSelector {
 		return tea.NewView(v.renderWithProfileSelector())
 	}
 
-	// Help text
+	listW := v.width / 4
+	if listW < minListWidth {
+		listW = minListWidth
+	}
+	if listW > maxListWidth {
+		listW = maxListWidth
+	}
+	formW := v.width - listW
+
+	// Build the list pane (profile sidebar)
+	listBg := v.paneBg(v.focusPane == paneList)
+	listPane := listBg.
+		Width(listW).
+		Height(v.height).
+		Render(v.profileList.View())
+
+	// Build the form pane content (header + slider + inputs/areas + help)
 	var help string
 	if v.modified {
 		help = "⚠️  Unsaved changes"
 	}
-
-	content := lipgloss.JoinVertical(
+	formContent := lipgloss.JoinVertical(
 		lipgloss.Top,
 		headerStyle.Render(
 			lipgloss.JoinHorizontal(
@@ -502,43 +683,36 @@ func (v SettingsView) View() tea.View {
 		v.renderTextArea(csvFieldsField, "CSV Fields (one per line):", v.csvFieldsInput),
 		helpStyle.Render(help),
 	)
+	v.viewport.SetContent(formContent)
 
-	// Set viewport content
-	v.viewport.SetContent(content)
+	// Wrap the form viewport in a styled container with the
+	// focused-pane background.
+	formBg := v.paneBg(v.focusPane == paneForm)
+	formPane := formBg.
+		Width(formW).
+		Height(v.height).
+		Render(v.viewport.View())
 
-	// Render viewport with scroll indicators
-	viewportView := v.viewport.View()
-	scrollIndicator := v.renderScrollIndicator()
-
-	if scrollIndicator != "" {
-		return tea.NewView(settingsAppStyle.Render(lipgloss.JoinVertical(lipgloss.Left, viewportView, scrollIndicator)))
-	}
-
-	return tea.NewView(settingsAppStyle.Render(viewportView))
+	content := lipgloss.JoinHorizontal(lipgloss.Top, listPane, formPane)
+	return tea.NewView(content)
 }
 
-// renderScrollIndicator renders scroll position indicator if content is scrollable
-func (v SettingsView) renderScrollIndicator() string {
-	if v.viewport.TotalLineCount() <= v.viewport.Height() {
-		return ""
+// paneBg returns a lipgloss style with the focused-pane
+// background applied when focused is true, or a plain style
+// when false. The two pane wrappers use this helper so the
+// focused-vs-unfocused visual is symmetric.
+func (v SettingsView) paneBg(focused bool) lipgloss.Style {
+	if focused {
+		return lipgloss.NewStyle().Background(styles.FocusedPaneBg)
 	}
-
-	scrollPercentage := int(v.viewport.ScrollPercent() * 100)
-	indicatorStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Align(lipgloss.Center)
-
-	var indicator string
-	if scrollPercentage <= 0 {
-		indicator = "↓ Scroll down for more"
-	} else if scrollPercentage >= 100 {
-		indicator = "↑ Scroll up to see more"
-	} else {
-		indicator = fmt.Sprintf("↑ %d%% ↓", scrollPercentage)
-	}
-
-	return indicatorStyle.Render(indicator)
+	return lipgloss.NewStyle()
 }
+
+// renderScrollIndicator rendered a scroll position indicator when the
+// form content exceeded the viewport height. Removed in the two-pane
+// refactor — the viewport's own scroll behavior is sufficient and the
+// new layout does not have a place to put the indicator without
+// disturbing the pane heights.
 
 func (v SettingsView) renderTextArea(fieldIdx int, text string, input textarea.Model) string {
 	label := v.renderLabel(text, fieldIdx)
@@ -678,22 +852,31 @@ func (v SettingsView) getProfiles() []string {
 	return profiles
 }
 
-// switchProfile switches to a different profile and reloads the
-// configuration. Returns the modified SettingsView (with reloaded
-// form fields) plus a command that emits the resulting
-// ProfileSwitchedMsg / ProfileSwitchErrorMsg.
-func (v SettingsView) switchProfile(name string) (SettingsView, tea.Cmd) {
-	// Switch the active profile
+// previewProfile loads the named profile's config into the form
+// fields without making it active. The list cursor already moved
+// before this is called; this is just the form-repopulation step.
+// Returns the modified SettingsView. A nil config (unknown name)
+// is a no-op so the form keeps its current values.
+func (v SettingsView) previewProfile(name string) SettingsView {
+	return v.loadFromConfig(v.configMgr.GetProfile(name))
+}
+
+// activateProfile switches to the named profile, reloads the
+// form, and emits a ProfileSwitchedMsg / ProfileSwitchErrorMsg.
+// It does NOT call Save or Update — activation is a runtime
+// profile switch, not a config write (per R-18).
+func (v SettingsView) activateProfile(name string) (SettingsView, tea.Cmd) {
 	if err := v.configMgr.SetActiveProfile(name); err != nil {
 		return v, func() tea.Msg {
 			return msgs.ProfileSwitchErrorMsg{Err: err}
 		}
 	}
 
-	// Reload configuration from the new profile
+	// Reload configuration from the new active profile.
 	v = v.loadConfig()
-	// Note: v.modified is not reset here because the value receiver
-	// loses the assignment on return. See saveConfig for context.
+	// Note: v.modified is not reset here because the value
+	// receiver loses the assignment on return. See saveConfig
+	// for context.
 
 	return v, func() tea.Msg {
 		return msgs.ProfileSwitchedMsg{ProfileName: name}

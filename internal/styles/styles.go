@@ -8,7 +8,15 @@ import (
 var (
 	bullet      = "⦿"
 	inactiveDot = "⦁"
-	TitleStyle  = lipgloss.NewStyle().
+	// FocusedPaneBg is the background color applied to the
+	// focused pane (list or form) in the settings view's
+	// two-pane layout. Hex #414141 = RGB 65,65,65 = ANSI
+	// bright-black, a neutral dark grey that reads as
+	// "active" without competing with the form's foreground
+	// colors. Single source of truth — both panes read it
+	// from here.
+	FocusedPaneBg = lipgloss.Color("#414141")
+	TitleStyle    = lipgloss.NewStyle().
 			Background(lipgloss.Color("62")).
 			Foreground(lipgloss.Color("230")).
 			Padding(0, 1).
