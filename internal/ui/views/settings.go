@@ -94,10 +94,6 @@ type SettingsView struct {
 	focusPane int
 	focusable []int
 
-	// Profile selector
-	showProfileSelector bool
-	profileListIndex    int
-
 	// State
 	modified bool
 }
@@ -432,33 +428,17 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return v, nil
 
 	case tea.KeyPressMsg:
-		// Global shortcuts run first so navigation / save / profile always
-		// work regardless of which component has focus. Save, NextField
-		// and PrevField are pre-empted by the profile-selector modal —
-		// the modal is a true modal (per product decision) and ignores
-		// those keys when it is in front. Profile (Ctrl+P) is split:
-		// this switch opens the modal from the closed state; the modal
-		// block below handles closing it from the open state.
+		// Global shortcuts run first so navigation / save always work
+		// regardless of which component has focus. Tab toggles the
+		// pane; Shift+Tab cycles the form field backward (paneForm
+		// only). Ctrl+P is no longer bound — the profile list is
+		// always visible, so the modal-toggle shortcut is redundant.
 		switch {
-		case key.Matches(msg, kbind.Save) && !v.showProfileSelector:
+		case key.Matches(msg, kbind.Save):
 			// Save configuration
 			return v, v.saveConfigCmd()
 
-		case key.Matches(msg, kbind.Profile) && !v.showProfileSelector:
-			// Toggle profile selector open
-			v.showProfileSelector = !v.showProfileSelector
-			// Set initial selection to current profile
-			profiles := v.getProfiles()
-			activeProfile := v.getActiveProfileName()
-			for i, name := range profiles {
-				if name == activeProfile {
-					v.profileListIndex = i
-					break
-				}
-			}
-			return v, nil
-
-		case key.Matches(msg, kbind.NextField) && !v.showProfileSelector:
+		case key.Matches(msg, kbind.NextField):
 			// Tab toggles the focus pane: paneList ↔ paneForm. It
 			// does NOT cycle the focused form field — that role
 			// moves to Shift+Tab in paneForm (see WU-4). The
@@ -468,7 +448,7 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			v.focusPane = paneForm - v.focusPane
 			return v, nil
 
-		case key.Matches(msg, kbind.PrevField) && !v.showProfileSelector:
+		case key.Matches(msg, kbind.PrevField):
 			// Shift+Tab cycles the focused form field backward,
 			// but only when the form pane has focus. In paneList
 			// it is a no-op — the key is pane-incongruent and
@@ -479,39 +459,28 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return v, nil
 		}
 
-		// Handle viewport scrolling when not in profile selector or editing textareas
-		if !v.showProfileSelector {
-			switch {
-			case key.Matches(msg, kbind.PageUp):
-				v.viewport.PageUp()
-				return v, nil
-			case key.Matches(msg, kbind.PageDown):
-				v.viewport.PageDown()
-				return v, nil
-			case key.Matches(msg, kbind.GotoTop):
-				v.viewport.GotoTop()
-				return v, nil
-			case key.Matches(msg, kbind.GotoBottom):
-				v.viewport.GotoBottom()
-				return v, nil
-			}
+		// Handle viewport scrolling
+		switch {
+		case key.Matches(msg, kbind.PageUp):
+			v.viewport.PageUp()
+			return v, nil
+		case key.Matches(msg, kbind.PageDown):
+			v.viewport.PageDown()
+			return v, nil
+		case key.Matches(msg, kbind.GotoTop):
+			v.viewport.GotoTop()
+			return v, nil
+		case key.Matches(msg, kbind.GotoBottom):
+			v.viewport.GotoBottom()
+			return v, nil
 		}
 
-		// Slider key handling — only when the slider is focused, the
-		// profile selector modal is not in front of the form, AND the key
-		// is one the slider actually handles. This is the root-cause fix
-		// for the blanket-return pattern that swallowed Tab, Shift+Tab,
-		// Ctrl+S and Ctrl+P. Non-slider keys when the slider is focused
-		// fall through to the text-field dispatch below, which is a
-		// no-op for the slider (correct).
-		//
-		// The slider fires regardless of focusPane — the + / - keys are
-		// the slider's job when the slider is focused, and that job
+		// Slider key handling — only when the slider is focused AND
+		// the key is one the slider actually handles. The slider
+		// fires regardless of focusPane — the + / - keys are the
+		// slider's job when the slider is focused, and that job
 		// does not depend on which pane the user happens to be in.
-		// (The pane branch above runs first; it calls list.Update on
-		// +/-, which the list ignores, then returns. We need to keep
-		// the slider branch reachable even from paneList.)
-		if v.focused == sliderField && !v.showProfileSelector &&
+		if v.focused == sliderField &&
 			(key.Matches(msg, kbind.SliderInc) || key.Matches(msg, kbind.SliderDec)) {
 			prev := v.slider.Value
 			updated, _ := v.slider.Update(msg)
@@ -546,47 +515,6 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return v, listCmd
 			}
 			return v, listCmd
-		}
-
-		// Profile-selector modal. Handles Up / Down / Enter / Esc as
-		// before, plus a Ctrl+P case that closes the modal without
-		// changing focus and without producing a save command.
-		if v.showProfileSelector {
-			profiles := v.getProfiles()
-			switch {
-			case key.Matches(msg, kbind.Up):
-				v.profileListIndex--
-				if v.profileListIndex < 0 {
-					v.profileListIndex = len(profiles) - 1
-				}
-				return v, nil
-
-			case key.Matches(msg, kbind.Down):
-				v.profileListIndex++
-				if v.profileListIndex >= len(profiles) {
-					v.profileListIndex = 0
-				}
-				return v, nil
-
-			case key.Matches(msg, kbind.Select):
-				// Switch to selected profile
-				if v.profileListIndex >= 0 && v.profileListIndex < len(profiles) {
-					v.showProfileSelector = false
-					return v.activateProfile(profiles[v.profileListIndex])
-				}
-				v.showProfileSelector = false
-				return v, nil
-
-			case key.Matches(msg, kbind.Cancel):
-				v.showProfileSelector = false
-				return v, nil
-
-			case key.Matches(msg, kbind.Profile):
-				// Close the modal without changing focus
-				v.showProfileSelector = false
-				return v, nil
-			}
-			return v, nil
 		}
 	}
 
@@ -639,12 +567,6 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // the right. The focused pane carries the #414141 background; the
 // unfocused pane has no background.
 func (v SettingsView) View() tea.View {
-	// Legacy modal path is dead after WU-11; left as a defensive
-	// guard until the modal fields are removed in that WU.
-	if v.showProfileSelector {
-		return tea.NewView(v.renderWithProfileSelector())
-	}
-
 	listW := v.width / 4
 	if listW < minListWidth {
 		listW = minListWidth
@@ -732,107 +654,9 @@ func (v SettingsView) renderLabel(text string, fieldIdx int) string {
 	return labelStyle.Render(text)
 }
 
-// renderWithProfileSelector renders the profile selector modal overlay
-func (v SettingsView) renderWithProfileSelector() string {
-	profiles := v.getProfiles()
-	activeProfile := v.getActiveProfileName()
-
-	// Build profile list
-	var profileList strings.Builder
-
-	// Styles for profile items
-	selectedStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("205")).
-		Bold(true)
-
-	activeTagStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("40")).
-		Bold(true)
-
-	normalStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255"))
-
-	for i, name := range profiles {
-		var line string
-		isActive := name == activeProfile
-		isSelected := i == v.profileListIndex
-
-		// Add selection indicator
-		if isSelected {
-			line = "▶ "
-		} else {
-			line = "  "
-		}
-
-		// Add profile name with style
-		if isSelected {
-			line += selectedStyle.Render(name)
-		} else {
-			line += normalStyle.Render(name)
-		}
-
-		// Add active badge
-		if isActive {
-			line += " " + activeTagStyle.Render("●")
-		}
-
-		profileList.WriteString(line)
-		profileList.WriteString("\n")
-	}
-
-	// Modal styles with enhanced visual appeal
-	modalTitleStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("62")).
-		Foreground(lipgloss.Color("230")).
-		Padding(0, 2).
-		Bold(true).
-		Align(lipgloss.Center)
-
-	modalBoxStyle := lipgloss.NewStyle().
-		Border(lipgloss.DoubleBorder()).
-		BorderForeground(lipgloss.Color("99")).
-		Padding(2, 3).
-		Background(lipgloss.Color("235")).
-		Width(50)
-
-	modalHelpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Align(lipgloss.Center).
-		Italic(true)
-
-	overlayStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("0")).
-		Padding(0, 0)
-
-	// Build modal content
-	modalTitle := modalTitleStyle.Render("📋 Switch Profile")
-	separator := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render(strings.Repeat("─", 44))
-	modalHelp := modalHelpStyle.Render("↑/↓: Navigate • Enter: Select • Esc: Cancel")
-
-	modalContent := fmt.Sprintf("%s\n\n%s\n\n%s\n%s",
-		modalTitle,
-		profileList.String(),
-		separator,
-		modalHelp)
-
-	modal := modalBoxStyle.Render(modalContent)
-
-	// Simple overlay - place modal in center
-	centeredModal := lipgloss.Place(
-		v.width,
-		v.height,
-		lipgloss.Center,
-		lipgloss.Center,
-		modal,
-		lipgloss.WithWhitespaceChars(" "),
-		lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("0"))),
-	)
-
-	// Layer modal over base view
-	return overlayStyle.Render(centeredModal)
-}
+// renderWithProfileSelector was the modal overlay renderer for
+// the Ctrl+P-triggered profile selector. Removed in WU-11 — the
+// persistent list sidebar replaces it.
 
 // getActiveProfileName returns the name of the active profile
 func (v SettingsView) getActiveProfileName() string {
@@ -841,15 +665,6 @@ func (v SettingsView) getActiveProfileName() string {
 		return "default"
 	}
 	return profileName
-}
-
-// getProfiles returns all available profiles
-func (v SettingsView) getProfiles() []string {
-	profiles := v.configMgr.ListProfiles()
-	if len(profiles) == 0 {
-		return []string{"default"}
-	}
-	return profiles
 }
 
 // previewProfile loads the named profile's config into the form

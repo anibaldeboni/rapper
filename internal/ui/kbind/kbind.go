@@ -78,6 +78,15 @@ var (
 		key.WithKeys("tab"),
 		key.WithHelp("tab", "next field"),
 	)
+	// PaneToggle is the help-text label for Tab when it acts as a
+	// pane toggle (the settings view's two-pane model). The binding
+	// itself is the same key as NextField (tab); the help text
+	// clarifies its role. The settings view re-uses NextField for
+	// the actual key match — PaneToggle is documentation only.
+	PaneToggle = key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "pane"),
+	)
 	PrevField = key.NewBinding(
 		key.WithKeys("shift+tab"),
 		key.WithHelp("shift+tab", "prev field"),

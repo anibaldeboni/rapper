@@ -947,6 +947,39 @@ func TestSettingsView_CtrlSInPaneFormSaves(t *testing.T) {
 	assert.NotNil(t, cmd, "Ctrl+S in paneForm must return a non-nil save cmd")
 }
 
+// TestSettingsView_CtrlPIsNoOp is S-23.1. Ctrl+P has no
+// binding in the settings view. Pressing it must be a
+// no-op: the view is unchanged, no cmd is returned, no
+// side effect occurs. The profile list is always visible;
+// there is no modal to toggle.
+func TestSettingsView_CtrlPIsNoOp(t *testing.T) {
+	for _, focusPane := range []int{paneList, paneForm} {
+		v, _, _ := newTestSettingsView(t)
+		v.focusPane = focusPane
+		before := v
+
+		var cmd tea.Cmd
+		next, cmd := v.Update(settingsKeyMsg(kbind.Profile.Keys()[0]))
+		v = next.(SettingsView)
+		assert.Nil(t, cmd, "Ctrl+P must not return a cmd (no binding)")
+		assert.Equal(t, before.focusPane, v.focusPane,
+			"Ctrl+P must not change the focus pane (no binding)")
+		assert.Equal(t, before.focused, v.focused,
+			"Ctrl+P must not change the focused field (no binding)")
+	}
+}
+
+// TestSettingsView_HelpTextDoesNotMentionCtrlP is S-24.1.
+// The rendered View().Content must not contain the string
+// "ctrl+p" (case-insensitive). The help text matches the
+// actual keymap.
+func TestSettingsView_HelpTextDoesNotMentionCtrlP(t *testing.T) {
+	v, _, _ := newTestSettingsView(t)
+	out := v.View().Content
+	assert.False(t, strings.Contains(strings.ToLower(out), "ctrl+p"),
+		"View().Content must not mention ctrl+p in the help text")
+}
+
 // backgroundEscapeSeq returns the lipgloss-rendered background
 // OPEN escape sequence for the given color. We strip the
 // trailing close (which appears at the end of any styled span)
@@ -1020,76 +1053,9 @@ func TestSettingsView_SliderFocused_CtrlS_TriggersSave(t *testing.T) {
 			"the slider key-handling block must not swallow the Save global shortcut")
 }
 
-// TestSettingsView_SliderFocused_CtrlP_TogglesProfileSelector — pressing Ctrl+P
-// when the slider is focused must open the profile selector. Before the fix
-// the slider block returns nil, so the global Profile handler never toggles
-// v.showProfileSelector. The mock stubs ListProfiles/GetActiveProfile because
-// the Profile handler (settings.go:359-371) seeds profileListIndex from them.
-func TestSettingsView_SliderFocused_CtrlP_TogglesProfileSelector(t *testing.T) {
-	v, _, _ := newTestSettingsView(t)
-	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
-	require.False(t, v.showProfileSelector, "profile selector should be closed on construction")
-
-	var next tea.Model
-	next, _ = v.Update(settingsKeyMsg("ctrl+p"))
-	v = next.(SettingsView)
-	assert.True(t, v.showProfileSelector,
-		"Ctrl+P must toggle the profile selector open when the slider is focused; "+
-			"the slider key-handling block must not swallow the Profile global shortcut")
-}
-
-// TestSettingsView_ModalOpen_CtrlP_ClosesSelector — pressing Ctrl+P while the
-// profile-selector modal is open must close the modal without changing focus
-// or producing a save command. Before the fix the modal block at
-// settings.go:320-350 has no Ctrl+P case; the switch falls through to the
-// bare `return nil` at line 350, so the modal stays open. After the fix the
-// modal block handles Ctrl+P and sets v.showProfileSelector to false.
-func TestSettingsView_ModalOpen_CtrlP_ClosesSelector(t *testing.T) {
-	v, _, _ := newTestSettingsView(t)
-	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
-
-	// Pre-set the modal-open state the test is exercising. The view does
-	// not expose a public setter; the test lives in the same package and
-	// reaches in directly. This mirrors the real flow reached by the first
-	// Ctrl+P press.
-	v.showProfileSelector = true
-	v.profileListIndex = 0
-
-	var next tea.Model
-	next, _ = v.Update(settingsKeyMsg("ctrl+p"))
-	v = next.(SettingsView)
-	assert.False(t, v.showProfileSelector,
-		"Ctrl+P must close the profile selector when the modal is open; "+
-			"the modal block must handle the Profile key, not only Esc")
-	assert.Equal(t, sliderField, v.focused,
-		"Ctrl+P inside the modal must not change the focused field")
-}
-
-// TestSettingsView_CtrlP_TwiceIsIdempotent — pressing Ctrl+P twice in a row
-// must return the view to its original state: modal closed, focus unchanged.
-// The intermediate assertion (modal open after the first press) is what
-// makes this test actually red: before the fix the first press is swallowed
-// by the slider block, so the intermediate check fails. The end-state
-// assertion (modal closed after the second press) is the re-entrancy
-// guarantee: toggling twice must be a no-op on the modal state.
-func TestSettingsView_CtrlP_TwiceIsIdempotent(t *testing.T) {
-	v, _, _ := newTestSettingsView(t)
-	require.Equal(t, sliderField, v.focused, "slider should be focused on construction")
-	require.False(t, v.showProfileSelector, "profile selector should be closed on construction")
-
-	var next tea.Model
-	next, _ = v.Update(settingsKeyMsg("ctrl+p"))
-	v = next.(SettingsView)
-	assert.True(t, v.showProfileSelector,
-		"first Ctrl+P must open the profile selector when the slider is focused")
-
-	next, _ = v.Update(settingsKeyMsg("ctrl+p"))
-	v = next.(SettingsView)
-	assert.False(t, v.showProfileSelector,
-		"second Ctrl+P must close the profile selector (re-entrancy)")
-	assert.Equal(t, sliderField, v.focused,
-		"two consecutive Ctrl+P presses must leave focus unchanged")
-}
+// (The Ctrl+P / modal tests were removed in WU-11 — the modal
+// is gone, the list is always visible, and Ctrl+P has no
+// binding. See S-23.1 and S-24.1 for the replacement tests.)
 
 // TestSettingsView_Resize_AccountsForOwnMargin is the regression test
 // for BUG-002: SettingsView.Resize() subtracted height-4 from the

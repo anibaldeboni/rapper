@@ -53,17 +53,21 @@ func (k logsViewKeyMap) FullHelp() [][]key.Binding {
 }
 
 // settingsViewKeyMap shows only settings view specific keys.
-// The slider keybindings are listed so users discover +/- while the slider
-// has focus; the slider itself only intercepts +/- when focused.
+// The slider keybindings are listed so users discover +/- while
+// the slider has focus; the slider itself only intercepts +
+// and - when focused. Tab / Shift+Tab are listed for the
+// two-pane focus model (pane toggle + backward field cycle).
+// Ctrl+P is intentionally absent — the profile list is always
+// visible, so the modal-toggle shortcut was removed in WU-11.
 type settingsViewKeyMap struct{}
 
 func (k settingsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.NextField, kbind.PrevField, kbind.PageUp, kbind.PageDown, kbind.Save, kbind.Profile, kbind.SliderInc, kbind.SliderDec}
+	return []key.Binding{kbind.NextField, kbind.PrevField, kbind.PageUp, kbind.PageDown, kbind.Save, kbind.SliderInc, kbind.SliderDec}
 }
 
 func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{kbind.NextField, kbind.PrevField, kbind.Save, kbind.Profile},
+		{kbind.NextField, kbind.PrevField, kbind.Save},
 		{kbind.SliderInc, kbind.SliderDec},
 		{kbind.PageUp, kbind.PageDown, kbind.GotoTop, kbind.GotoBottom},
 	}
