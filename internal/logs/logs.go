@@ -23,17 +23,10 @@ type Line interface {
 // per-request records (RequestLine) to the on-disk log file.
 type logger struct {
 	file *os.File
-	sync.RWMutex
+	sync.Mutex
 	messages []LogMessage
 }
 
-// NewLogger creates a new Logger instance.
-//
-// If filePath is non-empty the file is opened with
-// O_WRONLY|O_APPEND|O_CREATE and perms 0660, matching the
-// pre-refactor behavior. A failure to open the file is captured as a
-// LogMessage in the in-memory buffer so the user sees the error in
-// the TUI.
 func NewLogger(filePath string) *logger {
 	var l logger
 	if filePath != "" {
@@ -57,8 +50,8 @@ func (l *logger) Add(log LogMessage) {
 // a copy — callers can mutate it freely without affecting the
 // internal state.
 func (l *logger) Get() []LogMessage {
-	l.RLock()
-	defer l.RUnlock()
+	l.Lock()
+	defer l.Unlock()
 	out := make([]LogMessage, len(l.messages))
 	copy(out, l.messages)
 	return out
