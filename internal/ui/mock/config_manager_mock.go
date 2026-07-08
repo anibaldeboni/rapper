@@ -68,6 +68,20 @@ func (mr *MockConfigManagerMockRecorder) GetActiveProfile() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActiveProfile", reflect.TypeOf((*MockConfigManager)(nil).GetActiveProfile))
 }
 
+// GetProfile mocks base method.
+func (m *MockConfigManager) GetProfile(name string) *config.Config {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetProfile", name)
+	ret0, _ := ret[0].(*config.Config)
+	return ret0
+}
+
+// GetProfile indicates an expected call of GetProfile.
+func (mr *MockConfigManagerMockRecorder) GetProfile(name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProfile", reflect.TypeOf((*MockConfigManager)(nil).GetProfile), name)
+}
+
 // ListProfiles mocks base method.
 func (m *MockConfigManager) ListProfiles() []string {
 	m.ctrl.T.Helper()

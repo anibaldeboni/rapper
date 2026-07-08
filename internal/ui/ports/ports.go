@@ -31,6 +31,12 @@ type ConfigManager interface {
 
 	// SetActiveProfile switches to the specified profile
 	SetActiveProfile(name string) error
+
+	// GetProfile returns the configuration of the named profile, or
+	// nil if no profile with that name exists. Used by the settings
+	// view to preview a non-active profile's config in the form
+	// fields before the user decides to activate it.
+	GetProfile(name string) *config.Config
 }
 
 // ConfigProvider defines a read-only configuration interface.

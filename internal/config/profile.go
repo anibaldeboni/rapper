@@ -119,6 +119,23 @@ func (pm *profileManagerImpl) getActive() *Profile {
 	return &pm.profiles[pm.activeIndex]
 }
 
+// getByName returns the profile with the given name, or nil if no
+// profile has that name. The read lock is held only for the duration
+// of the scan; the returned pointer is into the live slice but
+// callers should treat it as read-only (or hold the manager's
+// external lock for any mutation).
+func (pm *profileManagerImpl) getByName(name string) *Profile {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	for i := range pm.profiles {
+		if pm.profiles[i].Name == name {
+			return &pm.profiles[i]
+		}
+	}
+	return nil
+}
+
 // setActive switches to a different profile by name
 func (pm *profileManagerImpl) setActive(name string) error {
 	pm.mu.Lock()

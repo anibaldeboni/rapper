@@ -37,6 +37,18 @@ func (m *managerImpl) Get() *Config {
 	return active.Config
 }
 
+// GetProfile returns the configuration of the named profile, or nil
+// if no profile with that name exists. The settings view uses this
+// to preview a non-active profile's config in the form fields before
+// the user decides to activate it with SetActiveProfile.
+func (m *managerImpl) GetProfile(name string) *Config {
+	profile := m.profileMgr.getByName(name)
+	if profile == nil {
+		return nil
+	}
+	return profile.Config
+}
+
 // Update updates the current configuration and notifies all listeners
 func (m *managerImpl) Update(cfg *Config) error {
 	if err := m.profileMgr.updateActive(cfg); err != nil {
