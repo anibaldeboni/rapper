@@ -85,11 +85,11 @@ var (
 	// the actual key match — PaneToggle is documentation only.
 	PaneToggle = key.NewBinding(
 		key.WithKeys("tab"),
-		key.WithHelp("tab", "pane"),
+		key.WithHelp("tab", "switch panel"),
 	)
 	PrevField = key.NewBinding(
 		key.WithKeys("shift+tab"),
-		key.WithHelp("shift+tab", "prev field"),
+		key.WithHelp("shift+tab", "next field"),
 	)
 	CancelOperation = key.NewBinding(
 		key.WithKeys("ctrl+c"),

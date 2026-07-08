@@ -62,12 +62,12 @@ func (k logsViewKeyMap) FullHelp() [][]key.Binding {
 type settingsViewKeyMap struct{}
 
 func (k settingsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.NextField, kbind.PrevField, kbind.PageUp, kbind.PageDown, kbind.Save, kbind.SliderInc, kbind.SliderDec}
+	return []key.Binding{kbind.PaneToggle, kbind.PrevField, kbind.PageUp, kbind.PageDown, kbind.Save, kbind.SliderInc, kbind.SliderDec}
 }
 
 func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{kbind.NextField, kbind.PrevField, kbind.Save},
+		{kbind.PaneToggle, kbind.PrevField, kbind.Save},
 		{kbind.SliderInc, kbind.SliderDec},
 		{kbind.PageUp, kbind.PageDown, kbind.GotoTop, kbind.GotoBottom},
 	}
