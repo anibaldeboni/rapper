@@ -654,9 +654,10 @@ func (v SettingsView) renderLabel(text string, fieldIdx int) string {
 	return labelStyle.Render(text)
 }
 
-// renderWithProfileSelector was the modal overlay renderer for
-// the Ctrl+P-triggered profile selector. Removed in WU-11 — the
-// persistent list sidebar replaces it.
+// The Ctrl+P-triggered profile-selector modal was removed in
+// WU-11 — the persistent list sidebar replaces it. The
+// legacy modal function and its associated state fields
+// are gone; the new two-pane View() is above.
 
 // getActiveProfileName returns the name of the active profile
 func (v SettingsView) getActiveProfileName() string {
