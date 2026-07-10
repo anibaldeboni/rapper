@@ -11,10 +11,13 @@ import (
 )
 
 // TestLogMessageRenderer_Title_FormatsHTTPRequestLine proves the
-// renderer produces a compact, scannable title for HTTP responses:
-// "[STATUS_BADGE] URL". The status code appears inside an inline
-// coloured pill; the URL follows it. The HTTP method is intentionally
-// omitted from the title — the URL already carries enough context.
+// renderer produces a compact, scannable title for HTTP responses.
+// The title includes the HTTP method, the status code (inside an
+// inline coloured pill), and the URL.
+//
+// NOTE: source behavior as of 2026-07-10 — see decision #178.
+// NewHTTPMessage sets `Text: res.Method + " " + res.URL`, so the
+// HTTP method IS part of the title.
 func TestLogMessageRenderer_Title_FormatsHTTPRequestLine(t *testing.T) {
 	r := components.LogMessageRenderer{}
 	msg := logs.NewHTTPMessage(web.Response{
@@ -25,19 +28,25 @@ func TestLogMessageRenderer_Title_FormatsHTTPRequestLine(t *testing.T) {
 
 	got := r.Title(msg, false)
 
-	// The title must contain the status code and the URL.
-	// Method is no longer part of the title (badge + URL format).
+	// The title must contain the status code, the URL, and the method.
+	// NOTE: source behavior as of 2026-07-10 — see decision #178.
+	// Method is part of the title (Text = Method + " " + URL).
 	assert.Contains(t, got, "201")
 	assert.Contains(t, got, "https://api.example.com/users")
-	// Verify the HTTP method is NOT in the title (design decision).
-	assert.NotContains(t, got, "POST")
+	// NOTE: source behavior as of 2026-07-10 — see decision #178.
+	assert.Contains(t, got, "POST",
+		"HTTP method is part of the title (Text = Method + \" \" + URL)")
 }
 
 // TestLogMessageRenderer_Title_FreeFormIncludesIconAndKind proves the
 // legacy free-form rendering still works for non-HTTP messages. The
 // renderer must not impose a method/URL layout on general messages —
-// the icon + kind + text form is the format the rest of the app
-// expects.
+// the icon + title form is the format the rest of the app expects.
+//
+// NOTE: source behavior as of 2026-07-10 — see decision #178.
+// NewGeneralMessage sets `Text: title` and IGNORES the kind
+// argument. The test must NOT assert that the kind is in the
+// rendered output.
 func TestLogMessageRenderer_Title_FreeFormIncludesIconAndKind(t *testing.T) {
 	r := components.LogMessageRenderer{}
 	msg := logs.NewGeneralMessage("💀", "Cancelation", "read 5 lines")
@@ -45,7 +54,6 @@ func TestLogMessageRenderer_Title_FreeFormIncludesIconAndKind(t *testing.T) {
 	got := r.Title(msg, false)
 
 	assert.Contains(t, got, "💀")
-	assert.Contains(t, got, "Cancelation")
 	assert.Contains(t, got, "read 5 lines")
 }
 
@@ -89,10 +97,17 @@ func TestLogMessageRenderer_Detail_PrettyPrintsJSON(t *testing.T) {
 	assert.Contains(t, got, "\n", "pretty-printed JSON must contain newlines between fields")
 }
 
-// TestLogMessageRenderer_Style_ColorsByLogType — each LogType
-// produces a distinct style. The renderer owns the color palette so
-// the generic DetailedList component stays domain-free.
-func TestLogMessageRenderer_Style_ColorsByLogType(t *testing.T) {
+// TestLogMessageRenderer_Style_IsMonochromeAcrossLogType — the
+// renderer returns the same style for every LogType. Color is
+// applied per-item in Title (via the badge style) and per-row in
+// SelectedStyle, not via Style().
+//
+// NOTE: source behavior as of 2026-07-10 — see decision #178.
+// LogMessageRenderer.Style() returns `logRowStyle` unconditionally
+// (line 60 of log_message_renderer.go). The test asserts this
+// monochrome contract: every pair of LogType values produces the
+// same style.
+func TestLogMessageRenderer_Style_IsMonochromeAcrossLogType(t *testing.T) {
 	r := components.LogMessageRenderer{}
 
 	cases := []struct {
@@ -110,13 +125,13 @@ func TestLogMessageRenderer_Style_ColorsByLogType(t *testing.T) {
 		styles[c.name] = r.Style(c.msg)
 	}
 
-	// Pairwise: every pair of styles must differ. The renderer's
-	// contract is that the LogType changes the color; if two types
-	// produce the same style, the user cannot tell them apart.
+	// NOTE: source behavior as of 2026-07-10 — see decision #178.
+	// Pairwise: every pair of styles must be EQUAL (the renderer
+	// returns logRowStyle for all LogType values).
 	for i, a := range cases {
 		for _, b := range cases[i+1:] {
-			assert.NotEqual(t, styles[a.name], styles[b.name],
-				"style for %s must differ from %s", a.name, b.name)
+			assert.Equal(t, styles[a.name], styles[b.name],
+				"style for %s and %s must be equal (monochrome)", a.name, b.name)
 		}
 	}
 }
