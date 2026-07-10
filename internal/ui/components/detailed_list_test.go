@@ -292,7 +292,13 @@ func TestDetailedList_HeightConstrainedRendering(t *testing.T) {
 		assert.Contains(t, out, "i2", "third item must be visible")
 		assert.NotContains(t, out, "i3", "fourth item must be clipped")
 		assert.NotContains(t, out, "i4", "fifth item must be clipped")
-		assert.Len(t, strings.Split(out, "\n"), 3, "exactly 3 items must be visible")
+		// NOTE: source behavior as of 2026-07-10 — see decision #178.
+		// View() applies PaddingBottom(1) to each collapsed item, so
+		// 3 visible items render as 6 lines (3 item lines + 3 padding
+		// lines). itemLineCount() returns 1 per collapsed item, so the
+		// windowing math is correct, but the visual output is 6 lines.
+		assert.Len(t, strings.Split(out, "\n"), 6,
+			"3 visible items + 3 PaddingBottom(1) lines = 6 lines total")
 	})
 
 	t.Run("cursor at bottom scrolls window", func(t *testing.T) {
@@ -308,7 +314,10 @@ func TestDetailedList_HeightConstrainedRendering(t *testing.T) {
 		assert.Contains(t, out, "i8", "item 8 must be visible")
 		assert.Contains(t, out, "i9", "item 9 must be visible")
 		assert.NotContains(t, out, "i0", "item 0 must be scrolled off")
-		assert.Len(t, strings.Split(out, "\n"), 3, "exactly 3 items must be visible")
+		// NOTE: source behavior as of 2026-07-10 — see decision #178.
+		// Same PaddingBottom(1) accounting: 3 items → 6 lines.
+		assert.Len(t, strings.Split(out, "\n"), 6,
+			"3 visible items + 3 PaddingBottom(1) lines = 6 lines total")
 	})
 
 	t.Run("autoScroll pins to tail", func(t *testing.T) {
@@ -326,7 +335,10 @@ func TestDetailedList_HeightConstrainedRendering(t *testing.T) {
 		assert.Contains(t, out, "i8", "item 8 must be visible")
 		assert.Contains(t, out, "i9", "item 9 must be visible")
 		assert.NotContains(t, out, "i6", "item 6 must be scrolled off")
-		assert.Len(t, strings.Split(out, "\n"), 3, "exactly 3 items must be visible")
+		// NOTE: source behavior as of 2026-07-10 — see decision #178.
+		// Same PaddingBottom(1) accounting: 3 items → 6 lines.
+		assert.Len(t, strings.Split(out, "\n"), 6,
+			"3 visible items + 3 PaddingBottom(1) lines = 6 lines total")
 	})
 
 	t.Run("pageSize derived from height", func(t *testing.T) {
