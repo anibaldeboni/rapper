@@ -168,7 +168,10 @@ func TestProcessor_Do_LogsSuccessOnTwoXX(t *testing.T) {
 	var sawSuccess bool
 	for _, m := range added {
 		if m.Type == logs.LogTypeSuccess {
-			assert.Equal(t, 200, m.BadgeIcon)
+			// NOTE: source behavior as of 2026-07-10 — see decision #178.
+			// BadgeIcon is built via strconv.Itoa (string) and Text is
+			// "METHOD URL".
+			assert.Equal(t, "200", m.BadgeIcon)
 			assert.Equal(t, "GET https://example.com/users/1", m.Text)
 			sawSuccess = true
 		}
@@ -234,9 +237,13 @@ func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
 	var sawClientError bool
 	for _, m := range added {
 		if m.Type == logs.LogTypeWarning {
-			assert.Equal(t, 404, m.BadgeIcon)
-			assert.Equal(t, "POST https://example.com/missing", m.Text)
-			assert.Equal(t, []byte(`{"error":"not found"}`), m.Details)
+			// NOTE: source behavior as of 2026-07-10 — see decision #178.
+			// BadgeIcon is a string, Text is "GET URL" (mock uses GET),
+			// and Details is a pretty-printed ANSI-colored JSON string.
+			assert.Equal(t, "404", m.BadgeIcon)
+			assert.Equal(t, "GET https://example.com/missing", m.Text)
+			assert.Contains(t, m.Details, "not found",
+				"Details must contain the original body content (pretty.Color wraps it in ANSI)")
 			sawClientError = true
 		}
 	}
