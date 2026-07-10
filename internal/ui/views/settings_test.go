@@ -74,6 +74,12 @@ func withActiveProfile(name string) settingsViewOpt {
 // Tests that need different values pass withConfig / withWorkerCount /
 // withMaxWorkers; tests that need stricter expectations on Update/Save
 // layer them on the returned mocks after the helper call.
+//
+// The proc mock is returned so tests that need to layer SetWorkers
+// expectations on top of the helper's defaults can do so without
+// reaching into the closure. Most tests do not need it.
+//
+//nolint:unparam
 func newTestSettingsView(t *testing.T, opts ...settingsViewOpt) (
 	SettingsView,
 	*mock_ui.MockConfigManager,
