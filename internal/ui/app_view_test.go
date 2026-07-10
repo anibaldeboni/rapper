@@ -30,11 +30,27 @@ func TestView_NoToastsSkipsCompositor(t *testing.T) {
 	// test below. It must not appear in the no-toast output.
 	assert.NotContains(t, out, "saved",
 		"no-toast View() must not contain any toast text")
-	// Sanity: the layout was actually rendered (header on line 0).
+	// Sanity: the layout was actually rendered. AppModel.View()
+	// wraps the joined content in Margin(1, 2), which inserts a
+	// top margin row. The header therefore lands on line 1, not
+	// line 0.
 	lines := strings.Split(out, "\n")
-	assert.NotEmpty(t, lines, "View() must produce at least one line")
-	assert.NotEqual(t, "", strings.TrimSpace(lines[0]),
-		"line 0 must contain the header, not be empty")
+	require.NotEmpty(t, lines, "View() must produce at least one line")
+
+	firstContent := -1
+	for i, l := range lines {
+		if strings.TrimSpace(l) != "" {
+			firstContent = i
+			break
+		}
+	}
+	// NOTE: source behavior as of 2026-07-10 — see decision #178.
+	// AppModel.View() wraps content in Margin(1, 2), pushing the
+	// header to line 1.
+	assert.Equal(t, 1, firstContent,
+		"with no toast, the global header must be on line 1 "+
+			"(Margin(1, 2) pushes the header past the top margin row); got first content on line %d",
+		firstContent)
 }
 
 // TestView_WithOneToastIncludesContent verifies the happy path of the
@@ -80,8 +96,12 @@ func TestView_HeaderOnLineZeroWithToast(t *testing.T) {
 			break
 		}
 	}
-	assert.Equal(t, 0, firstContent,
-		"with an active toast, the global header must remain on line 0 (no top ghost line); got first content on line %d",
+	// NOTE: source behavior as of 2026-07-10 — see decision #178.
+	// AppModel.View() wraps content in Margin(1, 2), pushing the
+	// header to line 1 even when toasts are active.
+	assert.Equal(t, 1, firstContent,
+		"with an active toast, the global header must be on line 1 "+
+			"(Margin(1, 2) pushes the header past the top margin row); got first content on line %d",
 		firstContent)
 }
 
@@ -183,9 +203,12 @@ func TestView_HeaderAlwaysOnLineZero(t *testing.T) {
 					break
 				}
 			}
-			assert.Equal(t, 0, firstContent,
-				"view %s at height %d must have the global header on line 0 "+
-					"(no top ghost line); got first content on line %d",
+			// NOTE: source behavior as of 2026-07-10 — see decision #178.
+			// AppModel.View() wraps content in Margin(1, 2), pushing the
+			// header to line 1 for every view/height combination.
+			assert.Equal(t, 1, firstContent,
+				"view %s at height %d must have the global header on line 1 "+
+					"(Margin(1, 2) pushes the header past the top margin row); got first content on line %d",
 				viewName, termH, firstContent)
 		}
 	}
