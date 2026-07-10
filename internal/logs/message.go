@@ -1,8 +1,8 @@
 package logs
 
 import (
-	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -55,7 +55,7 @@ func NewHTTPMessage(res web.Response) LogMessage {
 	body := string(pretty.Color(pretty.Pretty(res.Body), nil))
 	return LogMessage{
 		Type:      classifyStatus(res.StatusCode),
-		BadgeIcon: fmt.Sprintf("%d", res.StatusCode),
+		BadgeIcon: strconv.Itoa(res.StatusCode),
 		Text:      res.Method + " " + res.URL,
 		Details:   body,
 		Timestamp: time.Now(),
