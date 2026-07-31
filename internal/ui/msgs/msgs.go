@@ -32,13 +32,6 @@ type ItemSelectedMsg struct {
 	FilePath string
 }
 
-// ThemeAppliedMsg is broadcast to all views when the theme changes
-// (initial theme application and on tea.BackgroundColorMsg). The
-// message replaces the imperative SetTheme call on each view.
-type ThemeAppliedMsg struct {
-	IsDark bool
-}
-
 type ViewActivatedMsg struct{}
 
 type StatusKeymapMsg struct {

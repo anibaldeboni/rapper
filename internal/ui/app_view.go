@@ -9,6 +9,13 @@ import (
 	"github.com/muesli/reflow/truncate"
 )
 
+var uiLogoStyle = lipgloss.NewStyle().
+	Background(lipgloss.Color("#F25D94")).
+	Foreground(lipgloss.Color("#ffffff")).
+	Bold(true).
+	Padding(0, 1).
+	Render
+
 func (m AppModel) View() tea.View {
 	var content string
 	if v, ok := m.views[m.currentView]; ok && v != nil {
@@ -61,7 +68,7 @@ func (m AppModel) renderHeader() string {
 		Foreground(lipgloss.Color("241")).
 		Background(lipgloss.Color("235"))
 
-	viewName := LogoStyle(m.currentView.String())
+	viewName := uiLogoStyle(m.currentView.String())
 	helpText := viewName + " " + m.help.View(globalKeys)
 
 	maxWidth := m.width - 4
@@ -78,7 +85,7 @@ func (m AppModel) renderHeader() string {
 func (m AppModel) renderStatusBar() string {
 	width := lipgloss.Width
 
-	appName := LogoStyle(fmt.Sprintf("%s@%s", AppName, AppVersion))
+	appName := uiLogoStyle(fmt.Sprintf("%s@%s", AppName, AppVersion))
 
 	helpText := m.help.View(m.currentStatusKeymap)
 

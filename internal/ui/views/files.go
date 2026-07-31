@@ -40,8 +40,6 @@ var _ tea.Model = FilesView{}
 
 // Styles for file list
 var (
-	bullet            = "⦿"
-	inactiveDot       = "⦁"
 	titleStyle        = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Margin(1, 2)
 	itemStyle         = lipgloss.NewStyle().MarginLeft(2).Foreground(lipgloss.Color("255"))
 	selectedItemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#d6acff"))
@@ -65,7 +63,14 @@ func NewFilesView(csvFiles []list.Item) FilesView {
 	l.Title = "👀 Select a CSV file to process"
 
 	v := FilesView{list: l}
-	v.setTheme(true)
+	v.list.Styles.ActivePaginationDot = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#d3d3d3")).
+		SetString("⦿").
+		Bold(true)
+	v.list.Styles.InactivePaginationDot = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#8d8d8d")).
+		SetString("⦁").
+		Bold(true)
 	return v
 }
 
@@ -83,24 +88,7 @@ func (FilesView) KeyMap() help.KeyMap {
 	return filesViewKeyMap{}
 }
 
-// setTheme is the value-receiver version of the historical SetTheme
-// hook. It is only called internally (from NewFilesView and from
-// Update(ThemeAppliedMsg)); external callers use the message path.
-func (v FilesView) setTheme(isDark bool) FilesView {
-	lightDark := lipgloss.LightDark(isDark)
-	v.list.Styles.ActivePaginationDot = lipgloss.NewStyle().
-		Foreground(lightDark(lipgloss.Color("#d3d3d3"), lipgloss.Color("#d3d3d3"))).
-		SetString(bullet).
-		Bold(true)
-	v.list.Styles.InactivePaginationDot = lipgloss.NewStyle().
-		Foreground(lightDark(lipgloss.Color("#8d8d8d"), lipgloss.Color("#8d8d8d"))).
-		SetString(inactiveDot).
-		Bold(true)
-	return v
-}
-
-// Init returns nil. Theme + size arrive through their respective
-// messages (ThemeAppliedMsg / ViewportSizeMsg).
+// Init returns nil. Viewport size arrives through ViewportSizeMsg.
 func (v FilesView) Init() tea.Cmd { return nil }
 
 // Update handles messages for the files view. The view returns a
@@ -110,7 +98,6 @@ func (v FilesView) Init() tea.Cmd { return nil }
 //
 // Recognised messages:
 //   - msgs.ViewportSizeMsg: resize the underlying list.
-//   - msgs.ThemeAppliedMsg: re-apply the bullet styles.
 //   - tea.KeyPressMsg on kbind.Select: emit msgs.ItemSelectedMsg
 //     carrying the focused file's path.
 //
@@ -127,9 +114,6 @@ func (v FilesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		v.height = msg.Height
 		v.list.SetSize((msg.Width/4)*3, msg.Height)
 		return v, nil
-
-	case msgs.ThemeAppliedMsg:
-		return v.setTheme(msg.IsDark), nil
 
 	case tea.KeyPressMsg:
 		// Only intercept Select; let other keys fall through to the

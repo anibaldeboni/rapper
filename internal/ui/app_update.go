@@ -83,12 +83,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		ah := max(m.chrome.AvailableHeight(m.height), 10)
 		return m, m.routeToAllViews(msgs.ViewportSizeMsg{Width: aw, Height: ah})
 
-	case tea.BackgroundColorMsg:
-		if msg.IsDark() != m.isDark {
-			m.applyTheme(msg.IsDark())
-		}
-		return m, nil
-
 	case tea.KeyboardEnhancementsMsg:
 		m.hasKeyEventTypes = msg.SupportsEventTypes()
 		return m, nil
@@ -202,8 +196,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // routeToAllViews broadcasts a message to every view in the views map,
 // captures the returned model for each, and batches the returned cmds.
-// This is the only mechanism for cross-cutting messages (size, theme,
-// visibility) — AppModel never calls a view-specific method.
+// This is the only mechanism for cross-cutting messages (size, visibility) —
+// AppModel never calls a view-specific method.
 func (m AppModel) routeToAllViews(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 	for k, v := range m.views {

@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
@@ -126,11 +127,37 @@ func TestAppModel_Init_PreInitializesStatusKeymap(t *testing.T) {
 
 	batch, ok := app.Init()().(tea.BatchMsg)
 	require.True(t, ok, "Init must return a batch command")
-	require.GreaterOrEqual(t, len(batch), 4, "Init batch must include activation re-assertion")
+	require.GreaterOrEqual(t, len(batch), 3, "Init batch must include activation re-assertion")
+	for i, cmd := range batch {
+		if cmd == nil {
+			continue
+		}
+		if _, ok := cmd().(tea.BackgroundColorMsg); ok {
+			t.Fatalf("Init command %d must not yield tea.BackgroundColorMsg", i)
+		}
+	}
 
 	status, ok := batch[len(batch)-1]().(msgs.StatusKeymapMsg)
 	require.True(t, ok, "last Init command must yield StatusKeymapMsg")
 	assert.Equal(t, uiBindingKeys(views.FilesView{}.KeyMap().ShortHelp()), uiBindingKeys(status.Current.ShortHelp()))
+}
+
+func TestAppModel_Update_BackgroundColorMsg_IsNoOp(t *testing.T) {
+	app, _, _, _ := newTestApp(t)
+	want := *app
+
+	updated, cmd := app.Update(tea.BackgroundColorMsg{})
+	got, ok := updated.(AppModel)
+	require.True(t, ok, "Update must return AppModel")
+	assert.Equal(t, want, got)
+	assert.Nil(t, cmd)
+}
+
+func TestAppModel_NewApp_InitializesHelpModel(t *testing.T) {
+	app, _, _, _ := newTestApp(t)
+
+	assert.NotEqual(t, lipgloss.Style{}, app.help.Styles.ShortKey)
+	assert.NotEqual(t, lipgloss.Style{}, app.help.Styles.ShortDesc)
 }
 
 func TestActivation_RoundTripOrdering(t *testing.T) {
@@ -268,33 +295,6 @@ func TestAppModel_Update_ItemSelectedMsg_StartsProcessing(t *testing.T) {
 
 	if app.currentView != ViewLogs {
 		t.Errorf("current should be ViewLogs after ItemSelectedMsg; got %v", app.currentView)
-	}
-}
-
-// TestAppModel_Update_ThemeAppliedMsg_PropagatesToAllViews — on
-// tea.BackgroundColorMsg, the AppModel must route ThemeAppliedMsg to
-// every view in the map. We verify by reading the views map after the
-// Update and asserting each view is present (the theme application
-// is idempotent and the views don't expose Visible state for theme).
-func TestAppModel_Update_ThemeAppliedMsg_PropagatesToAllViews(t *testing.T) {
-	app, _, _, _ := newTestApp(t)
-
-	// The applyTheme method is what we want to test the broadcast for;
-	// it runs on every BackgroundColorMsg whose IsDark differs from
-	// the current isDark. We invoke it directly with the opposite
-	// value to keep the test free of the BackgroundColorMsg
-	// construction details (which is an embedded color.Color).
-	targetIsDark := !app.isDark
-	app.applyTheme(targetIsDark)
-
-	if app.isDark != targetIsDark {
-		t.Errorf("isDark must be updated; want %v, got %v", targetIsDark, app.isDark)
-	}
-	// All views must still be present in the map.
-	for _, k := range []View{ViewFiles, ViewLogs, ViewSettings} {
-		if app.views[k] == nil {
-			t.Errorf("views[%v] must be non-nil after applyTheme", k)
-		}
 	}
 }
 

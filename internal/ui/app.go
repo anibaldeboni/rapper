@@ -14,7 +14,6 @@ import (
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/components"
-	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
 )
@@ -95,7 +94,6 @@ type AppModel struct {
 	toastMgr         *components.ToastManager
 	width            int
 	height           int
-	isDark           bool
 	hasKeyEventTypes bool
 
 	chrome ChromeLayout
@@ -128,10 +126,7 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 		toastMgr: components.NewToastManager(),
 		cancelMu: &sync.RWMutex{},
 		chrome:   NewChromeLayout(),
-		isDark:   true,
 	}
-
-	app.applyTheme(true)
 
 	return app
 }
@@ -159,18 +154,7 @@ func createHelp() help.Model {
 
 func (m AppModel) Init() tea.Cmd {
 	_, activationCmd := m.activateView(m.currentView)
-	return tea.Batch(tea.RequestBackgroundColor, tickCmd(), m.spinner.Tick, activationCmd)
-}
-
-func (m *AppModel) applyTheme(isDark bool) {
-	m.isDark = isDark
-	styles.ApplyTheme(isDark)
-
-	for k, v := range m.views {
-		next, _ := v.Update(msgs.ThemeAppliedMsg{IsDark: isDark})
-		m.views[k] = next
-	}
-	m.help = createHelp()
+	return tea.Batch(tickCmd(), m.spinner.Tick, activationCmd)
 }
 
 func operationError() logs.LogMessage {

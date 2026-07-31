@@ -127,19 +127,32 @@ func TestFilesView_Update_ViewportSizeMsg_ResizesList(t *testing.T) {
 	}
 }
 
-// TestFilesView_Update_ThemeAppliedMsg_Applies — Update(ThemeAppliedMsg)
-// must apply the theme without panicking. The exact bullet colours are
-// not asserted (those are lipgloss details); the contract is that the
-// message handler exists and does not return a cmd.
-func TestFilesView_Update_ThemeAppliedMsg_Applies(t *testing.T) {
+func TestFilesView_PaginationDots_AreByteIdentical(t *testing.T) {
 	v := NewFilesView(nil)
 
-	next, cmd := v.Update(msgs.ThemeAppliedMsg{IsDark: false})
-	if _, ok := next.(FilesView); !ok {
-		t.Fatalf("Update(ThemeAppliedMsg) must return FilesView; got %T", next)
+	tests := []struct {
+		name  string
+		style interface{ Render(...string) string }
+		want  string
+	}{
+		{
+			name:  "active",
+			style: v.list.Styles.ActivePaginationDot,
+			want:  "\x1b[1;38;2;211;211;211m⦿ \x1b[m",
+		},
+		{
+			name:  "inactive",
+			style: v.list.Styles.InactivePaginationDot,
+			want:  "\x1b[1;38;2;141;141;141m⦁ \x1b[m",
+		},
 	}
-	if cmd != nil {
-		t.Fatalf("Update(ThemeAppliedMsg) must return nil cmd; got %T", cmd)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.style.Render(""); got != tt.want {
+				t.Fatalf("pagination dot = %q; want %q", got, tt.want)
+			}
+		})
 	}
 }
 
