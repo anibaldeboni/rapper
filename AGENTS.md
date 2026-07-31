@@ -43,6 +43,7 @@ CI uses `gotest.tools/gotestsum` for output formatting; otherwise the same `go t
 - **Configuration schema:** see below — the loader accepts two formats, and which one is in `config.yml` is not what the README example shows.
 - **Style:** golangci-lint v2 with `copyloopvar`, `misspell`, `nilerr`, `perfsprint`, `prealloc`, `unconvert`, `unparam` enabled (see `.golangci.yml`). Formatters: `gofmt` + `goimports`.
 - **Tests:** colocated in the package they test (no central `tests/` Go code — `tests/example.csv` is a fixture only). Use `testify` and the gomock-generated mocks.
+- **Comments:** Write only relevant comments in interfaces, avoid writting comments in code
 
 ## Config profiles (gotcha)
 
