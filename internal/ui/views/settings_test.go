@@ -974,29 +974,29 @@ func TestSettingsView_Resize_UpdatesEditorAndList(t *testing.T) {
 	// The editor must fill the form pane's inner height (all available
 	// space), not stay at the construction default of 5 lines. In
 	// selection mode the form pane is unfocused (no border), so the
-	// inner height equals the pane height = Height-3 = 17 at H=20.
-	assert.Equal(t, 17, v.editor.Height(),
-		"editor height must fill the unfocused form pane inner height (Height-3) at H=20")
+	// inner height equals the pane height = Height-5 = 15 at H=20.
+	assert.Equal(t, 15, v.editor.Height(),
+		"editor height must fill the unfocused form pane inner height (Height-5) at H=20")
 }
 
 // TestSettingsView_Resize_EditorHeightFillsBorderedPaneInEditMode is
 // the S4 extension: in edit mode the form pane gets a rounded border
-// (2 vertical lines), so the editor inner height = Height-3-2 = 15 at
+// (2 vertical lines), so the editor inner height = Height-5-2 = 13 at
 // H=20. Pressing e must re-layout the editor to the bordered inner.
 func TestSettingsView_Resize_EditorHeightFillsBorderedPaneInEditMode(t *testing.T) {
 	v, _ := newTestSettingsView(t)
 
 	next, _ := v.Update(msgs.ViewportSizeMsg{Width: 80, Height: 20})
 	v = next.(SettingsView)
-	assert.Equal(t, 17, v.editor.Height(),
-		"selection-mode editor height = Height-3 at H=20")
+	assert.Equal(t, 15, v.editor.Height(),
+		"selection-mode editor height = Height-5 at H=20")
 
 	// Enter edit mode — focus switches to the form pane (bordered),
 	// so the editor must shrink to the bordered inner height.
 	next, _ = v.Update(settingsKeyMsg("e"))
 	v = next.(SettingsView)
-	assert.Equal(t, 15, v.editor.Height(),
-		"edit-mode editor height = Height-3-2 (bordered pane inner) at H=20")
+	assert.Equal(t, 13, v.editor.Height(),
+		"edit-mode editor height = Height-5-2 (bordered pane inner) at H=20")
 }
 
 // Compile-time check: kbind.Edit and kbind.ExitEdit are referenced
