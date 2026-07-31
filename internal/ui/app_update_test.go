@@ -89,6 +89,21 @@ func TestAppModel_ActivateView_MissingViewKeepsNavigationSafe(t *testing.T) {
 	assert.Equal(t, ViewSettings, next.currentView)
 }
 
+func TestAppModel_NavReEntryToFiles_ReEmitsViewActivatedMsg(t *testing.T) {
+	app, _, _, _ := newTestApp(t)
+
+	updated, _ := app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
+	next := updated.(AppModel)
+	next.currentStatusKeymap = views.LogsView{}.KeyMap()
+
+	updated, cmd := next.Update(tea.KeyPressMsg{Code: tea.KeyF1})
+	final := updated.(AppModel)
+	require.Equal(t, ViewFiles, final.currentView)
+
+	status := statusKeymapFromCmd(t, cmd)
+	assert.Equal(t, uiBindingKeys(status.Current.ShortHelp()), uiBindingKeys(views.FilesView{}.KeyMap().ShortHelp()))
+}
+
 // newTestApp builds an AppModel with all mock dependencies ready and
 // returns the AppModel plus the mock handles for tests that need to set
 // up additional expectations (e.g. Do, Update, Save). Tests that don't
