@@ -41,6 +41,22 @@ func (v activationTestView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (v activationTestView) View() tea.View { return tea.NewView("activation test") }
 
+type orderedLogsView struct {
+	view views.LogsView
+}
+
+func (v orderedLogsView) Init() tea.Cmd { return v.view.Init() }
+
+func (v orderedLogsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(msgs.MetricsVisibilityMsg); ok {
+		return v, nil
+	}
+	next, cmd := v.view.Update(msg)
+	return orderedLogsView{view: next.(views.LogsView)}, cmd
+}
+
+func (v orderedLogsView) View() tea.View { return v.view.View() }
+
 func statusKeymapFromCmd(t *testing.T, cmd tea.Cmd) msgs.StatusKeymapMsg {
 	t.Helper()
 	if cmd == nil {
@@ -115,6 +131,23 @@ func TestAppModel_Init_PreInitializesStatusKeymap(t *testing.T) {
 	status, ok := batch[len(batch)-1]().(msgs.StatusKeymapMsg)
 	require.True(t, ok, "last Init command must yield StatusKeymapMsg")
 	assert.Equal(t, uiBindingKeys(views.FilesView{}.KeyMap().ShortHelp()), uiBindingKeys(status.Current.ShortHelp()))
+}
+
+func TestActivation_RoundTripOrdering(t *testing.T) {
+	app, _, _, _ := newTestApp(t, "../../tests/example.csv")
+	app.width = 120
+	app.height = 40
+	logsView := app.views[ViewLogs].(views.LogsView)
+	app.views[ViewLogs] = orderedLogsView{view: logsView}
+
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
+	next := updated.(AppModel)
+	assert.NotContains(t, next.View().Content, "go to bottom")
+
+	status := statusKeymapFromCmd(t, cmd)
+	updated, _ = next.Update(status)
+	after := updated.(AppModel).View().Content
+	assert.Contains(t, after, "go to bottom")
 }
 
 // newTestApp builds an AppModel with all mock dependencies ready and
