@@ -61,6 +61,16 @@ func TestLogsView_KeyMap_ShortHelp_MirrorsPriorCentralized(t *testing.T) {
 	assert.Equal(t, wantFull, gotFull)
 }
 
+func TestLogsView_Update_ViewActivatedMsg_EmitsStatusKeymap(t *testing.T) {
+	v, _, _ := newTestLogsView(t)
+	next, cmd := v.Update(msgs.ViewActivatedMsg{})
+	assert.IsType(t, LogsView{}, next)
+	require.NotNil(t, cmd)
+	status, ok := cmd().(msgs.StatusKeymapMsg)
+	require.True(t, ok, "activation command must return msgs.StatusKeymapMsg")
+	assert.Equal(t, bindingKeys(v.KeyMap().ShortHelp()), bindingKeys(status.Current.ShortHelp()))
+}
+
 func TestLogsView_Resize_AllocatesEnoughWidthForMetricsPanel(t *testing.T) {
 	v, _, proc := newTestLogsView(t)
 	// Realistic snapshot: large request counts push the throughput and

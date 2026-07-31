@@ -133,6 +133,16 @@ func TestSettingsView_KeyMap_ShortHelp_Unchanged(t *testing.T) {
 	assert.Equal(t, [][][]string{{{"esc"}, {"ctrl+s"}}}, bindingGroupKeys(v.KeyMap().FullHelp()))
 }
 
+func TestSettingsView_Update_ViewActivatedMsg_EmitsStatusKeymap(t *testing.T) {
+	v, _ := newTestSettingsView(t)
+	next, cmd := v.Update(msgs.ViewActivatedMsg{})
+	assert.IsType(t, SettingsView{}, next)
+	require.NotNil(t, cmd)
+	status, ok := cmd().(msgs.StatusKeymapMsg)
+	require.True(t, ok, "activation command must return msgs.StatusKeymapMsg")
+	assert.Equal(t, bindingKeys(v.KeyMap().ShortHelp()), bindingKeys(status.Current.ShortHelp()))
+}
+
 // TestSettingsView_InitialState_EditorShowsActiveProfileRaw is S2.1.
 // On construction, the editor must show the raw bytes of the active
 // profile, must NOT be focused, and the selected profile must equal

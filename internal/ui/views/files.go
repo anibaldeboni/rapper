@@ -119,6 +119,9 @@ func (v FilesView) Init() tea.Cmd { return nil }
 // the same package can type-assert without risk of panic.
 func (v FilesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case msgs.ViewActivatedMsg:
+		return v, v.emitStatusKeymap()
+
 	case msgs.ViewportSizeMsg:
 		v.width = msg.Width
 		v.height = msg.Height
@@ -151,6 +154,12 @@ func (v FilesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	v.list, cmd = v.list.Update(msg)
 	return v, cmd
+}
+
+func (v FilesView) emitStatusKeymap() tea.Cmd {
+	return func() tea.Msg {
+		return msgs.StatusKeymapMsg{Current: v.KeyMap()}
+	}
 }
 
 // emitItemSelected returns a tea.Cmd that yields msgs.ItemSelectedMsg

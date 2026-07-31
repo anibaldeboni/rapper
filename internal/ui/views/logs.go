@@ -108,6 +108,9 @@ func (v LogsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case msgs.ViewActivatedMsg:
+		return v, v.emitStatusKeymap()
+
 	case msgs.ViewportSizeMsg:
 		v = v.applyViewportSize(msg.Width, msg.Height)
 
@@ -152,6 +155,12 @@ func (v LogsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return v, cmd
+}
+
+func (v LogsView) emitStatusKeymap() tea.Cmd {
+	return func() tea.Msg {
+		return msgs.StatusKeymapMsg{Current: v.KeyMap()}
+	}
 }
 
 // applyViewportSize re-partitions the available width between the log

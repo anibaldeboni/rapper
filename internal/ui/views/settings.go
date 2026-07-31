@@ -195,6 +195,9 @@ func (v SettingsView) loadSelectedProfileRaw(name string) SettingsView {
 
 func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case msgs.ViewActivatedMsg:
+		return v, v.emitStatusKeymap()
+
 	case msgs.ViewportSizeMsg:
 		v.width = msg.Width
 		v.height = msg.Height
@@ -236,6 +239,12 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return v, nil
+}
+
+func (v SettingsView) emitStatusKeymap() tea.Cmd {
+	return func() tea.Msg {
+		return msgs.StatusKeymapMsg{Current: v.KeyMap()}
+	}
 }
 
 func (v SettingsView) layoutEditor() SettingsView {

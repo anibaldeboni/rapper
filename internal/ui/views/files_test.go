@@ -41,6 +41,24 @@ func TestFilesView_KeyMap_ShortHelp_MirrorsPriorCentralized(t *testing.T) {
 	}
 }
 
+func TestFilesView_Update_ViewActivatedMsg_EmitsStatusKeymap(t *testing.T) {
+	v := NewFilesView(nil)
+	next, cmd := v.Update(msgs.ViewActivatedMsg{})
+	if _, ok := next.(FilesView); !ok {
+		t.Fatalf("Update(ViewActivatedMsg) returned %T; want FilesView", next)
+	}
+	if cmd == nil {
+		t.Fatal("Update(ViewActivatedMsg) must return a status-keymap command")
+	}
+	status, ok := cmd().(msgs.StatusKeymapMsg)
+	if !ok {
+		t.Fatalf("activation command returned %T; want msgs.StatusKeymapMsg", cmd())
+	}
+	if got, want := bindingKeys(status.Current.ShortHelp()), bindingKeys(v.KeyMap().ShortHelp()); !reflect.DeepEqual(got, want) {
+		t.Fatalf("activation keymap keys = %v; want %v", got, want)
+	}
+}
+
 // TestFilesView_Init_ReturnsNil — Init must return nil per R-6.
 func TestFilesView_Init_ReturnsNil(t *testing.T) {
 	v := NewFilesView(nil)
