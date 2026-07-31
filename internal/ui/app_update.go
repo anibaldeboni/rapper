@@ -25,6 +25,20 @@ func emit(m tea.Msg) tea.Cmd {
 	return func() tea.Msg { return m }
 }
 
+func (m AppModel) activateView(v View) (tea.Model, tea.Cmd) {
+	m.currentView = v
+	metricsCmd := m.routeToAllViews(msgs.MetricsVisibilityMsg{Visible: v == ViewLogs})
+
+	active, ok := m.views[v]
+	if !ok || active == nil {
+		return m, metricsCmd
+	}
+
+	next, activationCmd := active.Update(msgs.ViewActivatedMsg{})
+	m.views[v] = next
+	return m, tea.Batch(activationCmd, metricsCmd)
+}
+
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -36,16 +50,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, kbind.ViewFiles):
-			m.currentView = ViewFiles
-			return m, m.routeToAllViews(msgs.MetricsVisibilityMsg{Visible: false})
+			return m.activateView(ViewFiles)
 
 		case key.Matches(msg, kbind.ViewLogs):
-			m.currentView = ViewLogs
-			return m, m.routeToAllViews(msgs.MetricsVisibilityMsg{Visible: true})
+			return m.activateView(ViewLogs)
 
 		case key.Matches(msg, kbind.ViewSettings):
-			m.currentView = ViewSettings
-			return m, m.routeToAllViews(msgs.MetricsVisibilityMsg{Visible: false})
+			return m.activateView(ViewSettings)
 
 		case key.Matches(msg, kbind.CancelOperation):
 			if m.cancel != nil {
@@ -139,6 +150,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// is delivered by the framework on the next Update tick and
 		// must reach the LogsView for the chain to self-sustain.
 		return m, m.routeToAllViews(msg)
+
+	case msgs.StatusKeymapMsg:
+		m.currentStatusKeymap = msg.Current
+		return m, nil
 
 	case msgs.ProcessingStoppedMsg:
 		// Clear cancel function

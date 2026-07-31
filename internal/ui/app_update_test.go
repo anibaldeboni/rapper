@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
@@ -16,6 +17,77 @@ import (
 )
 
 func contextTODO() context.Context { return context.TODO() }
+
+func uiBindingKeys(bindings []key.Binding) [][]string {
+	keys := make([][]string, len(bindings))
+	for i, binding := range bindings {
+		keys[i] = binding.Keys()
+	}
+	return keys
+}
+
+type activationTestView struct{}
+
+func (v activationTestView) Init() tea.Cmd { return nil }
+
+func (v activationTestView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(msgs.ViewActivatedMsg); ok {
+		return v, func() tea.Msg {
+			return msgs.StatusKeymapMsg{Current: views.LogsView{}.KeyMap()}
+		}
+	}
+	return v, nil
+}
+
+func (v activationTestView) View() tea.View { return tea.NewView("activation test") }
+
+func statusKeymapFromCmd(t *testing.T, cmd tea.Cmd) msgs.StatusKeymapMsg {
+	t.Helper()
+	if cmd == nil {
+		t.Fatal("expected a command")
+	}
+	msg := cmd()
+	if status, ok := msg.(msgs.StatusKeymapMsg); ok {
+		return status
+	}
+	batch, ok := msg.(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("command returned %T; want StatusKeymapMsg or BatchMsg", msg)
+	}
+	for _, child := range batch {
+		if child == nil {
+			continue
+		}
+		if status, ok := child().(msgs.StatusKeymapMsg); ok {
+			return status
+		}
+	}
+	t.Fatal("command batch did not contain StatusKeymapMsg")
+	return msgs.StatusKeymapMsg{}
+}
+
+func TestAppModel_NavSwitchToLogs_EmitsViewActivatedMsg(t *testing.T) {
+	app, _, _, _ := newTestApp(t)
+	app.views[ViewLogs] = activationTestView{}
+
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
+	next, ok := updated.(AppModel)
+	require.True(t, ok)
+	require.Equal(t, ViewLogs, next.currentView)
+
+	status := statusKeymapFromCmd(t, cmd)
+	assert.Equal(t, uiBindingKeys(status.Current.ShortHelp()), uiBindingKeys(views.LogsView{}.KeyMap().ShortHelp()))
+}
+
+func TestAppModel_ActivateView_MissingViewKeepsNavigationSafe(t *testing.T) {
+	app, _, _, _ := newTestApp(t)
+	delete(app.views, ViewSettings)
+
+	updated, _ := app.activateView(ViewSettings)
+	next, ok := updated.(AppModel)
+	require.True(t, ok)
+	assert.Equal(t, ViewSettings, next.currentView)
+}
 
 // newTestApp builds an AppModel with all mock dependencies ready and
 // returns the AppModel plus the mock handles for tests that need to set
