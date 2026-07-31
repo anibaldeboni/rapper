@@ -3,6 +3,7 @@ package views
 import (
 	"time"
 
+	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -61,6 +62,23 @@ func NewLogsView(logger ports.LogProvider, proc ports.ProcessorController) LogsV
 		rightCol: metricsDefaultWidth,
 	}
 	return v.refreshLogs()
+}
+
+type logsViewKeyMap struct{}
+
+func (logsViewKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{kbind.Up, kbind.Down, kbind.Select, kbind.GotoBottom}
+}
+
+func (logsViewKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{
+		kbind.Up, kbind.Down, kbind.GotoTop, kbind.GotoBottom,
+		kbind.PageUp, kbind.PageDown, kbind.Select,
+	}}
+}
+
+func (LogsView) KeyMap() help.KeyMap {
+	return logsViewKeyMap{}
 }
 
 // Init returns nil. The metrics tick chain is started via

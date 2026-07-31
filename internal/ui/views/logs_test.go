@@ -47,6 +47,20 @@ func newTestLogsView(t *testing.T) (LogsView, *mock_ui.MockLogProvider, *mock_ui
 	return NewLogsView(logger, proc), logger, proc
 }
 
+func TestLogsView_KeyMap_ShortHelp_MirrorsPriorCentralized(t *testing.T) {
+	v, _, _ := newTestLogsView(t)
+	got := bindingKeys(v.KeyMap().ShortHelp())
+	want := [][]string{{"up"}, {"down"}, {"enter"}, {"end"}}
+
+	if !assert.Equal(t, want, got) {
+		t.Fatalf("LogsView.KeyMap().ShortHelp() keys = %v; want %v", got, want)
+	}
+
+	gotFull := bindingGroupKeys(v.KeyMap().FullHelp())
+	wantFull := [][][]string{{{"up"}, {"down"}, {"home"}, {"end"}, {"pgup"}, {"pgdown"}, {"enter"}}}
+	assert.Equal(t, wantFull, gotFull)
+}
+
 func TestLogsView_Resize_AllocatesEnoughWidthForMetricsPanel(t *testing.T) {
 	v, _, proc := newTestLogsView(t)
 	// Realistic snapshot: large request counts push the throughput and

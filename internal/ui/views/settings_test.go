@@ -118,6 +118,21 @@ func newTestSettingsView(t *testing.T, opts ...settingsViewOpt) (SettingsView, *
 	return NewSettingsView(configMgr), configMgr
 }
 
+func TestSettingsView_KeyMap_ShortHelp_Unchanged(t *testing.T) {
+	v, _ := newTestSettingsView(t)
+	got := bindingKeys(v.KeyMap().ShortHelp())
+	want := [][]string{{"up"}, {"down"}, {"e"}, {"enter"}}
+
+	assert.Equal(t, want, got)
+	assert.Equal(t, [][][]string{{{"up"}, {"down"}, {"e"}, {"enter"}}}, bindingGroupKeys(v.KeyMap().FullHelp()))
+
+	v.editing = true
+	got = bindingKeys(v.KeyMap().ShortHelp())
+	want = [][]string{{"esc"}, {"ctrl+s"}}
+	assert.Equal(t, want, got)
+	assert.Equal(t, [][][]string{{{"esc"}, {"ctrl+s"}}}, bindingGroupKeys(v.KeyMap().FullHelp()))
+}
+
 // TestSettingsView_InitialState_EditorShowsActiveProfileRaw is S2.1.
 // On construction, the editor must show the raw bytes of the active
 // profile, must NOT be focused, and the selected profile must equal

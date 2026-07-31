@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
@@ -66,6 +67,20 @@ func NewFilesView(csvFiles []list.Item) FilesView {
 	v := FilesView{list: l}
 	v.setTheme(true)
 	return v
+}
+
+type filesViewKeyMap struct{}
+
+func (filesViewKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{kbind.Up, kbind.Down, kbind.Select}
+}
+
+func (filesViewKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{kbind.Up, kbind.Down, kbind.Select}}
+}
+
+func (FilesView) KeyMap() help.KeyMap {
+	return filesViewKeyMap{}
 }
 
 // setTheme is the value-receiver version of the historical SetTheme

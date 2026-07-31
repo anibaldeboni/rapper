@@ -1,12 +1,45 @@
 package views
 
 import (
+	"reflect"
 	"testing"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 )
+
+func bindingKeys(bindings []key.Binding) [][]string {
+	keys := make([][]string, len(bindings))
+	for i, binding := range bindings {
+		keys[i] = binding.Keys()
+	}
+	return keys
+}
+
+func bindingGroupKeys(groups [][]key.Binding) [][][]string {
+	keys := make([][][]string, len(groups))
+	for i, group := range groups {
+		keys[i] = bindingKeys(group)
+	}
+	return keys
+}
+
+func TestFilesView_KeyMap_ShortHelp_MirrorsPriorCentralized(t *testing.T) {
+	got := bindingKeys(NewFilesView(nil).KeyMap().ShortHelp())
+	want := [][]string{{"up"}, {"down"}, {"enter"}}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("FilesView.KeyMap().ShortHelp() keys = %v; want %v", got, want)
+	}
+
+	gotFull := bindingGroupKeys(NewFilesView(nil).KeyMap().FullHelp())
+	wantFull := [][][]string{{{"up"}, {"down"}, {"enter"}}}
+	if !reflect.DeepEqual(gotFull, wantFull) {
+		t.Fatalf("FilesView.KeyMap().FullHelp() keys = %v; want %v", gotFull, wantFull)
+	}
+}
 
 // TestFilesView_Init_ReturnsNil — Init must return nil per R-6.
 func TestFilesView_Init_ReturnsNil(t *testing.T) {
