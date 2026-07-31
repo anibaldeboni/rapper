@@ -2,6 +2,8 @@ package msgs
 
 import (
 	"time"
+
+	"charm.land/bubbles/v2/help"
 )
 
 type TickMsg time.Time
@@ -35,6 +37,12 @@ type ItemSelectedMsg struct {
 // message replaces the imperative SetTheme call on each view.
 type ThemeAppliedMsg struct {
 	IsDark bool
+}
+
+type ViewActivatedMsg struct{}
+
+type StatusKeymapMsg struct {
+	Current help.KeyMap
 }
 
 // MetricsVisibilityMsg starts (Visible=true) or stops (Visible=false)
