@@ -17,3 +17,6 @@ CHANGELOG.md
 .atl/
 # CodeGraph
 .codegraph/
+
+# tests
+.files/
