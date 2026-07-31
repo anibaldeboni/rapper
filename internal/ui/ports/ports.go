@@ -45,7 +45,7 @@ type ConfigManager interface {
 	// an error referencing the profile name when the name is unknown.
 	GetProfileRaw(name string) (string, error)
 
-	// SaveProfileRaw validates content as YAML (new or legacy schema)
+	// SaveProfileRaw validates content as new-schema YAML
 	// and writes it to the named profile's FilePath. OnChange fires
 	// exactly once ONLY when the saved profile is the active one (so
 	// workers/gateway re-apply for hot-reload). Non-active saves update

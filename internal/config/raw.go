@@ -12,22 +12,14 @@ var ErrEmptyContent = errors.New("config content is empty")
 
 func parseConfigFile(data []byte) (*Config, error) {
 	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err == nil && cfg.Request.Method != "" {
-		if vErr := validateConfigShim(&cfg); vErr != nil {
-			return nil, fmt.Errorf("invalid config: %w", vErr)
-		}
-		return &cfg, nil
-	}
-
-	var legacy AppConfig
-	if err := yaml.Unmarshal(data, &legacy); err != nil {
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
-	converted := legacy.ToConfig()
-	if vErr := validateConfigShim(converted); vErr != nil {
+
+	if vErr := validateConfigShim(&cfg); vErr != nil {
 		return nil, fmt.Errorf("invalid config: %w", vErr)
 	}
-	return converted, nil
+	return &cfg, nil
 }
 
 func validateConfigShim(cfg *Config) error {

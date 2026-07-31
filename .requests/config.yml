@@ -1,9 +1,7 @@
-token: JWT of your application
-path:
+request:
   method: PUT
-  template: https://api.myapp.io/users/{{.id}}
-payload:
-  template: |
+  url_template: https://api.myapp.io/users/{{.id}}
+  body_template: |
     {
       "address": {
         "street": "{{.street_name}}",
@@ -11,6 +9,9 @@ payload:
         "city": "{{.city}}"
       }
     }
+  headers:
+    Authorization: "Bearer JWT of your application"
+    Content-Type: application/json
 csv:
   fields:
     - id
@@ -18,3 +19,4 @@ csv:
     - house_number
     - city
   separator: ','
+workers: 1

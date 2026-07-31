@@ -40,16 +40,12 @@ CI uses `gotest.tools/gotestsum` for output formatting; otherwise the same `go t
 - **Hexagonal ports:** define interfaces in the **consuming** package, not the implementing one. Examples: `internal/processor/ports.go` (`HttpGateway`, `RequestLogger`), `internal/ui/ports/ports.go`. Mark with `//go:generate mockgen -destination mock/<name>_mock.go -package mock_<pkg> <iface-path> <IfaceName>`.
 - **Mock output dir:** `internal/<pkg>/mock/` (one per package). Always run `make mocks` after editing an interface, then `make install_deps` so `go mod tidy` sees any new dependencies.
 - **Templates:** URL/body/header values are Go `text/template` strings. Data map = CSV row keys → cell values. Use `{{.field_name}}`.
-- **Configuration schema:** see below — the loader accepts two formats, and which one is in `config.yml` is not what the README example shows.
+- **Configuration schema:** profiles use `request:` (with `method`, `url_template`, optional `body_template`, and `headers`) plus `csv:` (with `fields` and optional `separator`) and `workers`.
 - **Style:** golangci-lint v2 with `copyloopvar`, `misspell`, `nilerr`, `perfsprint`, `prealloc`, `unconvert`, `unparam` enabled (see `.golangci.yml`). Formatters: `gofmt` + `goimports`.
 - **Tests:** colocated in the package they test (no central `tests/` Go code — `tests/example.csv` is a fixture only). Use `testify` and the gomock-generated mocks.
 - **Comments:** Write only relevant comments in interfaces, avoid writting comments in code
 
-## Config profiles (gotcha)
-
-- `config.yml` at the repo root uses the **legacy** schema (`token:` / `path:` / `payload:`). The loader accepts it for backwards compatibility, but it is the **old** shape.
-- The **new** schema is `request:` (with `method`, `url_template`, `body_template`, `headers`) + `csv:` + `workers`. This is what the README and `production.yml` / `staging.yml` / `api1.yml` use.
-- New profiles in the config dir become switchable in the TUI via `Ctrl+P`. `config.yml` is the default profile unless the user changes it.
+Profiles in the config dir become switchable in the TUI via `Ctrl+P`; `config.yml` is the default profile unless the user changes it.
 
 ## Verification gates (must pass before merge)
 

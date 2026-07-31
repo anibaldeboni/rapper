@@ -181,23 +181,43 @@ func TestManager_SaveProfileRaw_EmptyContent_Rejected(t *testing.T) {
 	}
 }
 
-// S1.6 — SaveProfileRaw also accepts the legacy YAML schema (config.yml).
-// Mirrors Loader.Load's two-pass parse. Critical so a profile saved in
-// the legacy shape still round-trips through SaveProfileRaw.
-func TestManager_SaveProfileRaw_LegacyYAML_Accepted(t *testing.T) {
+// S1.6 — SaveProfileRaw rejects the legacy YAML schema without changing the
+// existing profile or notifying listeners.
+func TestManager_SaveProfileRaw_LegacyYAML_Rejected(t *testing.T) {
 	legacy := "url: http://legacy\ntoken: abc\npath:\n  method: POST\n  template: /v1/x\npayload:\n  template: '{}'\ncsv:\n  fields: [id]\nworkers: 1\n"
-	mgr, dir := newRawTestManager(t, map[string]string{"legacy": legacy})
+	original := "request:\n  method: POST\n  url_template: http://current\ncsv:\n  fields: [id]\nworkers: 2\n"
+	mgr, dir := newRawTestManager(t, map[string]string{"profile": original})
 
-	// Save the same content (no change) — must succeed and fire OnChange.
-	if err := mgr.SaveProfileRaw("legacy", legacy); err != nil {
-		t.Fatalf("SaveProfileRaw legacy: %v", err)
+	var calls atomic.Int32
+	mgr.OnChange(func(_ *Config) { calls.Add(1) })
+
+	err := mgr.SaveProfileRaw("profile", legacy)
+	if err == nil {
+		t.Fatal("SaveProfileRaw must reject legacy YAML")
 	}
-	written, err := os.ReadFile(filepath.Join(dir, "legacy.yml"))
+	written, err := os.ReadFile(filepath.Join(dir, "profile.yml"))
 	if err != nil {
 		t.Fatalf("read back: %v", err)
 	}
-	if string(written) != legacy {
-		t.Fatalf("legacy file content changed unexpectedly.\nwant: %q\ngot:  %q", legacy, string(written))
+	if string(written) != original {
+		t.Fatalf("profile content changed after rejected legacy save.\nwant: %q\ngot:  %q", original, string(written))
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("OnChange must not fire after rejected legacy save; got %d calls", calls.Load())
+	}
+}
+
+func TestParseConfigFile_LegacyYAML_Rejected(t *testing.T) {
+	t.Parallel()
+
+	legacy := []byte("url: http://legacy\ntoken: abc\npath:\n  method: POST\n  template: /v1/x\npayload:\n  template: '{}'\ncsv:\n  fields: [id]\nworkers: 1\n")
+
+	_, err := parseConfigFile(legacy)
+	if err == nil {
+		t.Fatal("parseConfigFile must reject legacy YAML")
+	}
+	if !strings.Contains(err.Error(), "request.method is required") {
+		t.Fatalf("error must name the missing new-schema field, got: %v", err)
 	}
 }
 

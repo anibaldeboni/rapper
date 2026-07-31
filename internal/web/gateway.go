@@ -43,27 +43,6 @@ func NewHttpGateway(method, urlTemplate, bodyTemplate string, headers map[string
 	}, nil
 }
 
-// NewHttpGatewayLegacy creates a new HTTP gateway using legacy token-based auth.
-// DEPRECATED: Use NewHttpGateway with headers map instead.
-func NewHttpGatewayLegacy(token, method, urlTemplate, bodyTemplate string) *httpGatewayImpl {
-	headers := map[string]string{
-		"Authorization": "Bearer " + token,
-		"Content-Type":  "application/json",
-	}
-
-	gateway, err := NewHttpGateway(method, urlTemplate, bodyTemplate, headers)
-	if err != nil {
-		// Fallback to basic implementation if templates fail
-		return &httpGatewayImpl{
-			method:  method,
-			headers: headers,
-			client:  newHttpClient(),
-		}
-	}
-
-	return gateway
-}
-
 func (hg *httpGatewayImpl) req(ctx context.Context, url string, body io.Reader, headers map[string]string) (Response, error) {
 	hg.mu.RLock()
 	method := hg.method

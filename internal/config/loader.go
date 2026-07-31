@@ -16,38 +16,23 @@ func NewLoader() *Loader {
 	return &Loader{}
 }
 
-// Load reads and parses a YAML configuration file
-// Supports both new and legacy config formats
+// Load reads and parses a new-format YAML configuration file.
 func (l *Loader) Load(filePath string) (*Config, error) {
 	file, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", filePath, err)
 	}
 
-	// Try new format first
 	var config Config
-	err = yaml.Unmarshal(file, &config)
-	if err == nil && config.Request.Method != "" {
-		// Validate required fields
-		if err := l.validateConfig(&config); err != nil {
-			return nil, fmt.Errorf("invalid config in %s: %w", filePath, err)
-		}
-		return &config, nil
-	}
-
-	// Fallback to legacy format
-	var legacyConfig AppConfig
-	err = yaml.Unmarshal(file, &legacyConfig)
-	if err != nil {
+	if err := yaml.Unmarshal(file, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", filePath, err)
 	}
 
-	converted := legacyConfig.ToConfig()
-	if err := l.validateConfig(converted); err != nil {
+	if err := l.validateConfig(&config); err != nil {
 		return nil, fmt.Errorf("invalid config in %s: %w", filePath, err)
 	}
 
-	return converted, nil
+	return &config, nil
 }
 
 // validateConfig validates the configuration structure
