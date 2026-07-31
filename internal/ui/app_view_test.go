@@ -5,9 +5,31 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/anibaldeboni/rapper/internal/ui/views"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRenderStatusBar_UsesCurrentStatusKeymapField(t *testing.T) {
+	app, _, _, _ := newTestApp(t)
+	app.width = 120
+	app.currentStatusKeymap = views.LogsView{}.KeyMap()
+
+	out := app.renderStatusBar()
+
+	assert.Contains(t, out, "go to bottom")
+}
+
+func TestView_FirstView_CorrectStatusKeymap(t *testing.T) {
+	app, _, _, _ := newTestApp(t, "../../tests/example.csv")
+	app.width = 120
+	app.height = 40
+
+	out := app.View().Content
+
+	assert.Contains(t, out, "run")
+	assert.NotContains(t, out, "go to bottom")
+}
 
 // TestView_NoToastsSkipsCompositor verifies the no-toast fast path in
 // AppModel.View(): when the ToastManager has no active toasts, the

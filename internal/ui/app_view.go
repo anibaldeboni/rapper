@@ -80,8 +80,7 @@ func (m AppModel) renderStatusBar() string {
 
 	appName := LogoStyle(fmt.Sprintf("%s@%s", AppName, AppVersion))
 
-	viewSpecificKeys := getViewSpecificKeyMap(m.currentView, m.views[m.currentView])
-	helpText := m.help.View(viewSpecificKeys)
+	helpText := m.help.View(m.currentStatusKeymap)
 
 	availableWidth := max(m.width-lipgloss.Width(appName)-10, 0)
 	helpEmptySpace, err := safecast.ToUint(availableWidth)

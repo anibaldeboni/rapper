@@ -81,7 +81,8 @@ func normalizeVersion(version string) string {
 type viewModel = tea.Model
 
 type AppModel struct {
-	currentView View
+	currentView         View
+	currentStatusKeymap help.KeyMap
 
 	logger    ports.LogService
 	processor ports.ProcessorController
@@ -110,13 +111,15 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 		items = append(items, mapFileToOption(file))
 	}
 
+	initialFilesView := views.NewFilesView(items)
 	app := &AppModel{
-		currentView: ViewFiles,
-		logger:      log,
-		processor:   fileProcessor,
-		configMgr:   configMgr,
+		currentView:         ViewFiles,
+		currentStatusKeymap: initialFilesView.KeyMap(),
+		logger:              log,
+		processor:           fileProcessor,
+		configMgr:           configMgr,
 		views: map[View]viewModel{
-			ViewFiles:    views.NewFilesView(items),
+			ViewFiles:    initialFilesView,
 			ViewLogs:     views.NewLogsView(log, fileProcessor),
 			ViewSettings: views.NewSettingsView(configMgr),
 		},
