@@ -29,3 +29,12 @@ func TestKeymaps_File_NoGetViewSpecificKeyMap(t *testing.T) {
 		t.Fatal("keymaps.go must not define getViewSpecificKeyMap")
 	}
 }
+
+func TestKeymaps_File_RetainsGlobalKeyMap(t *testing.T) {
+	source := readKeymapsSource(t)
+	for _, symbol := range []string{"type globalKeyMap", "func getGlobalKeyMap"} {
+		if !strings.Contains(source, symbol) {
+			t.Errorf("keymaps.go must retain %q", symbol)
+		}
+	}
+}

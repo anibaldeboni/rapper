@@ -31,6 +31,16 @@ func TestView_FirstView_CorrectStatusKeymap(t *testing.T) {
 	assert.NotContains(t, out, "go to bottom")
 }
 
+func TestRenderHeader_StillUsesGetGlobalKeyMap(t *testing.T) {
+	app, _, _, _ := newTestApp(t)
+	app.width = 120
+
+	out := app.renderHeader()
+	for _, fragment := range []string{"F1", "F2", "F3", "ctrl+c", "q"} {
+		assert.Contains(t, out, fragment)
+	}
+}
+
 // TestView_NoToastsSkipsCompositor verifies the no-toast fast path in
 // AppModel.View(): when the ToastManager has no active toasts, the
 // rendered output must contain only the background (header, content,
