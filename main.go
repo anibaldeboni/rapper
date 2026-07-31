@@ -31,8 +31,8 @@ var (
 func init() {
 	go updateCheck(updateMsg)
 	cwd, _ := os.Getwd()
-	configPath = flag.String("config", cwd, "path to directory containing a config file")
-	workingDir = flag.String("dir", cwd, "path to directory containing the CSV files")
+	configPath = flag.String("requests", cwd, "path to directory containing a requests file")
+	workingDir = flag.String("files", cwd, "path to directory containing the CSV files")
 	outputFile = flag.String("output", "", "path to output file, including the file name")
 	workers = flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MaxWorkers))
 	flag.Usage = usage
@@ -40,22 +40,19 @@ func init() {
 }
 
 func main() {
-	// Create config manager (supports multi-profile)
 	configMgr, err := config.NewManager(*configPath)
 	if err != nil {
 		handleExit(fmt.Errorf("could not read config file: %w", err))
 	}
 
-	// Get active configuration
 	cfg := configMgr.Get()
 	if cfg == nil {
 		handleExit(errors.New("no active configuration found"))
-		return // handleExit calls os.Exit, but this helps the linter
+		return
 	}
 
 	logger := logs.NewLogger(*outputFile)
 
-	// Create HTTP gateway with flexible headers
 	hg, err := web.NewHttpGateway(
 		cfg.Request.Method,
 		cfg.Request.URLTemplate,
@@ -66,7 +63,6 @@ func main() {
 		handleExit(fmt.Errorf("could not create HTTP gateway: %w", err))
 	}
 
-	// Use workers from config if available, otherwise use flag
 	workerCount := *workers
 	if cfg.Workers > 0 {
 		workerCount = utils.Clamp(cfg.Workers, 1, processor.MaxWorkers)
@@ -79,7 +75,6 @@ func main() {
 		workerCount,
 	)
 
-	// Register config change listener to update gateway and processor
 	configMgr.OnChange(func(newCfg *config.Config) {
 		_ = hg.UpdateConfig(
 			newCfg.Request.Method,
@@ -101,7 +96,6 @@ func main() {
 		handleExit(fmt.Errorf("no CSV files found in %s", styles.Bold(*workingDir)))
 	}
 
-	// Use new AppModel with multi-view support
 	tui := ui.NewApp(filePaths, csvProcessor, logger, configMgr)
 	ttyIn, ttyOut, err := tea.OpenTTY()
 	if err != nil {
@@ -126,7 +120,7 @@ func main() {
 func usage() {
 	fmt.Printf("%s (%s)\n", styles.Bold(ui.AppName), ui.AppVersion)
 	fmt.Println("\nA CLI tool to send HTTP requests based on CSV files.")
-	fmt.Printf("All flags are optional. If %s or %s are not provided, the current directory will be used.\n", styles.Bold("-config"), styles.Bold("-dir"))
+	fmt.Printf("All flags are optional. If %s or %s are not provided, the current directory will be used.\n", styles.Bold("-requests"), styles.Bold("-files"))
 	fmt.Printf("If %s file is not provided, the request responses will not be saved.\n", styles.Bold("-output"))
 	fmt.Println("\nUsage:")
 	fmt.Printf("  %s [options]\n", styles.Bold(filepath.Base(os.Args[0])))
