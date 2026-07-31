@@ -158,7 +158,8 @@ func createHelp() help.Model {
 }
 
 func (m AppModel) Init() tea.Cmd {
-	return tea.Batch(tea.RequestBackgroundColor, tickCmd(), m.spinner.Tick)
+	_, activationCmd := m.activateView(m.currentView)
+	return tea.Batch(tea.RequestBackgroundColor, tickCmd(), m.spinner.Tick, activationCmd)
 }
 
 func (m *AppModel) applyTheme(isDark bool) {

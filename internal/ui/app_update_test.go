@@ -104,6 +104,19 @@ func TestAppModel_NavReEntryToFiles_ReEmitsViewActivatedMsg(t *testing.T) {
 	assert.Equal(t, uiBindingKeys(status.Current.ShortHelp()), uiBindingKeys(views.FilesView{}.KeyMap().ShortHelp()))
 }
 
+func TestAppModel_Init_PreInitializesStatusKeymap(t *testing.T) {
+	app, _, _, _ := newTestApp(t, "../../tests/example.csv")
+	app.currentStatusKeymap = views.LogsView{}.KeyMap()
+
+	batch, ok := app.Init()().(tea.BatchMsg)
+	require.True(t, ok, "Init must return a batch command")
+	require.GreaterOrEqual(t, len(batch), 4, "Init batch must include activation re-assertion")
+
+	status, ok := batch[len(batch)-1]().(msgs.StatusKeymapMsg)
+	require.True(t, ok, "last Init command must yield StatusKeymapMsg")
+	assert.Equal(t, uiBindingKeys(views.FilesView{}.KeyMap().ShortHelp()), uiBindingKeys(status.Current.ShortHelp()))
+}
+
 // newTestApp builds an AppModel with all mock dependencies ready and
 // returns the AppModel plus the mock handles for tests that need to set
 // up additional expectations (e.g. Do, Update, Save). Tests that don't
