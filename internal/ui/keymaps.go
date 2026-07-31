@@ -4,9 +4,9 @@ import (
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
+	"github.com/anibaldeboni/rapper/internal/ui/views"
 )
 
-// globalKeyMap shows only global navigation keys (for header)
 type globalKeyMap struct{}
 
 func (k globalKeyMap) ShortHelp() []key.Binding {
@@ -19,12 +19,10 @@ func (k globalKeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-// getGlobalKeyMap returns the global navigation keymap (for header)
 func getGlobalKeyMap() help.KeyMap {
 	return globalKeyMap{}
 }
 
-// filesViewKeyMap shows only files view specific keys
 type filesViewKeyMap struct{}
 
 func (k filesViewKeyMap) ShortHelp() []key.Binding {
@@ -35,10 +33,6 @@ func (k filesViewKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{kbind.Up, kbind.Down, kbind.Select}}
 }
 
-// logsViewKeyMap shows only logs view specific keys. The list is
-// vertical-only — Left/Right are not handled by the DetailedList
-// anymore — so the keymap reflects the available navigation
-// (Up/Down/PgUp/PgDn/Home/End) plus Enter to expand a row.
 type logsViewKeyMap struct{}
 
 func (k logsViewKeyMap) ShortHelp() []key.Binding {
@@ -52,38 +46,19 @@ func (k logsViewKeyMap) FullHelp() [][]key.Binding {
 	}}
 }
 
-// settingsViewKeyMap shows only settings view specific keys.
-// The slider keybindings are listed so users discover +/- while
-// the slider has focus; the slider itself only intercepts +
-// and - when focused. Tab / Shift+Tab are listed for the
-// two-pane focus model (pane toggle + backward field cycle).
-// Ctrl+P is intentionally absent — the profile list is always
-// visible, so the modal-toggle shortcut was removed in WU-11.
-type settingsViewKeyMap struct{}
-
-func (k settingsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.PaneToggle, kbind.PrevField, kbind.PageUp, kbind.PageDown, kbind.Save, kbind.SliderInc, kbind.SliderDec}
-}
-
-func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{kbind.PaneToggle, kbind.PrevField, kbind.Save},
-		{kbind.SliderInc, kbind.SliderDec},
-		{kbind.PageUp, kbind.PageDown, kbind.GotoTop, kbind.GotoBottom},
-	}
-}
-
-// getViewSpecificKeyMap returns only view-specific keys (excluding global navigation)
-func getViewSpecificKeyMap(view View) help.KeyMap {
+func getViewSpecificKeyMap(view View, vm viewModel) help.KeyMap {
 	switch view {
 	case ViewFiles:
 		return filesViewKeyMap{}
 	case ViewLogs:
 		return logsViewKeyMap{}
 	case ViewSettings:
-		return settingsViewKeyMap{}
+		if sv, ok := vm.(views.SettingsView); ok {
+			return sv.KeyMap()
+		}
+		return globalKeyMap{}
 	default:
-		// Return empty keymap for unknown views
+
 		return globalKeyMap{}
 	}
 }

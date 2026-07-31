@@ -10,6 +10,7 @@ import (
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
 	"github.com/anibaldeboni/rapper/internal/ui/views"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -44,6 +45,14 @@ func newTestApp(t *testing.T, csvPaths ...string) (
 	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
 	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
 	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
+	// The Settings view calls GetProfileRaw during construction to
+	// load the active profile's raw content. AppModel-level tests do
+	// not care about the content, so return an empty string and a
+	// non-nil error so the view sets inlineErr instead of panic.
+	// The view's own tests cover the success path.
+	configMgrMock.EXPECT().GetProfileRaw(gomock.Any()).
+		Return("", assert.AnError).
+		AnyTimes()
 	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
 	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
 	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()

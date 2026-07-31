@@ -51,49 +51,27 @@ var (
 		key.WithKeys("ctrl+p"),
 		key.WithHelp("ctrl+p", "profile"),
 	)
-	// SliderInc/SliderDec accept both the shifted text ("+", "-") and the
-	// shifted keystroke ("shift+=", "shift+-") representations.
-	//
-	// Why both: Bubble Tea v2 enables the Kitty keyboard protocol
-	// (KeyboardEnhancements.ReportEventTypes) so terminals like Kitty,
-	// WezTerm, foot, and recent xterm builds send shifted characters as
-	// {Text: "", Code: unshifted-rune, Mod: ModShift} — not the legacy
-	// {Text: shifted-rune}. Key.String() then renders as "shift+=" rather
-	// than "+", and the bubbles Matches helper does plain string equality
-	// against the binding keys, so a single WithKeys("+") entry silently
-	// swallows the keypress.
-	//
-	// We keep the unshifted/legacy forms ("+", "-") so terminals that
-	// still send the old format (or keypads) keep working, and we add
-	// the Kitty keystroke forms so the modern format works too.
-	SliderInc = key.NewBinding(
-		key.WithKeys("+", "shift+="),
-		key.WithHelp("+", "increase workers"),
-	)
-	SliderDec = key.NewBinding(
-		key.WithKeys("-", "shift+-"),
-		key.WithHelp("-", "decrease workers"),
-	)
-	NextField = key.NewBinding(
-		key.WithKeys("tab"),
-		key.WithHelp("tab", "next field"),
-	)
-	// PaneToggle is the help-text label for Tab when it acts as a
-	// pane toggle (the settings view's two-pane model). The binding
-	// itself is the same key as NextField (tab); the help text
-	// clarifies its role. The settings view re-uses NextField for
-	// the actual key match — PaneToggle is documentation only.
-	PaneToggle = key.NewBinding(
-		key.WithKeys("tab"),
-		key.WithHelp("tab", "switch panel"),
-	)
-	PrevField = key.NewBinding(
-		key.WithKeys("shift+tab"),
-		key.WithHelp("shift+tab", "next field"),
-	)
 	CancelOperation = key.NewBinding(
 		key.WithKeys("ctrl+c"),
 		key.WithHelp("ctrl+c", "kill operation"),
+	)
+	// Edit is the binding the Settings view uses to enter edit mode
+	// (focus the raw-YAML textarea). The same `e` key is used
+	// regardless of the pane state — the binding is documentation
+	// only; the actual key match happens in SettingsView.Update.
+	Edit = key.NewBinding(
+		key.WithKeys("e"),
+		key.WithHelp("e", "edit"),
+	)
+	// ExitEdit is the binding the Settings view uses to leave edit
+	// mode (blur the raw-YAML textarea and return to selection mode).
+	// `esc` is chosen over `shift+e` because the textarea is a text
+	// input: extracted text bindings (typing "e", shift+e produces
+	// "E") would conflict with an alphanumeric exit key. Esc is a
+	// non-printing key the editor won't insert into the buffer.
+	ExitEdit = key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "exit edit"),
 	)
 	GotoBottom = key.NewBinding(
 		key.WithKeys("end"),

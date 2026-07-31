@@ -3,18 +3,14 @@ package views
 import (
 	"fmt"
 	"io"
-	"strings"
 
+	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textarea"
-	"charm.land/bubbles/v2/textinput"
-	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/styles"
-	"github.com/anibaldeboni/rapper/internal/ui/components"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
@@ -23,129 +19,42 @@ import (
 
 var (
 	settingsTitleStyle = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230")).Padding(0, 1).Bold(true)
-	labelStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Bold(true)
-	focusedStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Background(styles.FocusedPaneBg)
-	helpStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
 	headerStyle        = lipgloss.NewStyle().MarginTop(1)
-	inputStyle         = lipgloss.NewStyle().MarginBottom(1)
 	profileBadgeStyle  = lipgloss.NewStyle().Background(lipgloss.Color("99")).Foreground(lipgloss.Color("230")).Padding(0, 1).MarginLeft(2)
+	inlineErrorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("205")).MarginTop(1)
 )
 
-// focus panes — the two-pane layout introduced by the persistent
-// profile sidebar. focusPane == paneList means keystrokes go to the
-// profile list; focusPane == paneForm means they go to the form
-// fields. Tab toggles between them.
 const (
-	paneList = 0
-	paneForm = 1
-)
-
-// sidebar width clamps. The sidebar is sized to 25 % of the viewport
-// width, but the result is clamped to [minListWidth, maxListWidth] so
-// profile names stay readable on narrow terminals and the sidebar
-// doesn't run away on wide ones.
-const (
+	paneList     = 0
+	paneForm     = 1
 	minListWidth = 15
 	maxListWidth = 30
 )
 
-// focusable fields
-const (
-	sliderField = iota
-	urlField
-	methodField
-	bodyField
-	headersField
-	csvFieldsField
-	maxFields
-)
-
-// SettingsView displays and edits configuration settings. It is a
-// value-type tea.Model so AppModel can store it behind the unified
-// viewModel type. Callers must capture the value returned by Update
-// to preserve state.
 type SettingsView struct {
 	configMgr ports.ConfigManager
-	proc      ports.ProcessorController
 	width     int
 	height    int
-	viewport  viewport.Model
 
-	// Worker count slider (above the form fields). Value-typed — the
-	// historical *components.Slider pointer was a relic of the
-	// pre-tea.Model design.
-	slider components.Slider
-
-	// Form fields
-	urlInput       textinput.Model
-	methodInput    textinput.Model
-	bodyInput      textarea.Model
-	headersInput   textarea.Model
-	csvFieldsInput textarea.Model
-
-	// Persistent profile sidebar. Always visible; cursor drives
-	// preview/activation. The bubbles list is a value type — its
-	// pointer-receiver Update/Select return the modified copy that
-	// the SettingsView captures locally before reassigning.
 	profileList list.Model
 
-	// Focus management
-	focused   int
-	focusPane int
-	focusable []int
+	editor textarea.Model
 
-	// State
-	modified bool
+	editing         bool
+	focusPane       int
+	selectedProfile string
+	activeProfile   string
+	inlineErr       string
 }
 
-// Compile-time guard: SettingsView must satisfy tea.Model with a value
-// receiver. Phase 3 converts the historical pointer-receiver surface
-// to value receivers; this assertion fails at build time if the
-// conversion regresses.
 var _ tea.Model = SettingsView{}
 
-// NewSettingsView creates a new SettingsView. The proc controller is required
-// because the worker-count slider at the top of the view mutates the runtime
-// processor immediately on change.
-func NewSettingsView(configMgr ports.ConfigManager, proc ports.ProcessorController) SettingsView {
-	// Create URL input
-	urlInput := textinput.New()
-	urlInput.Placeholder = "http://localhost:8080/api/v1/users"
-	urlInput.CharLimit = 500
-	urlInput.Prompt = ""
-
-	// Create method input
-	methodInput := textinput.New()
-	methodInput.Placeholder = "POST"
-	methodInput.CharLimit = 10
-	methodInput.Prompt = ""
-
-	// Create body textarea
-	bodyInput := textarea.New()
-	bodyInput.Placeholder = `{"name": "{{.name}}", "email": "{{.email}}"}`
-	bodyInput.CharLimit = 5000
-	bodyInput.SetHeight(5)
-	bodyInput.ShowLineNumbers = false
-
-	// Create headers textarea
-	headersInput := textarea.New()
-	headersInput.Placeholder = `Content-Type: application/json
-Authorization: Bearer {{.token}}`
-	headersInput.CharLimit = 2000
-	headersInput.SetHeight(5)
-	headersInput.ShowLineNumbers = false
-
-	// Create CSV fields textarea
-	csvFieldsInput := textarea.New()
-	csvFieldsInput.Placeholder = `id
-name
-email`
-	csvFieldsInput.CharLimit = 1000
-	csvFieldsInput.SetHeight(4)
-	csvFieldsInput.ShowLineNumbers = false
-
-	initial := proc.GetWorkerCount()
-	slider := components.NewSlider("Worker Count", 1, proc.GetMaxWorkers(), initial)
+func NewSettingsView(configMgr ports.ConfigManager) SettingsView {
+	editor := textarea.New()
+	editor.Placeholder = "# raw YAML — edit and press ctrl+s to save"
+	editor.CharLimit = 0
+	editor.ShowLineNumbers = true
+	editor.SetHeight(5)
 
 	profileNames := configMgr.ListProfiles()
 	items := make([]list.Item, len(profileNames))
@@ -162,34 +71,32 @@ email`
 	profileList.DisableQuitKeybindings()
 	profileList.KeyMap.CursorUp = kbind.Up
 	profileList.KeyMap.CursorDown = kbind.Down
-	if activeIdx := indexOf(profileNames, configMgr.GetActiveProfile()); activeIdx >= 0 {
+
+	activeIdx := indexOf(profileNames, configMgr.GetActiveProfile())
+	if activeIdx >= 0 {
 		profileList.Select(activeIdx)
 	}
 
 	v := SettingsView{
-		configMgr:      configMgr,
-		proc:           proc,
-		slider:         *slider,
-		profileList:    profileList,
-		urlInput:       urlInput,
-		methodInput:    methodInput,
-		bodyInput:      bodyInput,
-		headersInput:   headersInput,
-		csvFieldsInput: csvFieldsInput,
-		focused:        sliderField,
-		focusPane:      paneList,
-		focusable:      []int{sliderField, urlField, methodField, bodyField, headersField, csvFieldsField},
-		viewport:       viewport.New(viewport.WithWidth(0), viewport.WithHeight(0)),
+		configMgr:     configMgr,
+		profileList:   profileList,
+		editor:        editor,
+		focusPane:     paneList,
+		editing:       false,
+		activeProfile: configMgr.GetActiveProfile(),
 	}
 
-	v = v.loadConfig()
-	v = v.updateFocus()
+	v.selectedProfile = v.configMgr.GetActiveProfile()
+	if raw, err := v.configMgr.GetProfileRaw(v.selectedProfile); err == nil {
+		v.editor.SetValue(raw)
+	} else {
+
+		v.inlineErr = fmt.Sprintf("could not read %s: %v", v.selectedProfile, err)
+	}
 
 	return v
 }
 
-// indexOf returns the index of needle in haystack, or -1 if absent.
-// Used to seed the profile list's cursor at the active profile.
 func indexOf(haystack []string, needle string) int {
 	for i, s := range haystack {
 		if s == needle {
@@ -199,12 +106,8 @@ func indexOf(haystack []string, needle string) int {
 	return -1
 }
 
-// profileItemDelegate renders a single row of the profile sidebar.
-// The cursor row gets a "▶ " prefix; the active profile row gets
-// a " ●" suffix. The two decorations are independent so the
-// active profile on the cursor row shows both ("▶ name ●").
 type profileItemDelegate struct {
-	active string // injected at construction; the name of the active profile
+	active string
 }
 
 func (d profileItemDelegate) Height() int                             { return 1 }
@@ -219,161 +122,75 @@ func (d profileItemDelegate) Render(w io.Writer, m list.Model, index int, item l
 	if index == m.Index() {
 		prefix = "▶ "
 	}
-	tag := ""
+	name := opt.Value
 	if opt.Value == d.active {
-		tag = " ●"
+		name = lipgloss.NewStyle().Foreground(lipgloss.Color("#d6acff")).Bold(true).Render(name)
 	}
-	fmt.Fprintf(w, "%s%s%s", prefix, opt.Value, tag)
+	fmt.Fprintf(w, "%s%s", prefix, name)
 }
 
-// FocusedPane returns the currently focused pane constant. Exposed
-// for test assertions (S-9.1, S-9.2) and for AppModel state
-// inspection; the value is one of {paneList, paneForm}.
 func (v SettingsView) FocusedPane() int { return v.focusPane }
 
-// Init returns nil per R-6.
+func (v SettingsView) KeyMap() help.KeyMap {
+	return settingsViewKeyMap{editing: v.editing}
+}
+
+type settingsViewKeyMap struct {
+	editing bool
+}
+
+var selectProfileBinding = key.NewBinding(
+	key.WithKeys("enter"),
+	key.WithHelp("enter", "select profile"),
+)
+
+func (k settingsViewKeyMap) selectionShortHelp() []key.Binding {
+	return []key.Binding{kbind.Up, kbind.Down, kbind.Edit, selectProfileBinding}
+}
+
+func (k settingsViewKeyMap) selectionFullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{kbind.Up, kbind.Down, kbind.Edit, selectProfileBinding},
+	}
+}
+
+func (k settingsViewKeyMap) editShortHelp() []key.Binding {
+	return []key.Binding{kbind.ExitEdit, kbind.Save}
+}
+
+func (k settingsViewKeyMap) editFullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{kbind.ExitEdit, kbind.Save},
+	}
+}
+
+func (k settingsViewKeyMap) ShortHelp() []key.Binding {
+	if k.editing {
+		return k.editShortHelp()
+	}
+	return k.selectionShortHelp()
+}
+
+func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
+	if k.editing {
+		return k.editFullHelp()
+	}
+	return k.selectionFullHelp()
+}
+
 func (v SettingsView) Init() tea.Cmd { return nil }
 
-// loadConfig loads the current configuration into the form fields.
-// Operates on a value-receiver copy and returns the modified
-// SettingsView so callers can preserve the populated inputs. Callers
-// MUST capture the returned value — the value receiver means the
-// original struct is never mutated.
-func (v SettingsView) loadConfig() SettingsView {
-	return v.loadFromConfig(v.configMgr.Get())
-}
-
-// loadFromConfig is the single form-population code path shared by
-// activation (loadConfig → Get) and preview (previewProfile →
-// GetProfile). Returns the modified SettingsView. Callers MUST
-// capture the returned value (value-receiver contract). A nil cfg
-// is a no-op (the form keeps its current values).
-func (v SettingsView) loadFromConfig(cfg *config.Config) SettingsView {
-	if cfg == nil {
+func (v SettingsView) loadSelectedProfileRaw(name string) SettingsView {
+	v.selectedProfile = name
+	raw, err := v.configMgr.GetProfileRaw(name)
+	if err != nil {
+		v.editor.SetValue("")
+		v.inlineErr = fmt.Sprintf("could not read %s: %v", name, err)
 		return v
 	}
-
-	v.urlInput.SetValue(cfg.Request.URLTemplate)
-
-	// Set method (default to POST if empty)
-	method := cfg.Request.Method
-	if method == "" {
-		method = "POST"
-	}
-	v.methodInput.SetValue(method)
-
-	v.bodyInput.SetValue(cfg.Request.BodyTemplate)
-
-	// Convert headers map to string
-	var headerLines []string
-	for key, value := range cfg.Request.Headers {
-		headerLines = append(headerLines, fmt.Sprintf("%s: %s", key, value))
-	}
-	v.headersInput.SetValue(strings.Join(headerLines, "\n"))
-
-	// Convert CSV fields slice to string
-	v.csvFieldsInput.SetValue(strings.Join(cfg.CSV.Fields, "\n"))
-
+	v.editor.SetValue(raw)
+	v.inlineErr = ""
 	return v
-}
-
-// parseHeaders converts headers string to map
-func parseHeaders(headersText string) map[string]string {
-	headers := make(map[string]string)
-	lines := strings.SplitSeq(headersText, "\n")
-
-	for line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-			headers[key] = value
-		}
-	}
-
-	return headers
-}
-
-// parseCSVFields converts CSV fields string to slice
-func parseCSVFields(fieldsText string) []string {
-	var fields []string
-	lines := strings.SplitSeq(fieldsText, "\n")
-
-	for line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			fields = append(fields, line)
-		}
-	}
-
-	return fields
-}
-
-// saveConfig saves the current form values to configuration
-func (v SettingsView) saveConfig() error {
-	cfg := v.configMgr.Get()
-	if cfg == nil {
-		cfg = &config.Config{}
-	}
-
-	// Update config from form fields
-	cfg.Request.URLTemplate = v.urlInput.Value()
-	cfg.Request.Method = v.methodInput.Value()
-	cfg.Request.BodyTemplate = v.bodyInput.Value()
-	cfg.Request.Headers = parseHeaders(v.headersInput.Value())
-	cfg.CSV.Fields = parseCSVFields(v.csvFieldsInput.Value())
-
-	// Update and save
-	if err := v.configMgr.Update(cfg); err != nil {
-		return err
-	}
-
-	if err := v.configMgr.Save(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// updateFocus updates the focus state of all inputs and returns the
-// modified copy.
-func (v SettingsView) updateFocus() SettingsView {
-	v.urlInput.Blur()
-	v.methodInput.Blur()
-	v.bodyInput.Blur()
-	v.headersInput.Blur()
-	v.csvFieldsInput.Blur()
-	v.slider.Focused = false
-
-	switch v.focused {
-	case sliderField:
-		v.slider.Focused = true
-	case urlField:
-		v.urlInput.Focus()
-	case methodField:
-		v.methodInput.Focus()
-	case bodyField:
-		v.bodyInput.Focus()
-	case headersField:
-		v.headersInput.Focus()
-	case csvFieldsField:
-		v.csvFieldsInput.Focus()
-	}
-	return v
-}
-
-// nextFormField moves focus to the next field and returns the modified copy.
-func (v SettingsView) nextField() SettingsView {
-	v.focused++
-	if v.focused >= maxFields {
-		v.focused = 0
-	}
-	return v.updateFocus()
 }
 
 func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -382,130 +199,141 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		v.width = msg.Width
 		v.height = msg.Height
 
-		listW := utils.Clamp(msg.Width/4, minListWidth, maxListWidth)
-		formW := msg.Width - listW
-		v.profileList.SetSize(listW, msg.Height-6)
-		v.viewport.SetWidth(formW - 4)
-		v.viewport.SetHeight(msg.Height - 6)
-		v.urlInput.SetWidth(formW - 6)
-		v.methodInput.SetWidth(formW - 6)
-		v.bodyInput.SetWidth(formW - 6)
-		v.headersInput.SetWidth(formW - 6)
-		v.csvFieldsInput.SetWidth(formW - 6)
-		return v, nil
+		return v.layoutEditor(), nil
+
+	case msgs.ConfigSavedMsg:
+
+		v.inlineErr = ""
+		return v.layoutEditor(), nil
+
+	case msgs.ConfigSaveErrorMsg:
+
+		v.inlineErr = msg.Err.Error()
+		return v.layoutEditor(), nil
 
 	case tea.KeyPressMsg:
+
 		switch {
-		case key.Matches(msg, kbind.Save):
-			return v, v.saveConfigCmd()
+		case key.Matches(msg, kbind.Edit) && !v.editing:
 
-		case key.Matches(msg, kbind.PaneToggle):
-			// Tab toggles the focus pane: paneList ↔ paneForm. It
-			// does NOT cycle the focused form field
-			v.focusPane = paneForm - v.focusPane
-			return v, nil
+			v.editing = true
+			v.focusPane = paneForm
+			v.editor.Focus()
 
-		case key.Matches(msg, kbind.PrevField):
-			if v.focusPane == paneForm {
-				return v.nextField(), nil
-			}
-			return v, nil
+			return v.layoutEditor(), nil
+		case key.Matches(msg, kbind.ExitEdit) && v.editing:
+			v.editing = false
+			v.focusPane = paneList
+			v.editor.Blur()
 
-		// Handle viewport scrolling
-		case key.Matches(msg, kbind.PageUp):
-			v.viewport.PageUp()
-			return v, nil
-		case key.Matches(msg, kbind.PageDown):
-			v.viewport.PageDown()
-			return v, nil
-		case key.Matches(msg, kbind.GotoTop):
-			v.viewport.GotoTop()
-			return v, nil
-		case key.Matches(msg, kbind.GotoBottom):
-			v.viewport.GotoBottom()
-			return v, nil
+			return v.layoutEditor(), nil
 		}
 
-		if v.focusPane == paneList {
-			oldIdx := v.profileList.Index()
-			v.modified = false
-			var listCmd tea.Cmd
-			v.profileList, listCmd = v.profileList.Update(msg)
-			if v.profileList.Index() != oldIdx {
-				if opt, ok := v.profileList.SelectedItem().(Option[string]); ok {
-					v = v.previewProfile(opt.Value)
-				}
-			}
-			// Enter activates the selected profile.
-			if key.Matches(msg, kbind.Select) {
-				if opt, ok := v.profileList.SelectedItem().(Option[string]); ok {
-					return v.activateProfile(opt.Value)
-				}
-				return v, listCmd
-			}
-			return v, listCmd
+		if v.editing {
+			return v.handleEditKey(msg)
+		}
+		return v.handleSelectionKey(msg)
+	}
+
+	return v, nil
+}
+
+func (v SettingsView) layoutEditor() SettingsView {
+	listW := utils.Clamp(v.width/4, minListWidth, maxListWidth)
+	formW := v.width - listW
+	v.editor.SetWidth(formW - 4)
+	v.editor.SetHeight(v.editorInnerHeight())
+	v.profileList.SetSize(listW, v.height-5)
+	return v
+}
+
+func (v SettingsView) editorInnerHeight() int {
+	borderReserve := 0
+	if v.focusPane == paneForm {
+		borderReserve = 2
+	}
+	errorReserve := 0
+	if v.inlineErr != "" {
+		errorReserve = 1
+	}
+	h := v.height - 5 - borderReserve - errorReserve
+	if h < 1 {
+		return 1
+	}
+	return h
+}
+
+func (v SettingsView) handleSelectionKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	oldIdx := v.profileList.Index()
+	var listCmd tea.Cmd
+	v.profileList, listCmd = v.profileList.Update(msg)
+
+	if v.profileList.Index() != oldIdx {
+		if opt, ok := v.profileList.SelectedItem().(Option[string]); ok {
+			v = v.loadSelectedProfileRaw(opt.Value)
 		}
 	}
 
-	// Update focused field
+	if key.Matches(msg, kbind.Select) {
+		if opt, ok := v.profileList.SelectedItem().(Option[string]); ok {
+			return v.activateProfile(opt.Value)
+		}
+		return v, listCmd
+	}
+	return v, listCmd
+}
+
+func (v SettingsView) handleEditKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+
+	if key.Matches(msg, kbind.Save) {
+		return v, v.saveRawCmd()
+	}
 	var cmd tea.Cmd
-	oldValue := ""
-
-	switch v.focused {
-	case sliderField:
-		prev := v.slider.Value
-		updated, _ := v.slider.Update(msg)
-		v.slider = updated
-		if v.slider.Value != prev {
-			v.proc.SetWorkers(v.slider.Value)
-			v.modified = true
-		}
-		return v, nil
-	case urlField:
-		oldValue = v.urlInput.Value()
-		v.urlInput, cmd = v.urlInput.Update(msg)
-		if v.urlInput.Value() != oldValue {
-			v.modified = true
-		}
-
-	case methodField:
-		oldValue = v.methodInput.Value()
-		v.methodInput, cmd = v.methodInput.Update(msg)
-		if v.methodInput.Value() != oldValue {
-			v.modified = true
-		}
-
-	case bodyField:
-		oldValue = v.bodyInput.Value()
-		v.bodyInput, cmd = v.bodyInput.Update(msg)
-		if v.bodyInput.Value() != oldValue {
-			v.modified = true
-		}
-
-	case headersField:
-		oldValue = v.headersInput.Value()
-		v.headersInput, cmd = v.headersInput.Update(msg)
-		if v.headersInput.Value() != oldValue {
-			v.modified = true
-		}
-
-	case csvFieldsField:
-		oldValue = v.csvFieldsInput.Value()
-		v.csvFieldsInput, cmd = v.csvFieldsInput.Update(msg)
-		if v.csvFieldsInput.Value() != oldValue {
-			v.modified = true
-		}
-	}
-
+	v.editor, cmd = v.editor.Update(msg)
 	return v, cmd
 }
 
+func (v SettingsView) saveRawCmd() tea.Cmd {
+	name := v.selectedProfile
+	content := v.editor.Value()
+	err := v.configMgr.SaveProfileRaw(name, content)
+	if err != nil {
+
+		_ = err
+
+		return func() tea.Msg {
+			return msgs.ConfigSaveErrorMsg{Err: err}
+		}
+	}
+	return func() tea.Msg {
+		return msgs.ConfigSavedMsg{}
+	}
+}
+
+func (v SettingsView) activateProfile(name string) (SettingsView, tea.Cmd) {
+	if err := v.configMgr.SetActiveProfile(name); err != nil {
+		return v, func() tea.Msg {
+			return msgs.ProfileSwitchErrorMsg{Err: err}
+		}
+	}
+
+	v.activeProfile = name
+
+	v = v.loadSelectedProfileRaw(name)
+
+	return v, func() tea.Msg {
+		return msgs.ProfileSwitchedMsg{ProfileName: name}
+	}
+}
+
 func (v SettingsView) View() tea.View {
-	listW := min(max(v.width/4, minListWidth), maxListWidth)
+	listW := utils.Clamp(v.width/4, minListWidth, maxListWidth)
 	formW := v.width - listW
 
 	listBg := v.paneBg(v.focusPane == paneList)
 	listTitle := headerStyle.MarginLeft(1).Render(settingsTitleStyle.Render("📋 Profiles"))
+
+	v.profileList.SetDelegate(profileItemDelegate{active: v.activeProfile})
 	listPane := lipgloss.JoinVertical(
 		lipgloss.Top,
 		listTitle,
@@ -515,24 +343,7 @@ func (v SettingsView) View() tea.View {
 			Render(v.profileList.View()),
 	)
 
-	var help string
-	if v.modified {
-		help = "⚠️  Unsaved changes"
-	}
-	formContent := lipgloss.JoinVertical(
-		lipgloss.Top,
-		inputStyle.Render(v.slider.View()),
-		v.renderInput(urlField, "URL template:", v.urlInput),
-		v.renderInput(methodField, "Method:", v.methodInput),
-		v.renderTextArea(bodyField, "Body template:", v.bodyInput),
-		v.renderTextArea(headersField, "Headers:", v.headersInput),
-		v.renderTextArea(csvFieldsField, "CSV Fields (one per line):", v.csvFieldsInput),
-		helpStyle.Render(help),
-	)
-	v.viewport.SetContent(formContent)
-
 	formBg := v.paneBg(v.focusPane == paneForm)
-
 	header := headerStyle.Render(
 		lipgloss.JoinHorizontal(
 			lipgloss.Left,
@@ -540,13 +351,18 @@ func (v SettingsView) View() tea.View {
 			profileBadgeStyle.Render("📋 "+v.getActiveProfileName()),
 		),
 	)
+	editorBlock := lipgloss.JoinVertical(
+		lipgloss.Top,
+		v.editor.View(),
+		v.renderInlineError(),
+	)
 	formPane := lipgloss.JoinVertical(
 		lipgloss.Top,
 		header,
 		formBg.
 			Width(formW).
 			Height(v.height-3).
-			Render(v.viewport.View()),
+			Render(editorBlock),
 	)
 
 	content := lipgloss.JoinHorizontal(lipgloss.Left, listPane, formPane)
@@ -560,73 +376,17 @@ func (v SettingsView) paneBg(focused bool) lipgloss.Style {
 	return lipgloss.NewStyle().MarginTop(1).MarginLeft(1).MarginRight(0).Padding(0, 1)
 }
 
-func (v SettingsView) renderTextArea(fieldIdx int, text string, input textarea.Model) string {
-	label := v.renderLabel(text, fieldIdx)
-	return inputStyle.Render(lipgloss.JoinVertical(lipgloss.Left, label, input.View()))
-}
-
-func (v SettingsView) renderInput(fieldIdx int, text string, input textinput.Model) string {
-	label := v.renderLabel(text, fieldIdx)
-	return inputStyle.Render(lipgloss.JoinVertical(lipgloss.Left, label, input.View()))
-}
-
-// renderLabel renders a label with focus indication
-func (v SettingsView) renderLabel(text string, fieldIdx int) string {
-	if v.focused == fieldIdx {
-		return focusedStyle.Render("▶ " + text)
+func (v SettingsView) renderInlineError() string {
+	if v.inlineErr == "" {
+		return ""
 	}
-	return labelStyle.Render(text)
+	return inlineErrorStyle.Render("⚠ " + v.inlineErr)
 }
 
-// getActiveProfileName returns the name of the active profile
 func (v SettingsView) getActiveProfileName() string {
 	profileName := v.configMgr.GetActiveProfile()
 	if profileName == "" {
 		return "default"
 	}
 	return profileName
-}
-
-// previewProfile loads the named profile's config into the form
-// fields without making it active. The list cursor already moved
-// before this is called; this is just the form-repopulation step.
-// Returns the modified SettingsView. A nil config (unknown name)
-// is a no-op so the form keeps its current values.
-func (v SettingsView) previewProfile(name string) SettingsView {
-	return v.loadFromConfig(v.configMgr.GetProfile(name))
-}
-
-// activateProfile switches to the named profile, reloads the
-// form, and emits a ProfileSwitchedMsg / ProfileSwitchErrorMsg.
-// It does NOT call Save or Update — activation is a runtime
-// profile switch, not a config write (per R-18).
-func (v SettingsView) activateProfile(name string) (SettingsView, tea.Cmd) {
-	if err := v.configMgr.SetActiveProfile(name); err != nil {
-		return v, func() tea.Msg {
-			return msgs.ProfileSwitchErrorMsg{Err: err}
-		}
-	}
-
-	// Reload configuration from the new active profile.
-	v = v.loadConfig()
-	// Note: v.modified is not reset here because the value
-	// receiver loses the assignment on return. See saveConfig
-	// for context.
-
-	return v, func() tea.Msg {
-		return msgs.ProfileSwitchedMsg{ProfileName: name}
-	}
-}
-
-// saveConfigCmd saves the configuration and returns a command
-func (v SettingsView) saveConfigCmd() tea.Cmd {
-	if err := v.saveConfig(); err != nil {
-		return func() tea.Msg {
-			return msgs.ConfigSaveErrorMsg{Err: err}
-		}
-	}
-
-	return func() tea.Msg {
-		return msgs.ConfigSavedMsg{}
-	}
 }
