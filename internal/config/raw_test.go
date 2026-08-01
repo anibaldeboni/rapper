@@ -27,11 +27,11 @@ func writeYAMLFile(t *testing.T, dir, name, content string) string {
 // given (name → yaml) profile map. The first entry is marked active.
 // Returns the manager and the temp dir (caller is responsible for
 // cleanup; t.TempDir handles that automatically when t.Cleanup fires).
-func newRawTestManager(t *testing.T, profiles map[string]string) (*managerImpl, string) {
+func newRawTestManager(t *testing.T, profiles map[string]string) (*runManager, string) {
 	t.Helper()
 	dir := t.TempDir()
-	pm := newProfileManager(NewLoader())
-	pm.profiles = make([]Profile, 0, len(profiles))
+	pm := newRequestManager(NewLoader())
+	pm.requests = make([]Request, 0, len(profiles))
 	i := 0
 	for name, yaml := range profiles {
 		path := writeYAMLFile(t, dir, name+".yml", yaml)
@@ -39,7 +39,7 @@ func newRawTestManager(t *testing.T, profiles map[string]string) (*managerImpl, 
 		if err != nil {
 			t.Fatalf("seed %s: %v", name, err)
 		}
-		pm.profiles = append(pm.profiles, Profile{
+		pm.requests = append(pm.requests, Request{
 			Name:     name,
 			FilePath: path,
 			Config:   cfg,
@@ -49,45 +49,45 @@ func newRawTestManager(t *testing.T, profiles map[string]string) (*managerImpl, 
 		}
 		i++
 	}
-	return &managerImpl{
-		profileMgr: pm,
+	return &runManager{
+		requestMgr: pm,
 		listeners:  make([]func(*Config), 0),
 	}, dir
 }
 
-// S1.1 — GetProfileRaw returns the file's bytes for a known profile.
+// S1.1 — GetRequestRaw returns the file's bytes for a known profile.
 func TestManager_GetProfileRaw_ReturnsFileBytes(t *testing.T) {
 	yaml := "request:\n  method: POST\n  url_template: https://api.example\ncsv:\n  fields: [id]\nworkers: 4\n"
 	mgr, _ := newRawTestManager(t, map[string]string{"p": yaml})
 
-	got, err := mgr.GetProfileRaw("p")
+	got, err := mgr.GetRequestRaw("p")
 	if err != nil {
-		t.Fatalf("GetProfileRaw: unexpected error: %v", err)
+		t.Fatalf("GetRequestRaw: unexpected error: %v", err)
 	}
 	if got != yaml {
-		t.Fatalf("GetProfileRaw: bytes mismatch.\nwant: %q\ngot:  %q", yaml, got)
+		t.Fatalf("GetRequestRaw: bytes mismatch.\nwant: %q\ngot:  %q", yaml, got)
 	}
 }
 
-// S1.2 — GetProfileRaw returns a non-nil error for an unknown profile name.
+// S1.2 — GetRequestRaw returns a non-nil error for an unknown profile name.
 // The error must reference the missing profile so the user sees which
 // name is at fault.
 func TestManager_GetProfileRaw_MissingName(t *testing.T) {
 	mgr, _ := newRawTestManager(t, map[string]string{"p": "request:\n  method: GET\n  url_template: http://x\ncsv:\n  fields: [a]\nworkers: 1\n"})
 
-	got, err := mgr.GetProfileRaw("ghost")
+	got, err := mgr.GetRequestRaw("ghost")
 	if err == nil {
-		t.Fatalf("GetProfileRaw(\"ghost\") must return a non-nil error, got nil (returned %q)", got)
+		t.Fatalf("GetRequestRaw(\"ghost\") must return a non-nil error, got nil (returned %q)", got)
 	}
 	if !strings.Contains(err.Error(), "ghost") {
 		t.Fatalf("error message must reference the missing profile name, got: %v", err)
 	}
 	if got != "" {
-		t.Fatalf("GetProfileRaw on missing name must return empty string, got %q", got)
+		t.Fatalf("GetRequestRaw on missing name must return empty string, got %q", got)
 	}
 }
 
-// S1.3 — SaveProfileRaw accepts valid YAML, writes the file, calls
+// S1.3 — SaveRequestRaw accepts valid YAML, writes the file, calls
 // Update exactly once, and fires OnChange once.
 func TestManager_SaveProfileRaw_ValidYAML_WritesAndFiresOnChange(t *testing.T) {
 	mgr, dir := newRawTestManager(t, map[string]string{"p": "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"})
@@ -102,8 +102,8 @@ func TestManager_SaveProfileRaw_ValidYAML_WritesAndFiresOnChange(t *testing.T) {
 	})
 
 	newYAML := "request:\n  method: PUT\n  url_template: http://y\ncsv:\n  fields: [name]\nworkers: 8\n"
-	if err := mgr.SaveProfileRaw("p", newYAML); err != nil {
-		t.Fatalf("SaveProfileRaw: %v", err)
+	if err := mgr.SaveRequestRaw("p", newYAML); err != nil {
+		t.Fatalf("SaveRequestRaw: %v", err)
 	}
 
 	// File content on disk reflects the new YAML.
@@ -127,7 +127,7 @@ func TestManager_SaveProfileRaw_ValidYAML_WritesAndFiresOnChange(t *testing.T) {
 	}
 }
 
-// S1.4 — SaveProfileRaw with invalid YAML returns an error, does NOT
+// S1.4 — SaveRequestRaw with invalid YAML returns an error, does NOT
 // write the file, does NOT call Update, does NOT fire OnChange.
 func TestManager_SaveProfileRaw_InvalidYAML_BlocksWrite(t *testing.T) {
 	const origYAML = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
@@ -138,9 +138,9 @@ func TestManager_SaveProfileRaw_InvalidYAML_BlocksWrite(t *testing.T) {
 
 	// Malformed: tab indentation in YAML is invalid.
 	badYAML := "request:\n\tmethod: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 1\n"
-	err := mgr.SaveProfileRaw("p", badYAML)
+	err := mgr.SaveRequestRaw("p", badYAML)
 	if err == nil {
-		t.Fatalf("SaveProfileRaw with invalid YAML must return an error, got nil")
+		t.Fatalf("SaveRequestRaw with invalid YAML must return an error, got nil")
 	}
 
 	// File on disk must be UNCHANGED.
@@ -156,7 +156,7 @@ func TestManager_SaveProfileRaw_InvalidYAML_BlocksWrite(t *testing.T) {
 	}
 }
 
-// S1.5 — SaveProfileRaw with the empty string is rejected without a write.
+// S1.5 — SaveRequestRaw with the empty string is rejected without a write.
 func TestManager_SaveProfileRaw_EmptyContent_Rejected(t *testing.T) {
 	const origYAML = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
 	mgr, dir := newRawTestManager(t, map[string]string{"p": origYAML})
@@ -164,9 +164,9 @@ func TestManager_SaveProfileRaw_EmptyContent_Rejected(t *testing.T) {
 	var calls atomic.Int32
 	mgr.OnChange(func(_ *Config) { calls.Add(1) })
 
-	err := mgr.SaveProfileRaw("p", "")
+	err := mgr.SaveRequestRaw("p", "")
 	if err == nil {
-		t.Fatalf("SaveProfileRaw(\"\") must return an error, got nil")
+		t.Fatalf("SaveRequestRaw(\"\") must return an error, got nil")
 	}
 
 	written, err := os.ReadFile(filepath.Join(dir, "p.yml"))
@@ -181,7 +181,7 @@ func TestManager_SaveProfileRaw_EmptyContent_Rejected(t *testing.T) {
 	}
 }
 
-// S1.6 — SaveProfileRaw rejects the legacy YAML schema without changing the
+// S1.6 — SaveRequestRaw rejects the legacy YAML schema without changing the
 // existing profile or notifying listeners.
 func TestManager_SaveProfileRaw_LegacyYAML_Rejected(t *testing.T) {
 	legacy := "url: http://legacy\ntoken: abc\npath:\n  method: POST\n  template: /v1/x\npayload:\n  template: '{}'\ncsv:\n  fields: [id]\nworkers: 1\n"
@@ -191,9 +191,9 @@ func TestManager_SaveProfileRaw_LegacyYAML_Rejected(t *testing.T) {
 	var calls atomic.Int32
 	mgr.OnChange(func(_ *Config) { calls.Add(1) })
 
-	err := mgr.SaveProfileRaw("profile", legacy)
+	err := mgr.SaveRequestRaw("profile", legacy)
 	if err == nil {
-		t.Fatal("SaveProfileRaw must reject legacy YAML")
+		t.Fatal("SaveRequestRaw must reject legacy YAML")
 	}
 	written, err := os.ReadFile(filepath.Join(dir, "profile.yml"))
 	if err != nil {
@@ -221,14 +221,14 @@ func TestParseConfigFile_LegacyYAML_Rejected(t *testing.T) {
 	}
 }
 
-// S1.7 — SaveProfileRaw on an unknown profile returns an error and
+// S1.7 — SaveRequestRaw on an unknown profile returns an error and
 // does not write anywhere.
 func TestManager_SaveProfileRaw_UnknownProfile(t *testing.T) {
 	mgr, _ := newRawTestManager(t, map[string]string{"p": "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 1\n"})
 
-	err := mgr.SaveProfileRaw("ghost", "request:\n  method: GET\n  url_template: http://y\ncsv:\n  fields: [a]\nworkers: 1\n")
+	err := mgr.SaveRequestRaw("ghost", "request:\n  method: GET\n  url_template: http://y\ncsv:\n  fields: [a]\nworkers: 1\n")
 	if err == nil {
-		t.Fatalf("SaveProfileRaw on unknown profile must return an error, got nil")
+		t.Fatalf("SaveRequestRaw on unknown profile must return an error, got nil")
 	}
 }
 
@@ -249,8 +249,8 @@ func TestManager_SaveProfileRaw_OnChangeReceivesNewWorkers(t *testing.T) {
 	})
 
 	const newYAML = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 8\n"
-	if err := mgr.SaveProfileRaw("p", newYAML); err != nil {
-		t.Fatalf("SaveProfileRaw: %v", err)
+	if err := mgr.SaveRequestRaw("p", newYAML); err != nil {
+		t.Fatalf("SaveRequestRaw: %v", err)
 	}
 
 	if calls.Load() != 1 {
@@ -264,7 +264,7 @@ func TestManager_SaveProfileRaw_OnChangeReceivesNewWorkers(t *testing.T) {
 // S8.1 — updateByName mutates the named profile's in-memory *Config
 // only. Profiles whose name does not match are left untouched. The
 // helper must NOT fire OnChange; that responsibility belongs to the
-// caller (SaveProfileRaw → conditional notify).
+// caller (SaveRequestRaw → conditional notify).
 //
 // Map iteration order in Go is randomized, so the test discovers
 // which of {p, q} became active and treats the other as the
@@ -280,7 +280,7 @@ func TestManager_UpdateByName_MutatesOnlyNamed(t *testing.T) {
 	// newRawTestManager makes the first iterated (map order
 	// randomized) profile active. The test mutates p and asserts
 	// q is untouched; the active profile must be unchanged.
-	active := mgr.GetActiveProfile()
+	active := mgr.GetActiveRequest()
 	if active != "p" && active != "q" {
 		t.Fatalf("precondition: active profile must be p or q, got %q", active)
 	}
@@ -302,23 +302,23 @@ func TestManager_UpdateByName_MutatesOnlyNamed(t *testing.T) {
 		Workers: 8,
 	}
 
-	if err := mgr.profileMgr.updateByName("p", newCfg); err != nil {
+	if err := mgr.requestMgr.updateByName("p", newCfg); err != nil {
 		t.Fatalf("updateByName(\"p\"): %v", err)
 	}
 
 	// p.Config was swapped.
-	gotP := mgr.GetProfile("p")
+	gotP := mgr.GetRequest("p")
 	if gotP == nil {
-		t.Fatalf("GetProfile(\"p\") returned nil after updateByName")
+		t.Fatalf("GetRequest(\"p\") returned nil after updateByName")
 	}
 	if gotP.Request.Method != "PUT" || gotP.Request.URLTemplate != "http://p-new" || gotP.Workers != 8 {
 		t.Fatalf("p.Config not swapped as expected, got %+v", gotP)
 	}
 
 	// q.Config is unchanged.
-	gotQ := mgr.GetProfile("q")
+	gotQ := mgr.GetRequest("q")
 	if gotQ == nil {
-		t.Fatalf("GetProfile(\"q\") returned nil after updateByName(\"p\")")
+		t.Fatalf("GetRequest(\"q\") returned nil after updateByName(\"p\")")
 	}
 	if gotQ.Request.Method != "GET" || gotQ.Request.URLTemplate != "http://q" || gotQ.Workers != 2 {
 		t.Fatalf("q.Config must be unchanged by updateByName(\"p\"), got %+v", gotQ)
@@ -326,8 +326,8 @@ func TestManager_UpdateByName_MutatesOnlyNamed(t *testing.T) {
 
 	// Active profile is unchanged (mutating "p" must NOT change
 	// the active profile — that is the caller's job, see
-	// SetActiveProfile / SaveProfileRaw).
-	if got := mgr.GetActiveProfile(); got != active {
+	// SetActiveProfile / SaveRequestRaw).
+	if got := mgr.GetActiveRequest(); got != active {
 		t.Fatalf("active profile must remain %q, got %q", active, got)
 	}
 	_ = other // referenced to keep the active-vs-other dichotomy explicit
@@ -347,17 +347,17 @@ func TestManager_UpdateByName_UnknownIsNoOp(t *testing.T) {
 	var calls atomic.Int32
 	mgr.OnChange(func(_ *Config) { calls.Add(1) })
 
-	before := mgr.GetProfile("p")
+	before := mgr.GetRequest("p")
 	if before == nil {
 		t.Fatalf("precondition: p.Config must exist")
 	}
 
-	if err := mgr.profileMgr.updateByName("ghost", before); err != nil {
+	if err := mgr.requestMgr.updateByName("ghost", before); err != nil {
 		t.Fatalf("updateByName on unknown name must return nil error, got %v", err)
 	}
 
 	// p.Config unchanged.
-	after := mgr.GetProfile("p")
+	after := mgr.GetRequest("p")
 	if after == nil {
 		t.Fatalf("p.Config must still exist after a no-op updateByName")
 	}
@@ -367,10 +367,10 @@ func TestManager_UpdateByName_UnknownIsNoOp(t *testing.T) {
 		t.Fatalf("p.Config must be unchanged on no-op updateByName\nbefore: %+v\nafter:  %+v", before, after)
 	}
 
-	// ListProfiles still contains only p.
-	names := mgr.ListProfiles()
+	// ListRequests still contains only p.
+	names := mgr.ListRequests()
 	if len(names) != 1 || names[0] != "p" {
-		t.Fatalf("ListProfiles must be unchanged, got %v", names)
+		t.Fatalf("ListRequests must be unchanged, got %v", names)
 	}
 
 	if c := calls.Load(); c != 0 {
@@ -380,9 +380,9 @@ func TestManager_UpdateByName_UnknownIsNoOp(t *testing.T) {
 
 // requireActive asserts the active profile is name; helper for
 // readability in the S8.x updateByName tests above.
-func requireActive(t *testing.T, mgr *managerImpl, name string) {
+func requireActive(t *testing.T, mgr *runManager, name string) {
 	t.Helper()
-	if got := mgr.GetActiveProfile(); got != name {
+	if got := mgr.GetActiveRequest(); got != name {
 		t.Fatalf("active profile: got %q, want %q", got, name)
 	}
 }
@@ -392,7 +392,7 @@ func requireActive(t *testing.T, mgr *managerImpl, name string) {
 // fire OnChange. The active profile's *Config must remain intact so
 // gateway + processor are not silently rewired with the wrong config.
 //
-// Before the fix SaveProfileRaw always called m.Update(cfg) →
+// Before the fix SaveRequestRaw always called m.Update(cfg) →
 // profileMgr.updateActive, which overwrote the active profile's
 // in-memory config and fired OnChange regardless of the saved name.
 //
@@ -409,9 +409,9 @@ func TestManager_SaveProfileRaw_NonActiveSkipsOnChange(t *testing.T) {
 	})
 	// Force p active: map iteration order is randomized, so the
 	// helper's "first seeded" tiebreaker is non-deterministic.
-	for i, p := range mgr.profileMgr.profiles {
+	for i, p := range mgr.requestMgr.requests {
 		if p.Name == "p" {
-			mgr.profileMgr.activeIndex = i
+			mgr.requestMgr.activeIndex = i
 			break
 		}
 	}
@@ -428,8 +428,8 @@ func TestManager_SaveProfileRaw_NonActiveSkipsOnChange(t *testing.T) {
 	mgr.OnChange(func(_ *Config) { calls.Add(1) })
 
 	const newQ = "request:\n  method: PUT\n  url_template: http://q-new\ncsv:\n  fields: [a, b]\nworkers: 5\n"
-	if err := mgr.SaveProfileRaw("q", newQ); err != nil {
-		t.Fatalf("SaveProfileRaw(\"q\"): %v", err)
+	if err := mgr.SaveRequestRaw("q", newQ); err != nil {
+		t.Fatalf("SaveRequestRaw(\"q\"): %v", err)
 	}
 
 	// OnChange must NOT fire on a non-active save.
@@ -438,7 +438,7 @@ func TestManager_SaveProfileRaw_NonActiveSkipsOnChange(t *testing.T) {
 	}
 
 	// Active profile's in-memory *Config is unchanged (same pointer
-	// AND same content). SaveProfileRaw on "q" must not reach into
+	// AND same content). SaveRequestRaw on "q" must not reach into
 	// the active profile at all.
 	activeAfter := mgr.Get()
 	if activeAfter == nil {
@@ -451,9 +451,9 @@ func TestManager_SaveProfileRaw_NonActiveSkipsOnChange(t *testing.T) {
 	}
 
 	// Named (non-active) profile's in-memory *Config is updated.
-	qCfg := mgr.GetProfile("q")
+	qCfg := mgr.GetRequest("q")
 	if qCfg == nil {
-		t.Fatalf("GetProfile(\"q\") returned nil after SaveProfileRaw")
+		t.Fatalf("GetRequest(\"q\") returned nil after SaveRequestRaw")
 	}
 	if qCfg.Request.Method != "PUT" || qCfg.Request.URLTemplate != "http://q-new" || qCfg.Workers != 5 {
 		t.Fatalf("q.Config not updated as expected, got %+v", qCfg)
@@ -478,14 +478,14 @@ func TestManager_SaveProfileRaw_NonActiveSkipsOnChange(t *testing.T) {
 	}
 
 	// Active profile is still "p" (no auto-activation on save).
-	if got := mgr.GetActiveProfile(); got != "p" {
+	if got := mgr.GetActiveRequest(); got != "p" {
 		t.Fatalf("active profile must remain p after non-active save, got %q", got)
 	}
 }
 
-// S9.1 / S9.2 — Concurrent SaveProfileRaw calls and re-entrant
+// S9.1 / S9.2 — Concurrent SaveRequestRaw calls and re-entrant
 // listeners must not race or deadlock. Two goroutines hammer
-// SaveProfileRaw on the active profile while the listener calls back
+// SaveRequestRaw on the active profile while the listener calls back
 // into mgr.Get() (re-entrant). All calls must complete, the listener
 // count must equal 2N, and `go test -race` must stay clean.
 func TestManager_SaveProfileRaw_ConcurrentNoRace(t *testing.T) {
@@ -515,8 +515,8 @@ func TestManager_SaveProfileRaw_ConcurrentNoRace(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < perG; i++ {
-				if err := mgr.SaveProfileRaw("p", newYAML); err != nil {
-					t.Errorf("SaveProfileRaw: %v", err)
+				if err := mgr.SaveRequestRaw("p", newYAML); err != nil {
+					t.Errorf("SaveRequestRaw: %v", err)
 					return
 				}
 			}
@@ -529,7 +529,7 @@ func TestManager_SaveProfileRaw_ConcurrentNoRace(t *testing.T) {
 	}
 }
 
-// S1.8 — GetProfileRaw on a profile whose file was deleted after
+// S1.8 — GetRequestRaw on a profile whose file was deleted after
 // discovery must surface a non-nil error. The manager does not silently
 // re-read the disk during discovery, so this is a stale-cache path.
 func TestManager_GetProfileRaw_FileDeletedAfterDiscovery(t *testing.T) {
@@ -541,9 +541,9 @@ func TestManager_GetProfileRaw_FileDeletedAfterDiscovery(t *testing.T) {
 		t.Fatalf("remove: %v", err)
 	}
 
-	got, err := mgr.GetProfileRaw("p")
+	got, err := mgr.GetRequestRaw("p")
 	if err == nil {
-		t.Fatalf("GetProfileRaw must return an error when the file is missing, got %q", got)
+		t.Fatalf("GetRequestRaw must return an error when the file is missing, got %q", got)
 	}
 	// errors.Is should be able to find os.ErrNotExist in the chain so
 	// callers can detect the missing-file case programmatically.

@@ -31,7 +31,7 @@ const (
 	maxListWidth = 30
 )
 
-type SettingsView struct {
+type RequestsView struct {
 	configMgr ports.ConfigManager
 	width     int
 	height    int
@@ -47,21 +47,21 @@ type SettingsView struct {
 	inlineErr       string
 }
 
-var _ tea.Model = SettingsView{}
+var _ tea.Model = RequestsView{}
 
-func NewSettingsView(configMgr ports.ConfigManager) SettingsView {
+func NewRequestsView(configMgr ports.ConfigManager) RequestsView {
 	editor := textarea.New()
 	editor.Placeholder = "# raw YAML — edit and press ctrl+s to save"
 	editor.CharLimit = 0
 	editor.ShowLineNumbers = true
 	editor.SetHeight(5)
 
-	profileNames := configMgr.ListProfiles()
+	profileNames := configMgr.ListRequests()
 	items := make([]list.Item, len(profileNames))
 	for i, name := range profileNames {
 		items[i] = Option[string]{Value: name, Title: name}
 	}
-	profileList := list.New(items, profileItemDelegate{active: configMgr.GetActiveProfile()}, 0, 0)
+	profileList := list.New(items, profileItemDelegate{active: configMgr.GetActiveRequest()}, 0, 0)
 	profileList.InfiniteScrolling = true
 	profileList.SetShowStatusBar(false)
 	profileList.SetShowPagination(false)
@@ -72,22 +72,22 @@ func NewSettingsView(configMgr ports.ConfigManager) SettingsView {
 	profileList.KeyMap.CursorUp = kbind.Up
 	profileList.KeyMap.CursorDown = kbind.Down
 
-	activeIdx := indexOf(profileNames, configMgr.GetActiveProfile())
+	activeIdx := indexOf(profileNames, configMgr.GetActiveRequest())
 	if activeIdx >= 0 {
 		profileList.Select(activeIdx)
 	}
 
-	v := SettingsView{
+	v := RequestsView{
 		configMgr:     configMgr,
 		profileList:   profileList,
 		editor:        editor,
 		focusPane:     paneList,
 		editing:       false,
-		activeProfile: configMgr.GetActiveProfile(),
+		activeProfile: configMgr.GetActiveRequest(),
 	}
 
-	v.selectedProfile = v.configMgr.GetActiveProfile()
-	if raw, err := v.configMgr.GetProfileRaw(v.selectedProfile); err == nil {
+	v.selectedProfile = v.configMgr.GetActiveRequest()
+	if raw, err := v.configMgr.GetRequestRaw(v.selectedProfile); err == nil {
 		v.editor.SetValue(raw)
 	} else {
 
@@ -129,9 +129,9 @@ func (d profileItemDelegate) Render(w io.Writer, m list.Model, index int, item l
 	fmt.Fprintf(w, "%s%s", prefix, name)
 }
 
-func (v SettingsView) FocusedPane() int { return v.focusPane }
+func (v RequestsView) FocusedPane() int { return v.focusPane }
 
-func (v SettingsView) KeyMap() help.KeyMap {
+func (v RequestsView) KeyMap() help.KeyMap {
 	return settingsViewKeyMap{editing: v.editing}
 }
 
@@ -178,11 +178,11 @@ func (k settingsViewKeyMap) FullHelp() [][]key.Binding {
 	return k.selectionFullHelp()
 }
 
-func (v SettingsView) Init() tea.Cmd { return nil }
+func (v RequestsView) Init() tea.Cmd { return nil }
 
-func (v SettingsView) loadSelectedProfileRaw(name string) SettingsView {
+func (v RequestsView) loadSelectedProfileRaw(name string) RequestsView {
 	v.selectedProfile = name
-	raw, err := v.configMgr.GetProfileRaw(name)
+	raw, err := v.configMgr.GetRequestRaw(name)
 	if err != nil {
 		v.editor.SetValue("")
 		v.inlineErr = fmt.Sprintf("could not read %s: %v", name, err)
@@ -193,7 +193,7 @@ func (v SettingsView) loadSelectedProfileRaw(name string) SettingsView {
 	return v
 }
 
-func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (v RequestsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case msgs.ViewActivatedMsg:
 		return v, v.emitStatusKeymap()
@@ -241,13 +241,13 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return v, nil
 }
 
-func (v SettingsView) emitStatusKeymap() tea.Cmd {
+func (v RequestsView) emitStatusKeymap() tea.Cmd {
 	return func() tea.Msg {
 		return msgs.StatusKeymapMsg{Current: v.KeyMap()}
 	}
 }
 
-func (v SettingsView) layoutEditor() SettingsView {
+func (v RequestsView) layoutEditor() RequestsView {
 	listW := utils.Clamp(v.width/4, minListWidth, maxListWidth)
 	formW := v.width - listW
 	v.editor.SetWidth(formW - 4)
@@ -256,7 +256,7 @@ func (v SettingsView) layoutEditor() SettingsView {
 	return v
 }
 
-func (v SettingsView) editorInnerHeight() int {
+func (v RequestsView) editorInnerHeight() int {
 	borderReserve := 0
 	if v.focusPane == paneForm {
 		borderReserve = 2
@@ -272,7 +272,7 @@ func (v SettingsView) editorInnerHeight() int {
 	return h
 }
 
-func (v SettingsView) handleSelectionKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+func (v RequestsView) handleSelectionKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	oldIdx := v.profileList.Index()
 	var listCmd tea.Cmd
 	v.profileList, listCmd = v.profileList.Update(msg)
@@ -285,14 +285,14 @@ func (v SettingsView) handleSelectionKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 
 	if key.Matches(msg, kbind.Select) {
 		if opt, ok := v.profileList.SelectedItem().(Option[string]); ok {
-			return v.activateProfile(opt.Value)
+			return v.setActiveRequest(opt.Value)
 		}
 		return v, listCmd
 	}
 	return v, listCmd
 }
 
-func (v SettingsView) handleEditKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+func (v RequestsView) handleEditKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	if key.Matches(msg, kbind.Save) {
 		return v, v.saveRawCmd()
@@ -302,10 +302,10 @@ func (v SettingsView) handleEditKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return v, cmd
 }
 
-func (v SettingsView) saveRawCmd() tea.Cmd {
+func (v RequestsView) saveRawCmd() tea.Cmd {
 	name := v.selectedProfile
 	content := v.editor.Value()
-	err := v.configMgr.SaveProfileRaw(name, content)
+	err := v.configMgr.SaveRequestRaw(name, content)
 	if err != nil {
 
 		_ = err
@@ -319,8 +319,8 @@ func (v SettingsView) saveRawCmd() tea.Cmd {
 	}
 }
 
-func (v SettingsView) activateProfile(name string) (SettingsView, tea.Cmd) {
-	if err := v.configMgr.SetActiveProfile(name); err != nil {
+func (v RequestsView) setActiveRequest(name string) (RequestsView, tea.Cmd) {
+	if err := v.configMgr.SetActiveRequest(name); err != nil {
 		return v, func() tea.Msg {
 			return msgs.ProfileSwitchErrorMsg{Err: err}
 		}
@@ -335,12 +335,12 @@ func (v SettingsView) activateProfile(name string) (SettingsView, tea.Cmd) {
 	}
 }
 
-func (v SettingsView) View() tea.View {
+func (v RequestsView) View() tea.View {
 	listW := utils.Clamp(v.width/4, minListWidth, maxListWidth)
 	formW := v.width - listW
 
 	listBg := v.paneBg(v.focusPane == paneList)
-	listTitle := headerStyle.MarginLeft(1).Render(settingsTitleStyle.Render("📋 Profiles"))
+	listTitle := headerStyle.MarginLeft(1).Render(settingsTitleStyle.Render("🥡 Requests"))
 
 	v.profileList.SetDelegate(profileItemDelegate{active: v.activeProfile})
 	listPane := lipgloss.JoinVertical(
@@ -357,7 +357,7 @@ func (v SettingsView) View() tea.View {
 		lipgloss.JoinHorizontal(
 			lipgloss.Left,
 			settingsTitleStyle.Render("⚙️ Settings"),
-			profileBadgeStyle.Render("📋 "+v.getActiveProfileName()),
+			profileBadgeStyle.Render("📋 "+v.selectedRequestName()),
 		),
 	)
 	editorBlock := lipgloss.JoinVertical(
@@ -378,24 +378,27 @@ func (v SettingsView) View() tea.View {
 	return tea.NewView(content)
 }
 
-func (v SettingsView) paneBg(focused bool) lipgloss.Style {
+func (v RequestsView) paneBg(focused bool) lipgloss.Style {
 	if focused {
 		return lipgloss.NewStyle().BorderForeground(styles.FocusedPaneBg).BorderStyle(lipgloss.RoundedBorder()).Padding(0, 1).MarginRight(1)
 	}
 	return lipgloss.NewStyle().MarginTop(1).MarginLeft(1).MarginRight(0).Padding(0, 1)
 }
 
-func (v SettingsView) renderInlineError() string {
+func (v RequestsView) renderInlineError() string {
 	if v.inlineErr == "" {
 		return ""
 	}
 	return inlineErrorStyle.Render("⚠ " + v.inlineErr)
 }
 
-func (v SettingsView) getActiveProfileName() string {
-	profileName := v.configMgr.GetActiveProfile()
-	if profileName == "" {
+func (v RequestsView) selectedRequestName() string {
+	requestName := v.configMgr.GetActiveRequest()
+	if opt, ok := v.profileList.SelectedItem().(Option[string]); ok {
+		requestName = opt.Value
+	}
+	if requestName == "" {
 		return "default"
 	}
-	return profileName
+	return requestName
 }

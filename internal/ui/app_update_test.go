@@ -203,14 +203,14 @@ func newTestApp(t *testing.T, csvPaths ...string) (
 	logManagerMock.EXPECT().Get().Return([]logs.LogMessage{}).AnyTimes()
 	logManagerMock.EXPECT().Clear().AnyTimes()
 	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
-	configMgrMock.EXPECT().GetActiveProfile().Return("default").AnyTimes()
-	configMgrMock.EXPECT().ListProfiles().Return([]string{"default"}).AnyTimes()
-	// The Settings view calls GetProfileRaw during construction to
+	configMgrMock.EXPECT().GetActiveRequest().Return("default").AnyTimes()
+	configMgrMock.EXPECT().ListRequests().Return([]string{"default"}).AnyTimes()
+	// The Settings view calls GetRequestRaw during construction to
 	// load the active profile's raw content. AppModel-level tests do
 	// not care about the content, so return an empty string and a
 	// non-nil error so the view sets inlineErr instead of panic.
 	// The view's own tests cover the success path.
-	configMgrMock.EXPECT().GetProfileRaw(gomock.Any()).
+	configMgrMock.EXPECT().GetRequestRaw(gomock.Any()).
 		Return("", assert.AnError).
 		AnyTimes()
 	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()

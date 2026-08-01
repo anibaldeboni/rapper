@@ -47,7 +47,7 @@ func ctrlSKeyMsg() tea.KeyPressMsg {
 	return tea.KeyPressMsg{Text: "", Code: 's', Mod: tea.ModCtrl}
 }
 
-// settingsViewOpt mutates the settingsViewOpts carried by newTestSettingsView.
+// settingsViewOpt mutates the settingsViewOpts carried by newTestRequestsView.
 type settingsViewOpt func(*settingsViewOpts)
 
 type settingsViewOpts struct {
@@ -64,7 +64,7 @@ func withActiveProfile(name string) settingsViewOpt {
 	return func(o *settingsViewOpts) { o.activeName = name }
 }
 
-// withProfileRaw seeds the GetProfileRaw expectation for the given
+// withProfileRaw seeds the GetRequestRaw expectation for the given
 // name. Each name is expected exactly once by default; tests that
 // need re-entry (e.g. switching profiles back and forth) layer
 // additional expectations on top of the helper's defaults.
@@ -77,16 +77,16 @@ func withProfileRaw(name, content string) settingsViewOpt {
 	}
 }
 
-// newTestSettingsView builds a SettingsView with gomock-backed
+// newTestRequestsView builds a SettingsView with gomock-backed
 // ConfigManager (the view no longer takes a proc — workers are
 // re-applied via OnChange in main.go). The helper seeds AnyTimes
-// expectations for ListProfiles / GetActiveProfile. GetProfileRaw
+// expectations for ListRequests / GetActiveProfile. GetRequestRaw
 // is NOT pre-registered for every seeded name: tests register the
 // exact calls they expect (e.g. for the active profile's initial
 // load and for any cursor switches). gomock matches in FIFO order,
-// so any unseeded GetProfileRaw call surfaces as an "unexpected
+// so any unseeded GetRequestRaw call surfaces as an "unexpected
 // call" failure, which is the desired signal.
-func newTestSettingsView(t *testing.T, opts ...settingsViewOpt) (SettingsView, *mock_ui.MockConfigManager) {
+func newTestRequestsView(t *testing.T, opts ...settingsViewOpt) (RequestsView, *mock_ui.MockConfigManager) {
 	t.Helper()
 	o := settingsViewOpts{
 		profiles:   []string{"default"},
@@ -99,27 +99,27 @@ func newTestSettingsView(t *testing.T, opts ...settingsViewOpt) (SettingsView, *
 	ctrl := gomock.NewController(t)
 	configMgr := mock_ui.NewMockConfigManager(ctrl)
 
-	configMgr.EXPECT().ListProfiles().Return(o.profiles).AnyTimes()
-	configMgr.EXPECT().GetActiveProfile().Return(o.activeName).AnyTimes()
+	configMgr.EXPECT().ListRequests().Return(o.profiles).AnyTimes()
+	configMgr.EXPECT().GetActiveRequest().Return(o.activeName).AnyTimes()
 
-	// Pre-register GetProfileRaw for the active profile so the
+	// Pre-register GetRequestRaw for the active profile so the
 	// initial load inside NewSettingsView is satisfied. Tests that
 	// also need other profiles register them with withProfileRaw.
 	activeRaw, hasActive := o.rawContent[o.activeName]
 	if hasActive {
-		configMgr.EXPECT().GetProfileRaw(o.activeName).Return(activeRaw, nil).Times(1)
+		configMgr.EXPECT().GetRequestRaw(o.activeName).Return(activeRaw, nil).Times(1)
 	} else {
 		// No seeded content for the active profile: still expect
 		// exactly one call (the initial load) but make it return
 		// empty so the view's inlineErr is set instead of crashing.
-		configMgr.EXPECT().GetProfileRaw(o.activeName).Return("", nil).Times(1)
+		configMgr.EXPECT().GetRequestRaw(o.activeName).Return("", nil).Times(1)
 	}
 
-	return NewSettingsView(configMgr), configMgr
+	return NewRequestsView(configMgr), configMgr
 }
 
-func TestSettingsView_KeyMap_ShortHelp_Unchanged(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_KeyMap_ShortHelp_Unchanged(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 	got := bindingKeys(v.KeyMap().ShortHelp())
 	want := [][]string{{"up"}, {"down"}, {"e"}, {"enter"}}
 
@@ -133,18 +133,18 @@ func TestSettingsView_KeyMap_ShortHelp_Unchanged(t *testing.T) {
 	assert.Equal(t, [][][]string{{{"esc"}, {"ctrl+s"}}}, bindingGroupKeys(v.KeyMap().FullHelp()))
 }
 
-func TestSettingsView_Update_ViewActivatedMsg_EmitsStatusKeymap(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_Update_ViewActivatedMsg_EmitsStatusKeymap(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 	next, cmd := v.Update(msgs.ViewActivatedMsg{})
-	assert.IsType(t, SettingsView{}, next)
+	assert.IsType(t, RequestsView{}, next)
 	require.NotNil(t, cmd)
 	status, ok := cmd().(msgs.StatusKeymapMsg)
 	require.True(t, ok, "activation command must return msgs.StatusKeymapMsg")
 	assert.Equal(t, bindingKeys(v.KeyMap().ShortHelp()), bindingKeys(status.Current.ShortHelp()))
 }
 
-func TestSettingsView_Update_E_EmitsStatusKeymap(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_Update_E_EmitsStatusKeymap(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 
 	_, cmd := v.Update(settingsKeyMsg("e"))
 	require.NotNil(t, cmd)
@@ -159,8 +159,8 @@ func TestSettingsView_Update_E_EmitsStatusKeymap(t *testing.T) {
 	assert.NotContains(t, got, []string{"enter"})
 }
 
-func TestSettingsView_Update_Esc_EmitsStatusKeymap(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_Update_Esc_EmitsStatusKeymap(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 	v.editing = true
 	v.focusPane = paneForm
 	v.editor.Focus()
@@ -180,14 +180,14 @@ func TestSettingsView_Update_Esc_EmitsStatusKeymap(t *testing.T) {
 	assert.NotContains(t, got, []string{"ctrl+s"})
 }
 
-func TestSettingsView_Update_E_WhileEditing_NoOp(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_Update_E_WhileEditing_NoOp(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 	v.editing = true
 	v.focusPane = paneForm
 	v.editor.Focus()
 
 	next, cmd := v.Update(settingsKeyMsg("e"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 
 	assert.True(t, v.editing)
 	if cmd != nil {
@@ -196,11 +196,11 @@ func TestSettingsView_Update_E_WhileEditing_NoOp(t *testing.T) {
 	}
 }
 
-func TestSettingsView_Update_Esc_WhileSelection_NoOp(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_Update_Esc_WhileSelection_NoOp(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 
 	next, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 
 	assert.False(t, v.editing)
 	if cmd != nil {
@@ -209,13 +209,13 @@ func TestSettingsView_Update_Esc_WhileSelection_NoOp(t *testing.T) {
 	}
 }
 
-// TestSettingsView_InitialState_EditorShowsActiveProfileRaw is S2.1.
+// TestRequestsView_InitialState_EditorShowsActiveProfileRaw is S2.1.
 // On construction, the editor must show the raw bytes of the active
 // profile, must NOT be focused, and the selected profile must equal
 // the active profile. The editing flag must be false (selection mode).
-func TestSettingsView_InitialState_EditorShowsActiveProfileRaw(t *testing.T) {
+func TestRequestsView_InitialState_EditorShowsActiveProfileRaw(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withProfiles([]string{"default", "production"}),
 		withActiveProfile("production"),
 		withProfileRaw("production", raw))
@@ -232,27 +232,27 @@ func TestSettingsView_InitialState_EditorShowsActiveProfileRaw(t *testing.T) {
 		"focusPane must be paneList on construction")
 }
 
-// TestSettingsView_InitialState_EditorRawNotFocused is S2.1 (focus
+// TestRequestsView_InitialState_EditorRawNotFocused is S2.1 (focus
 // half). A focused-state assertion in isolation: the editor must
 // not be focused regardless of pane state on construction.
-func TestSettingsView_InitialState_EditorRawNotFocused(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_InitialState_EditorRawNotFocused(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 	assert.False(t, v.editor.Focused(),
 		"editor must not be focused on construction")
 }
 
-// TestSettingsView_InitialState_PaneListSelected is the access path
+// TestRequestsView_InitialState_PaneListSelected is the access path
 // for S3.1. The view starts in selection mode (focusPane == paneList,
 // editing == false) so the user lands in the profile sidebar.
-func TestSettingsView_InitialState_PaneListSelected(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_InitialState_PaneListSelected(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 	assert.Equal(t, paneList, v.focusPane,
 		"focusPane must default to paneList (selection mode)")
 	assert.False(t, v.editing,
 		"editing must default to false (selection mode)")
 }
 
-// TestSettingsView_InitialState_NoViewportWrapper is S2.3. The
+// TestRequestsView_InitialState_NoViewportWrapper is S2.3. The
 // Settings model must NOT have a viewport.Model field. This is a
 // structural check enforced by the test file rather than the
 // SettingsView source — if a future refactor re-introduces
@@ -261,8 +261,8 @@ func TestSettingsView_InitialState_PaneListSelected(t *testing.T) {
 // The structural guarantee is delivered by the design decision in
 // Engram: the textarea manages its own scrolling; the view does
 // not need a viewport.
-func TestSettingsView_InitialState_NoViewportWrapper(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_InitialState_NoViewportWrapper(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 	// Indirect assertion: textarea.Value() works without a viewport
 	// wrapper. The presence of a viewport field would not break this
 	// test, so the structural guarantee lives in code review + the
@@ -270,13 +270,13 @@ func TestSettingsView_InitialState_NoViewportWrapper(t *testing.T) {
 	_ = v.editor.Value()
 }
 
-// TestSettingsView_SwitchingProfileReloadsEditor is S2.2. In
+// TestRequestsView_SwitchingProfileReloadsEditor is S2.2. In
 // selection mode, moving the cursor to a different profile reloads
 // the editor with that profile's raw bytes.
-func TestSettingsView_SwitchingProfileReloadsEditor(t *testing.T) {
+func TestRequestsView_SwitchingProfileReloadsEditor(t *testing.T) {
 	const aRaw = "request:\n  method: GET\n  url_template: http://a\ncsv:\n  fields: [a]\nworkers: 1\n"
 	const bRaw = "request:\n  method: POST\n  url_template: http://b\ncsv:\n  fields: [b]\nworkers: 2\n"
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withProfiles([]string{"a", "b"}),
 		withActiveProfile("a"),
 		withProfileRaw("a", aRaw),
@@ -285,14 +285,14 @@ func TestSettingsView_SwitchingProfileReloadsEditor(t *testing.T) {
 
 	// The helper only registered the active profile ("a"). Register
 	// "b" explicitly because the test switches to it.
-	configMgr.EXPECT().GetProfileRaw("b").Return(bRaw, nil).Times(1)
+	configMgr.EXPECT().GetRequestRaw("b").Return(bRaw, nil).Times(1)
 
 	// Cursor at 0 (a). Verify initial content.
 	assert.Equal(t, aRaw, v.editor.Value(), "initial editor content = a raw")
 
-	// Move to b. The cursor change must trigger a GetProfileRaw("b").
+	// Move to b. The cursor change must trigger a GetRequestRaw("b").
 	next, _ := v.Update(settingsKeyMsg("down"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 
 	assert.Equal(t, bRaw, v.editor.Value(),
 		"after Down, editor must show b's raw content")
@@ -302,19 +302,19 @@ func TestSettingsView_SwitchingProfileReloadsEditor(t *testing.T) {
 		"selectedProfile must update to the new cursor position")
 }
 
-// TestSettingsView_View_NonEmptyContainsProfile is the S2.1 render
+// TestRequestsView_View_NonEmptyContainsProfile is the S2.1 render
 // test. After a ViewportSizeMsg, the rendered output must contain
 // the active profile name (in the list sidebar) and the YAML
 // content of the editor.
-func TestSettingsView_View_NonEmptyContainsProfile(t *testing.T) {
+func TestRequestsView_View_NonEmptyContainsProfile(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withProfiles([]string{"default", "production"}),
 		withActiveProfile("production"),
 		withProfileRaw("production", raw))
 
 	next, _ := v.Update(msgs.ViewportSizeMsg{Width: 80, Height: 20})
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 
 	out := v.View().Content
 	require.NotEmpty(t, out, "View().Content must be non-empty")
@@ -324,19 +324,19 @@ func TestSettingsView_View_NonEmptyContainsProfile(t *testing.T) {
 		"View().Content must include the raw YAML (url_template key)")
 }
 
-// TestSettingsView_View_ActiveProfileBold is S15.1 (updated). The
+// TestRequestsView_View_ActiveProfileBold is S15.1 (updated). The
 // active profile is rendered in bold instead of a "●" suffix. The
 // render must NOT contain "●" and the active profile name must be
 // present.
-func TestSettingsView_View_ActiveProfileBold(t *testing.T) {
+func TestRequestsView_View_ActiveProfileBold(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withProfiles([]string{"default", "production"}),
 		withActiveProfile("production"),
 		withProfileRaw("production", raw))
 
 	next, _ := v.Update(msgs.ViewportSizeMsg{Width: 80, Height: 20})
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 
 	out := v.View().Content
 	assert.Contains(t, out, "production",
@@ -345,35 +345,35 @@ func TestSettingsView_View_ActiveProfileBold(t *testing.T) {
 		"the active profile must NOT carry the ● marker (bold is used instead)")
 }
 
-// TestSettingsView_EnterActivatesAndReloads is the S16/S17 contract
+// TestRequestsView_EnterActivatesAndReloads is the S16/S17 contract
 // (preserved from the prior two-pane work). Pressing Enter in
-// paneList calls SetActiveProfile and reloads the editor with the
+// paneList calls SetActiveRequest and reloads the editor with the
 // new active profile's raw content.
-func TestSettingsView_EnterActivatesAndReloads(t *testing.T) {
+func TestRequestsView_EnterActivatesAndReloads(t *testing.T) {
 	const aRaw = "request:\n  method: GET\n  url_template: http://a\ncsv:\n  fields: [a]\nworkers: 1\n"
 	const bRaw = "request:\n  method: POST\n  url_template: http://b\ncsv:\n  fields: [b]\nworkers: 2\n"
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withProfiles([]string{"a", "b"}),
 		withActiveProfile("a"),
 		withProfileRaw("a", aRaw),
 		withProfileRaw("b", bRaw))
 	v.focusPane = paneList
 
-	// Cursor move to b needs a GetProfileRaw("b") expectation;
+	// Cursor move to b needs a GetRequestRaw("b") expectation;
 	// the helper only seeded "a" (the active profile).
-	configMgr.EXPECT().GetProfileRaw("b").Return(bRaw, nil).Times(1)
+	configMgr.EXPECT().GetRequestRaw("b").Return(bRaw, nil).Times(1)
 
 	// Move cursor to b.
 	next, _ := v.Update(settingsKeyMsg("down"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	require.Equal(t, 1, v.profileList.Index(), "cursor on b")
 
-	// Activation: SetActiveProfile("b") is called on Enter.
-	configMgr.EXPECT().SetActiveProfile("b").Return(nil).Times(1)
-	// After SetActiveProfile, the view re-reads the active profile's
+	// Activation: SetActiveRequest("b") is called on Enter.
+	configMgr.EXPECT().SetActiveRequest("b").Return(nil).Times(1)
+	// After SetActiveRequest, the view re-reads the active profile's
 	// raw content into the editor — same b profile, so a second
-	// GetProfileRaw("b") is expected.
-	configMgr.EXPECT().GetProfileRaw("b").Return(bRaw, nil).Times(1)
+	// GetRequestRaw("b") is expected.
+	configMgr.EXPECT().GetRequestRaw("b").Return(bRaw, nil).Times(1)
 
 	next, cmd := v.Update(settingsKeyMsg("enter"))
 	require.NotNil(t, cmd, "Enter must return a non-nil cmd (ProfileSwitchedMsg)")
@@ -386,19 +386,19 @@ func TestSettingsView_EnterActivatesAndReloads(t *testing.T) {
 	// After activation, the view's activeProfile field must reflect the
 	// newly-activated profile so the list delegate marks it bold on
 	// the next render instead of staying stuck on the old active.
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	assert.Equal(t, "b", v.activeProfile,
 		"activeProfile must update to the newly-activated profile after Enter")
 }
 
-// TestSettingsView_View_IncludesSelectionHelp is the S5.* status-bar
+// TestRequestsView_View_IncludesSelectionHelp is the S5.* status-bar
 // contract. The SettingsView's KeyMap() returns the stateful keymap
 // used by app_view.go's renderStatusBar. In selection mode, it must
 // surface up/down, `e` (edit), and `enter` (select profile); in edit
 // mode, esc and ctrl+s.
-func TestSettingsView_View_IncludesSelectionHelp(t *testing.T) {
+func TestRequestsView_View_IncludesSelectionHelp(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withProfiles([]string{"a", "b"}),
 		withActiveProfile("a"),
 		withProfileRaw("a", raw))
@@ -429,11 +429,11 @@ func TestSettingsView_View_IncludesSelectionHelp(t *testing.T) {
 		"selection-mode keymap must NOT include 'ctrl+s' (edit-mode only)")
 }
 
-// TestSettingsView_View_IncludesEditHelp is the S5.2 contract.
+// TestRequestsView_View_IncludesEditHelp is the S5.2 contract.
 // The keymap in edit mode advertises esc and ctrl+s.
-func TestSettingsView_View_IncludesEditHelp(t *testing.T) {
+func TestRequestsView_View_IncludesEditHelp(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", raw))
 	v.editing = true
@@ -459,35 +459,35 @@ func TestSettingsView_View_IncludesEditHelp(t *testing.T) {
 		"edit-mode keymap must NOT include plain 'e' (already in edit)")
 }
 
-// TestSettingsView_PressE_EntersEditMode is S3.2. In selection
+// TestRequestsView_PressE_EntersEditMode is S3.2. In selection
 // mode, pressing `e` flips editing to true and focuses the editor.
 // The focusPane must also flip to paneForm so the chrome reflects
 // the new state.
-func TestSettingsView_PressE_EntersEditMode(t *testing.T) {
+func TestRequestsView_PressE_EntersEditMode(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", raw))
 	require.False(t, v.editing, "selection mode on construction")
 	require.False(t, v.editor.Focused(), "editor not focused on construction")
 
 	next, _ := v.Update(settingsKeyMsg("e"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 
 	assert.True(t, v.editing, "e must set editing=true")
 	assert.True(t, v.editor.Focused(), "e must focus the editor")
 	assert.Equal(t, paneForm, v.focusPane, "e must flip focusPane to paneForm")
 }
 
-// TestSettingsView_PressEsc_ExitsEditMode is S3.3. In edit mode,
+// TestRequestsView_PressEsc_ExitsEditMode is S3.3. In edit mode,
 // pressing esc returns the view to selection mode. The editor is
 // blurred, the focusPane flips back to paneList, and inlineErr is
 // preserved (so a prior save error stays visible). Esc is used
 // instead of shift+e because the textarea is a text input — an
 // alphanumeric exit key would conflict with editing the buffer.
-func TestSettingsView_PressEsc_ExitsEditMode(t *testing.T) {
+func TestRequestsView_PressEsc_ExitsEditMode(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", raw))
 	// Force into edit mode.
@@ -498,21 +498,21 @@ func TestSettingsView_PressEsc_ExitsEditMode(t *testing.T) {
 	require.True(t, v.editor.Focused(), "editor focused pre-state")
 
 	next, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 
 	assert.False(t, v.editing, "esc must set editing=false")
 	assert.False(t, v.editor.Focused(), "esc must blur the editor")
 	assert.Equal(t, paneList, v.focusPane, "esc must restore focusPane to paneList")
 }
 
-// TestSettingsView_UpDownInEditModeLocksList is S3.4. While in
+// TestRequestsView_UpDownInEditModeLocksList is S3.4. While in
 // edit mode, up/down must move the cursor inside the editor buffer
 // without changing the list cursor. This is the S3.4 contract —
 // "edit-mode lock" of file alternation.
-func TestSettingsView_UpDownInEditModeLocksList(t *testing.T) {
+func TestRequestsView_UpDownInEditModeLocksList(t *testing.T) {
 	const aRaw = "request:\n  method: GET\n  url_template: http://a\ncsv:\n  fields: [a]\nworkers: 1\n"
 	const bRaw = "request:\n  method: POST\n  url_template: http://b\ncsv:\n  fields: [b]\nworkers: 2\n"
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withProfiles([]string{"a", "b"}),
 		withActiveProfile("a"),
 		withProfileRaw("a", aRaw),
@@ -523,51 +523,51 @@ func TestSettingsView_UpDownInEditModeLocksList(t *testing.T) {
 	v.editor.Focus()
 	require.Equal(t, 0, v.profileList.Index(), "cursor on a")
 
-	// The editor may call GetProfileRaw when it is focused for the
+	// The editor may call GetRequestRaw when it is focused for the
 	// first time (e.g. for selection/cursor positioning). Register a
 	// lenient catch-all so the test does not depend on the editor's
 	// internal state.
-	configMgr.EXPECT().GetProfileRaw(gomock.Any()).
+	configMgr.EXPECT().GetRequestRaw(gomock.Any()).
 		Return("", assert.AnError).
 		AnyTimes()
 
 	// Press up then down. List cursor must stay on a.
 	next, _ := v.Update(settingsKeyMsg("up"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	assert.Equal(t, 0, v.profileList.Index(),
 		"Up in edit mode must NOT change the list cursor")
 
 	next, _ = v.Update(settingsKeyMsg("down"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	assert.Equal(t, 0, v.profileList.Index(),
 		"Down in edit mode must NOT change the list cursor")
 	assert.True(t, v.editing,
 		"up/down must NOT exit edit mode (only shift+e does)")
 }
 
-// TestSettingsView_EscInSelectionIsNoOp is the safety guard. esc in
+// TestRequestsView_EscInSelectionIsNoOp is the safety guard. esc in
 // selection mode is undefined behavior — the ExitEdit binding only
 // matches when editing is true. The test asserts the keypress is
 // silently ignored so it does not accidentally change state.
-func TestSettingsView_EscInSelectionIsNoOp(t *testing.T) {
+func TestRequestsView_EscInSelectionIsNoOp(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", raw))
 	require.False(t, v.editing, "selection mode pre-state")
 
 	next, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 
 	assert.False(t, v.editing, "esc in selection mode must NOT enter edit mode")
 	assert.Equal(t, paneList, v.focusPane, "esc in selection mode must NOT change pane")
 }
 
-// TestSettingsView_EInEditModeIsNoOp — pressing e while already in
+// TestRequestsView_EInEditModeIsNoOp — pressing e while already in
 // edit mode is a no-op. The textarea owns the key.
-func TestSettingsView_EInEditModeIsNoOp(t *testing.T) {
+func TestRequestsView_EInEditModeIsNoOp(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", raw))
 	v.editing = true
@@ -576,26 +576,26 @@ func TestSettingsView_EInEditModeIsNoOp(t *testing.T) {
 	require.True(t, v.editing, "edit mode pre-state")
 
 	next, _ := v.Update(settingsKeyMsg("e"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 
 	assert.True(t, v.editing, "e in edit mode must stay in edit mode")
 	assert.True(t, v.editor.Focused(), "editor must remain focused")
 }
 
-// TestSettingsView_CtrlSInSelectionIsNoOp is S4.4. In selection
+// TestRequestsView_CtrlSInSelectionIsNoOp is S4.4. In selection
 // mode, ctrl+s must be a no-op: no save is attempted, no error is
 // rendered, the mode does not change. The test uses a strict mock
-// (no SaveProfileRaw expectation) so any call would fail the test.
-func TestSettingsView_CtrlSInSelectionIsNoOp(t *testing.T) {
+// (no SaveRequestRaw expectation) so any call would fail the test.
+func TestRequestsView_CtrlSInSelectionIsNoOp(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", raw))
 	v.focusPane = paneList
 	v.editing = false
 
-	// Strict: no SaveProfileRaw call allowed.
-	configMgr.EXPECT().SaveProfileRaw(gomock.Any(), gomock.Any()).Times(0)
+	// Strict: no SaveRequestRaw call allowed.
+	configMgr.EXPECT().SaveRequestRaw(gomock.Any(), gomock.Any()).Times(0)
 
 	_, cmd := v.Update(ctrlSKeyMsg())
 	assert.Nil(t, cmd, "ctrl+s in selection mode must not return a cmd")
@@ -603,14 +603,14 @@ func TestSettingsView_CtrlSInSelectionIsNoOp(t *testing.T) {
 	assert.Empty(t, v.inlineErr, "ctrl+s in selection must not set an inline error")
 }
 
-// TestSettingsView_CtrlSInEditMode_ValidYAML_Saves is S4.1. In
-// edit mode, ctrl+s on valid YAML must call SaveProfileRaw and
+// TestRequestsView_CtrlSInEditMode_ValidYAML_Saves is S4.1. In
+// edit mode, ctrl+s on valid YAML must call SaveRequestRaw and
 // return a cmd that yields ConfigSavedMsg. The mock's Times(1)
 // assertion proves the call happens with the right args.
-func TestSettingsView_CtrlSInEditMode_ValidYAML_Saves(t *testing.T) {
+func TestRequestsView_CtrlSInEditMode_ValidYAML_Saves(t *testing.T) {
 	const origRaw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
 	const newRaw = "request:\n  method: PUT\n  url_template: http://y\ncsv:\n  fields: [name]\nworkers: 4\n"
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", origRaw))
 	// Force into edit mode.
@@ -620,7 +620,7 @@ func TestSettingsView_CtrlSInEditMode_ValidYAML_Saves(t *testing.T) {
 	v.editor.SetValue(newRaw)
 
 	configMgr.EXPECT().
-		SaveProfileRaw("p", newRaw).
+		SaveRequestRaw("p", newRaw).
 		Return(nil).
 		Times(1)
 
@@ -636,49 +636,49 @@ func TestSettingsView_CtrlSInEditMode_ValidYAML_Saves(t *testing.T) {
 	// Now feed the message back into the view (simulating AppModel's
 	// broadcast). The inlineErr must be cleared.
 	next, _ := v.Update(msgs.ConfigSavedMsg{})
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	assert.Empty(t, v.inlineErr,
 		"ConfigSavedMsg must clear inlineErr")
 	assert.True(t, v.editing,
 		"a successful save must NOT auto-exit edit mode (user keeps editing)")
 }
 
-// TestSettingsView_CtrlS_NonActiveProfile_Saves is S4.1a / S4.5.
+// TestRequestsView_CtrlS_NonActiveProfile_Saves is S4.1a / S4.5.
 // In edit mode on a non-active profile, ctrl+s on valid YAML must
-// call SaveProfileRaw with the selected profile's name (NOT the
-// active one) and the editor's content. SetActiveProfile must NOT
+// call SaveRequestRaw with the selected profile's name (NOT the
+// active one) and the editor's content. SetActiveRequest must NOT
 // be called — saving does not auto-activate. The active profile
 // stays the same after the save.
-func TestSettingsView_CtrlS_NonActiveProfile_Saves(t *testing.T) {
+func TestRequestsView_CtrlS_NonActiveProfile_Saves(t *testing.T) {
 	const pRaw = "request:\n  method: POST\n  url_template: http://p\ncsv:\n  fields: [id]\nworkers: 2\n"
 	const bRaw = "request:\n  method: GET\n  url_template: http://b\ncsv:\n  fields: [a]\nworkers: 1\n"
 	const newBRaw = "request:\n  method: PUT\n  url_template: http://b-new\ncsv:\n  fields: [a, b]\nworkers: 5\n"
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withProfiles([]string{"p", "b"}),
 		withActiveProfile("p"),
 		withProfileRaw("p", pRaw),
 		withProfileRaw("b", bRaw))
 	// Move cursor to b (non-active) and enter edit mode with a
 	// edited buffer that differs from the original b raw.
-	configMgr.EXPECT().GetProfileRaw("b").Return(bRaw, nil).Times(1)
+	configMgr.EXPECT().GetRequestRaw("b").Return(bRaw, nil).Times(1)
 	next, _ := v.Update(settingsKeyMsg("down"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	require.Equal(t, 1, v.profileList.Index(), "precondition: cursor on b")
 	require.Equal(t, "b", v.selectedProfile, "precondition: b selected")
-	require.Equal(t, "p", v.configMgr.GetActiveProfile(), "precondition: active = p")
+	require.Equal(t, "p", v.configMgr.GetActiveRequest(), "precondition: active = p")
 
 	next, _ = v.Update(settingsKeyMsg("e"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	require.True(t, v.editing, "precondition: edit mode after e")
 	v.editor.SetValue(newBRaw)
 
-	// SaveProfileRaw("b", newBRaw) once; SetActiveProfile never.
+	// SaveRequestRaw("b", newBRaw) once; SetActiveRequest never.
 	configMgr.EXPECT().
-		SaveProfileRaw("b", newBRaw).
+		SaveRequestRaw("b", newBRaw).
 		Return(nil).
 		Times(1)
 	configMgr.EXPECT().
-		SetActiveProfile(gomock.Any()).
+		SetActiveRequest(gomock.Any()).
 		Times(0)
 
 	_, cmd := v.Update(ctrlSKeyMsg())
@@ -691,40 +691,40 @@ func TestSettingsView_CtrlS_NonActiveProfile_Saves(t *testing.T) {
 	_ = csMsg
 
 	// Active profile is still p — saving b does NOT auto-activate.
-	assert.Equal(t, "p", v.configMgr.GetActiveProfile(),
+	assert.Equal(t, "p", v.configMgr.GetActiveRequest(),
 		"active profile must remain p after a non-active save")
 }
 
-// TestSettingsView_CtrlS_NonActiveProfile_InvalidBlocks is S4.2a.
+// TestRequestsView_CtrlS_NonActiveProfile_InvalidBlocks is S4.2a.
 // In edit mode on a non-active profile, ctrl+s on malformed YAML
 // must surface the error inline, preserve the editor content, keep
-// focus on the editor, and NOT call SetActiveProfile.
-func TestSettingsView_CtrlS_NonActiveProfile_InvalidBlocks(t *testing.T) {
+// focus on the editor, and NOT call SetActiveRequest.
+func TestRequestsView_CtrlS_NonActiveProfile_InvalidBlocks(t *testing.T) {
 	const pRaw = "request:\n  method: POST\n  url_template: http://p\ncsv:\n  fields: [id]\nworkers: 2\n"
 	const bRaw = "request:\n  method: GET\n  url_template: http://b\ncsv:\n  fields: [a]\nworkers: 1\n"
 	const badBRaw = "request:\n  method: GET\n  url_template: http://b\ncsv:\n  fields: [a\nworkers: 1\n"
 	saveErr := errors.New("yaml: did not find expected ',' or ']'")
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withProfiles([]string{"p", "b"}),
 		withActiveProfile("p"),
 		withProfileRaw("p", pRaw),
 		withProfileRaw("b", bRaw))
-	configMgr.EXPECT().GetProfileRaw("b").Return(bRaw, nil).Times(1)
+	configMgr.EXPECT().GetRequestRaw("b").Return(bRaw, nil).Times(1)
 	next, _ := v.Update(settingsKeyMsg("down"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	next, _ = v.Update(settingsKeyMsg("e"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	v.editor.SetValue(badBRaw)
 
-	// The view's saveRawCmd must call SaveProfileRaw with the raw
+	// The view's saveRawCmd must call SaveRequestRaw with the raw
 	// editor content; the mock returns an error to simulate a
-	// backend reject. No SetActiveProfile call.
+	// backend reject. No SetActiveRequest call.
 	configMgr.EXPECT().
-		SaveProfileRaw("b", badBRaw).
+		SaveRequestRaw("b", badBRaw).
 		Return(saveErr).
 		Times(1)
 	configMgr.EXPECT().
-		SetActiveProfile(gomock.Any()).
+		SetActiveRequest(gomock.Any()).
 		Times(0)
 
 	_, cmd := v.Update(ctrlSKeyMsg())
@@ -738,7 +738,7 @@ func TestSettingsView_CtrlS_NonActiveProfile_InvalidBlocks(t *testing.T) {
 	// Feed the error back; the view must set inlineErr and preserve
 	// the editor content and focus.
 	next, _ = v.Update(errMsg)
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	assert.NotEmpty(t, v.inlineErr,
 		"inlineErr must be set after a failed non-active save")
 	assert.Equal(t, badBRaw, v.editor.Value(),
@@ -747,11 +747,11 @@ func TestSettingsView_CtrlS_NonActiveProfile_InvalidBlocks(t *testing.T) {
 		"invalid-save must keep the editor focused")
 	assert.True(t, v.editing,
 		"invalid-save must keep edit mode (user can fix the buffer)")
-	assert.Equal(t, "p", v.configMgr.GetActiveProfile(),
+	assert.Equal(t, "p", v.configMgr.GetActiveRequest(),
 		"active profile must remain p after a failed non-active save")
 }
 
-// TestSettingsView_CtrlSInEditMode_InvalidYAML_Blocks is S4.2. In
+// TestRequestsView_CtrlSInEditMode_InvalidYAML_Blocks is S4.2. In
 // edit mode, ctrl+s on malformed YAML must NOT write. The cmd
 // yields ConfigSaveErrorMsg; the view then sets inlineErr to the
 // error message. The editor content and focus are preserved.
@@ -762,11 +762,11 @@ func TestSettingsView_CtrlS_NonActiveProfile_InvalidBlocks(t *testing.T) {
 // "invalid YAML" would be silently fixed before the save is
 // triggered. The unclosed bracket is preserved as-is and rejected
 // by yaml.Unmarshal.
-func TestSettingsView_CtrlSInEditMode_InvalidYAML_Blocks(t *testing.T) {
+func TestRequestsView_CtrlSInEditMode_InvalidYAML_Blocks(t *testing.T) {
 	const origRaw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
 	const badYAML = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id\nworkers: 1\n"
 	saveErr := errors.New("yaml: did not find expected ',' or ']'")
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", origRaw))
 	v.editing = true
@@ -775,7 +775,7 @@ func TestSettingsView_CtrlSInEditMode_InvalidYAML_Blocks(t *testing.T) {
 	v.editor.SetValue(badYAML)
 
 	configMgr.EXPECT().
-		SaveProfileRaw("p", badYAML).
+		SaveRequestRaw("p", badYAML).
 		Return(saveErr).
 		Times(1)
 
@@ -790,7 +790,7 @@ func TestSettingsView_CtrlSInEditMode_InvalidYAML_Blocks(t *testing.T) {
 	// Feed the error back; the view must set inlineErr and preserve
 	// the editor content and focus.
 	next, _ := v.Update(errMsg)
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	assert.NotEmpty(t, v.inlineErr,
 		"inlineErr must be set after a failed save")
 	assert.Equal(t, badYAML, v.editor.Value(),
@@ -801,14 +801,14 @@ func TestSettingsView_CtrlSInEditMode_InvalidYAML_Blocks(t *testing.T) {
 		"invalid-save must keep edit mode (user can fix the buffer)")
 }
 
-// TestSettingsView_CtrlSUnreadableProfile_InlineError is S4.3. If
-// SaveProfileRaw fails (e.g., file became unreadable), the inline
+// TestRequestsView_CtrlSUnreadableProfile_InlineError is S4.3. If
+// SaveRequestRaw fails (e.g., file became unreadable), the inline
 // error must reference the read failure and the editor must stay
 // focused.
-func TestSettingsView_CtrlSUnreadableProfile_InlineError(t *testing.T) {
+func TestRequestsView_CtrlSUnreadableProfile_InlineError(t *testing.T) {
 	const origRaw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
 	saveErr := errors.New("open p.yml: permission denied")
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", origRaw))
 	v.editing = true
@@ -816,7 +816,7 @@ func TestSettingsView_CtrlSUnreadableProfile_InlineError(t *testing.T) {
 	v.editor.Focus()
 
 	configMgr.EXPECT().
-		SaveProfileRaw("p", origRaw).
+		SaveRequestRaw("p", origRaw).
 		Return(saveErr).
 		Times(1)
 
@@ -825,7 +825,7 @@ func TestSettingsView_CtrlSUnreadableProfile_InlineError(t *testing.T) {
 
 	msg := cmd()
 	next, _ := v.Update(msg)
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	assert.Contains(t, v.inlineErr, "permission denied",
 		"inlineErr must reference the underlying read/write error")
 	assert.Equal(t, origRaw, v.editor.Value(),
@@ -834,14 +834,14 @@ func TestSettingsView_CtrlSUnreadableProfile_InlineError(t *testing.T) {
 		"editor must keep focus on read failure so the user can retry")
 }
 
-// TestSettingsView_StatusBarReflectsModeAfterUpdate is S5.3.
+// TestRequestsView_StatusBarReflectsModeAfterUpdate is S5.3.
 // The stateful keymap returned by KeyMap() must reflect the
 // current `editing` flag in the same render frame as the Update
 // that flipped it. The test exercises the full selection → edit →
 // selection transition and asserts the keymap at each step.
-func TestSettingsView_StatusBarReflectsModeAfterUpdate(t *testing.T) {
+func TestRequestsView_StatusBarReflectsModeAfterUpdate(t *testing.T) {
 	const raw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", raw))
 	require.False(t, v.editing, "selection mode on construction")
@@ -855,7 +855,7 @@ func TestSettingsView_StatusBarReflectsModeAfterUpdate(t *testing.T) {
 
 	// Press e → enter edit mode.
 	next, _ := v.Update(settingsKeyMsg("e"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	require.True(t, v.editing, "edit mode after pressing e")
 
 	// Frame 1: edit mode (same render cycle as the Update).
@@ -869,7 +869,7 @@ func TestSettingsView_StatusBarReflectsModeAfterUpdate(t *testing.T) {
 
 	// Press esc → exit edit mode.
 	next, _ = v.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	require.False(t, v.editing, "selection mode after pressing esc")
 
 	// Frame 2: back to selection mode.
@@ -880,7 +880,7 @@ func TestSettingsView_StatusBarReflectsModeAfterUpdate(t *testing.T) {
 		"back to selection mode: kbind.Save must be absent")
 }
 
-// TestSettingsView_ViewPackageDoesNotCallProcessor is S7.2. The
+// TestRequestsView_ViewPackageDoesNotCallProcessor is S7.2. The
 // Settings view must NEVER call processor.SetWorkers (or any
 // ProcessorController method) directly. The hot-reload chain goes
 // through ConfigManager.Update → OnChange, which is wired in
@@ -889,7 +889,7 @@ func TestSettingsView_StatusBarReflectsModeAfterUpdate(t *testing.T) {
 // guard that asserts the source files in this package do not
 // import the processor or call SetWorkers. A future regression
 // that re-introduced a direct call would fail this test.
-func TestSettingsView_ViewPackageDoesNotCallProcessor(t *testing.T) {
+func TestRequestsView_ViewPackageDoesNotCallProcessor(t *testing.T) {
 	// Verify by file content: the view package's source must not
 	// import the processor package or call SetWorkers. The compile-
 	// time guarantee comes from the port interface; this test
@@ -900,14 +900,14 @@ func TestSettingsView_ViewPackageDoesNotCallProcessor(t *testing.T) {
 	// explicit review of settings.go.)
 }
 
-// TestSettingsView_MultipleUpDownInEditModeStay is a stronger
+// TestRequestsView_MultipleUpDownInEditModeStay is a stronger
 // version of S3.4. Repeated Up and Down presses in edit mode do
 // not change the list cursor at all. The cursor remains on a
 // regardless of how many navigation presses are made.
-func TestSettingsView_MultipleUpDownInEditModeStay(t *testing.T) {
+func TestRequestsView_MultipleUpDownInEditModeStay(t *testing.T) {
 	const aRaw = "request:\n  method: GET\n  url_template: http://a\ncsv:\n  fields: [a]\nworkers: 1\n"
 	const bRaw = "request:\n  method: POST\n  url_template: http://b\ncsv:\n  fields: [b]\nworkers: 2\n"
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withProfiles([]string{"a", "b"}),
 		withActiveProfile("a"),
 		withProfileRaw("a", aRaw),
@@ -916,29 +916,29 @@ func TestSettingsView_MultipleUpDownInEditModeStay(t *testing.T) {
 	v.editing = true
 	v.focusPane = paneForm
 	v.editor.Focus()
-	configMgr.EXPECT().GetProfileRaw(gomock.Any()).
+	configMgr.EXPECT().GetRequestRaw(gomock.Any()).
 		Return("", assert.AnError).
 		AnyTimes()
 
 	// 10 alternating presses — cursor must not move.
 	for i := 0; i < 5; i++ {
 		next, _ := v.Update(settingsKeyMsg("up"))
-		v = next.(SettingsView)
+		v = next.(RequestsView)
 		next, _ = v.Update(settingsKeyMsg("down"))
-		v = next.(SettingsView)
+		v = next.(RequestsView)
 	}
 	assert.Equal(t, 0, v.profileList.Index(),
 		"list cursor must stay on a after repeated up/down in edit mode")
 }
 
-// TestSettingsView_EnterEmitsProfileSwitchedMsg is the S17 contract.
+// TestRequestsView_EnterEmitsProfileSwitchedMsg is the S17 contract.
 // On Enter, the view emits a ProfileSwitchedMsg with the activated
 // profile's name. The cmd is non-nil even when activating the
 // already-active profile (idempotent).
-func TestSettingsView_EnterEmitsProfileSwitchedMsg(t *testing.T) {
+func TestRequestsView_EnterEmitsProfileSwitchedMsg(t *testing.T) {
 	const aRaw = "request:\n  method: GET\n  url_template: http://a\ncsv:\n  fields: [a]\nworkers: 1\n"
 	const bRaw = "request:\n  method: POST\n  url_template: http://b\ncsv:\n  fields: [b]\nworkers: 2\n"
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withProfiles([]string{"a", "b"}),
 		withActiveProfile("a"),
 		withProfileRaw("a", aRaw),
@@ -946,14 +946,14 @@ func TestSettingsView_EnterEmitsProfileSwitchedMsg(t *testing.T) {
 	v.focusPane = paneList
 
 	// Move to b.
-	configMgr.EXPECT().GetProfileRaw("b").Return(bRaw, nil).Times(1)
+	configMgr.EXPECT().GetRequestRaw("b").Return(bRaw, nil).Times(1)
 	next, _ := v.Update(settingsKeyMsg("down"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	require.Equal(t, 1, v.profileList.Index(), "cursor on b")
 
-	// Activation: SetActiveProfile + GetProfileRaw reload.
-	configMgr.EXPECT().SetActiveProfile("b").Return(nil).Times(1)
-	configMgr.EXPECT().GetProfileRaw("b").Return(bRaw, nil).Times(1)
+	// Activation: SetActiveRequest + GetRequestRaw reload.
+	configMgr.EXPECT().SetActiveRequest("b").Return(nil).Times(1)
+	configMgr.EXPECT().GetRequestRaw("b").Return(bRaw, nil).Times(1)
 
 	_, cmd := v.Update(settingsKeyMsg("enter"))
 	require.NotNil(t, cmd)
@@ -963,17 +963,17 @@ func TestSettingsView_EnterEmitsProfileSwitchedMsg(t *testing.T) {
 	assert.Equal(t, "b", psMsg.ProfileName)
 }
 
-// TestSettingsView_PressE_NonActiveProfile_EntersEdit is S3.2. With
+// TestRequestsView_PressE_NonActiveProfile_EntersEdit is S3.2. With
 // the active profile "p" and a non-active profile "b" highlighted,
 // pressing `e` must enter edit mode and load the highlighted
 // profile's raw content into the editor. The previous F1 guard that
 // blocked this path is removed because the backend now supports
-// saving a non-active profile (SaveProfileRaw → updateByName +
+// saving a non-active profile (SaveRequestRaw → updateByName +
 // conditional notify).
-func TestSettingsView_PressE_NonActiveProfile_EntersEdit(t *testing.T) {
+func TestRequestsView_PressE_NonActiveProfile_EntersEdit(t *testing.T) {
 	const pRaw = "request:\n  method: POST\n  url_template: http://p\ncsv:\n  fields: [id]\nworkers: 2\n"
 	const bRaw = "request:\n  method: PUT\n  url_template: http://b\ncsv:\n  fields: [name]\nworkers: 4\n"
-	v, configMgr := newTestSettingsView(t,
+	v, configMgr := newTestRequestsView(t,
 		withProfiles([]string{"p", "b"}),
 		withActiveProfile("p"),
 		withProfileRaw("p", pRaw),
@@ -983,16 +983,16 @@ func TestSettingsView_PressE_NonActiveProfile_EntersEdit(t *testing.T) {
 
 	// Move the cursor to "b" (the non-active profile). The list
 	// selection reloads the editor with b's raw content (preview).
-	configMgr.EXPECT().GetProfileRaw("b").Return(bRaw, nil).Times(1)
+	configMgr.EXPECT().GetRequestRaw("b").Return(bRaw, nil).Times(1)
 	next, _ := v.Update(settingsKeyMsg("down"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	require.Equal(t, 1, v.profileList.Index(),
 		"precondition: cursor must be on b (non-active)")
 	require.Equal(t, "b", v.selectedProfile,
 		"precondition: selectedProfile must be the highlighted profile (b)")
 	require.Equal(t, bRaw, v.editor.Value(),
 		"precondition: editor must preview the highlighted profile's raw content")
-	require.Equal(t, "p", v.configMgr.GetActiveProfile(),
+	require.Equal(t, "p", v.configMgr.GetActiveRequest(),
 		"precondition: active profile must still be p (not b)")
 	require.False(t, v.editing,
 		"precondition: must start in selection mode")
@@ -1001,7 +1001,7 @@ func TestSettingsView_PressE_NonActiveProfile_EntersEdit(t *testing.T) {
 	// must now enter edit mode (gate removed) and focus the editor
 	// with the highlighted profile's raw content.
 	next, cmd := v.Update(settingsKeyMsg("e"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	require.NotNil(t, cmd,
 		"e on a non-active profile must return a status keymap cmd")
 	assert.True(t, v.editing,
@@ -1016,30 +1016,30 @@ func TestSettingsView_PressE_NonActiveProfile_EntersEdit(t *testing.T) {
 		"e on a non-active profile must load the highlighted profile's raw content into the editor")
 	assert.Empty(t, v.inlineErr,
 		"e on a non-active profile must not set an inline error")
-	assert.Equal(t, "p", v.configMgr.GetActiveProfile(),
+	assert.Equal(t, "p", v.configMgr.GetActiveRequest(),
 		"e on a non-active profile must NOT auto-activate the highlighted profile")
 }
 
-// TestSettingsView_PressE_ActiveProfile_EntersEdit guards the
+// TestRequestsView_PressE_ActiveProfile_EntersEdit guards the
 // existing edit-mode entry contract: when the highlighted
 // profile IS the active profile, `e` enters edit mode as
 // before. This is the F1 fix's "positive" half — the guard is
 // selective, not blanket. If a future refactor accidentally
 // disabled edit mode for everyone, this test would catch it.
-func TestSettingsView_PressE_ActiveProfile_EntersEdit(t *testing.T) {
+func TestRequestsView_PressE_ActiveProfile_EntersEdit(t *testing.T) {
 	const pRaw = "request:\n  method: POST\n  url_template: http://x\ncsv:\n  fields: [id]\nworkers: 2\n"
-	v, _ := newTestSettingsView(t,
+	v, _ := newTestRequestsView(t,
 		withActiveProfile("p"),
 		withProfileRaw("p", pRaw))
 	v.focusPane = paneList
 	v.editing = false
 	require.Equal(t, "p", v.selectedProfile,
 		"precondition: highlighted profile must be the active one")
-	require.Equal(t, "p", v.configMgr.GetActiveProfile(),
+	require.Equal(t, "p", v.configMgr.GetActiveRequest(),
 		"precondition: active profile must be p")
 
 	next, _ := v.Update(settingsKeyMsg("e"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	assert.True(t, v.editing,
 		"e on the active profile must enter edit mode")
 	assert.True(t, v.editor.Focused(),
@@ -1048,15 +1048,15 @@ func TestSettingsView_PressE_ActiveProfile_EntersEdit(t *testing.T) {
 		"e on the active profile must flip focusPane to paneForm")
 }
 
-// TestSettingsView_Resize_UpdatesEditorAndList is the S4.1 contract.
+// TestRequestsView_Resize_UpdatesEditorAndList is the S4.1 contract.
 // A ViewportSizeMsg must size the profile list and the editor in
 // one pass. The editor's width is the form pane width minus the
 // margin reserved by the pane background.
-func TestSettingsView_Resize_UpdatesEditorAndList(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_Resize_UpdatesEditorAndList(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 
 	next, _ := v.Update(msgs.ViewportSizeMsg{Width: 80, Height: 20})
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 
 	assert.Equal(t, 20, v.profileList.Width(),
 		"profile list width = width/4 at W=80")
@@ -1070,22 +1070,22 @@ func TestSettingsView_Resize_UpdatesEditorAndList(t *testing.T) {
 		"editor height must fill the unfocused form pane inner height (Height-5) at H=20")
 }
 
-// TestSettingsView_Resize_EditorHeightFillsBorderedPaneInEditMode is
+// TestRequestsView_Resize_EditorHeightFillsBorderedPaneInEditMode is
 // the S4 extension: in edit mode the form pane gets a rounded border
 // (2 vertical lines), so the editor inner height = Height-5-2 = 13 at
 // H=20. Pressing e must re-layout the editor to the bordered inner.
-func TestSettingsView_Resize_EditorHeightFillsBorderedPaneInEditMode(t *testing.T) {
-	v, _ := newTestSettingsView(t)
+func TestRequestsView_Resize_EditorHeightFillsBorderedPaneInEditMode(t *testing.T) {
+	v, _ := newTestRequestsView(t)
 
 	next, _ := v.Update(msgs.ViewportSizeMsg{Width: 80, Height: 20})
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	assert.Equal(t, 15, v.editor.Height(),
 		"selection-mode editor height = Height-5 at H=20")
 
 	// Enter edit mode — focus switches to the form pane (bordered),
 	// so the editor must shrink to the bordered inner height.
 	next, _ = v.Update(settingsKeyMsg("e"))
-	v = next.(SettingsView)
+	v = next.(RequestsView)
 	assert.Equal(t, 13, v.editor.Height(),
 		"edit-mode editor height = Height-5-2 (bordered pane inner) at H=20")
 }

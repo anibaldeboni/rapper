@@ -85,7 +85,7 @@ workers: 1
 	loggerMock.EXPECT().Add(gomock.Any()).AnyTimes()
 	loggerMock.EXPECT().WriteToFile(gomock.Any()).AnyTimes()
 
-	mgr, err := config.NewManager(dir)
+	mgr, err := config.NewRunManager(dir)
 	if err != nil {
 		t.Fatalf("NewManager: %v", err)
 	}
@@ -111,8 +111,8 @@ workers: 1
 	})
 
 	// Switch to profile2.
-	if err := mgr.SetActiveProfile("profile2"); err != nil {
-		t.Fatalf("SetActiveProfile: %v", err)
+	if err := mgr.SetActiveRequest("profile2"); err != nil {
+		t.Fatalf("SetActiveRequest: %v", err)
 	}
 
 	// Write a CSV and run it. Both fields are present in the row; the active

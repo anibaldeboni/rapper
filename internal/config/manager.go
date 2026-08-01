@@ -4,40 +4,40 @@ import (
 	"sync"
 )
 
-type managerImpl struct {
-	profileMgr *profileManagerImpl
+type runManager struct {
+	requestMgr *requestManager
 	listeners  []func(*Config)
 	mu         sync.RWMutex
 }
 
-func NewManager(dir string) (*managerImpl, error) {
+func NewRunManager(dir string) (*runManager, error) {
 	loader := NewLoader()
-	profileMgr := newProfileManager(loader)
+	reqMgr := newRequestManager(loader)
 
-	_, err := profileMgr.discover(dir)
+	_, err := reqMgr.discover(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	return &managerImpl{
-		profileMgr: profileMgr,
+	return &runManager{
+		requestMgr: reqMgr,
 		listeners:  make([]func(*Config), 0),
 	}, nil
 }
 
-func (m *managerImpl) Get() *Config {
-	return m.profileMgr.getActiveConfig()
+func (m *runManager) Get() *Config {
+	return m.requestMgr.getActiveConfig()
 }
 
-func (m *managerImpl) GetProfile(name string) *Config {
-	profile := m.profileMgr.getByName(name)
+func (m *runManager) GetRequest(name string) *Config {
+	profile := m.requestMgr.getByName(name)
 	if profile == nil {
 		return nil
 	}
 	return profile.Config
 }
 
-func (m *managerImpl) Update(cfg *Config) error {
+func (m *runManager) Update(cfg *Config) error {
 	if err := m.updateInMemory(cfg); err != nil {
 		return err
 	}
@@ -45,11 +45,11 @@ func (m *managerImpl) Update(cfg *Config) error {
 	return nil
 }
 
-func (m *managerImpl) updateInMemory(cfg *Config) error {
-	return m.profileMgr.updateActive(cfg)
+func (m *runManager) updateInMemory(cfg *Config) error {
+	return m.requestMgr.updateActive(cfg)
 }
 
-func (m *managerImpl) notify(cfg *Config) {
+func (m *runManager) notify(cfg *Config) {
 	m.mu.RLock()
 	listeners := make([]func(*Config), len(m.listeners))
 	copy(listeners, m.listeners)
@@ -60,19 +60,19 @@ func (m *managerImpl) notify(cfg *Config) {
 	}
 }
 
-func (m *managerImpl) Save() error {
-	return m.profileMgr.save()
+func (m *runManager) Save() error {
+	return m.requestMgr.save()
 }
 
-func (m *managerImpl) OnChange(callback func(*Config)) {
+func (m *runManager) OnChange(callback func(*Config)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.listeners = append(m.listeners, callback)
 }
 
-func (m *managerImpl) ListProfiles() []string {
-	profiles := m.profileMgr.list()
+func (m *runManager) ListRequests() []string {
+	profiles := m.requestMgr.list()
 	names := make([]string, len(profiles))
 	for i, p := range profiles {
 		names[i] = p.Name
@@ -80,16 +80,16 @@ func (m *managerImpl) ListProfiles() []string {
 	return names
 }
 
-func (m *managerImpl) GetActiveProfile() string {
-	active := m.profileMgr.getActive()
+func (m *runManager) GetActiveRequest() string {
+	active := m.requestMgr.getActive()
 	if active == nil {
 		return ""
 	}
 	return active.Name
 }
 
-func (m *managerImpl) SetActiveProfile(name string) error {
-	if err := m.profileMgr.setActive(name); err != nil {
+func (m *runManager) SetActiveRequest(name string) error {
+	if err := m.requestMgr.setActive(name); err != nil {
 		return err
 	}
 

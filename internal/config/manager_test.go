@@ -15,8 +15,8 @@ import (
 //   - return the matching Profile's *Config for a known name
 //   - return nil for an unknown name (no panic)
 func TestManager_GetProfile_ReturnsNamedConfig(t *testing.T) {
-	pm := newProfileManager(NewLoader())
-	pm.profiles = []Profile{
+	pm := newRequestManager(NewLoader())
+	pm.requests = []Request{
 		{
 			Name: "default",
 			Config: &Config{
@@ -36,24 +36,24 @@ func TestManager_GetProfile_ReturnsNamedConfig(t *testing.T) {
 	}
 	pm.activeIndex = 0
 
-	mgr := &managerImpl{
-		profileMgr: pm,
+	mgr := &runManager{
+		requestMgr: pm,
 		listeners:  make([]func(*Config), 0),
 	}
 
-	got := mgr.GetProfile("production")
+	got := mgr.GetRequest("production")
 	if got == nil {
-		t.Fatalf("GetProfile(\"production\") returned nil; expected production config")
+		t.Fatalf("GetRequest(\"production\") returned nil; expected production config")
 	}
 	if got.Request.URLTemplate != "https://prod.example/api" {
-		t.Fatalf("GetProfile(\"production\") returned the wrong config: URLTemplate=%q", got.Request.URLTemplate)
+		t.Fatalf("GetRequest(\"production\") returned the wrong config: URLTemplate=%q", got.Request.URLTemplate)
 	}
 	if got.Request.Method != "POST" {
-		t.Fatalf("GetProfile(\"production\") returned the wrong config: Method=%q", got.Request.Method)
+		t.Fatalf("GetRequest(\"production\") returned the wrong config: Method=%q", got.Request.Method)
 	}
 
-	if unknown := mgr.GetProfile("nonexistent"); unknown != nil {
-		t.Fatalf("GetProfile(\"nonexistent\") must return nil for unknown profiles, got %+v", unknown)
+	if unknown := mgr.GetRequest("nonexistent"); unknown != nil {
+		t.Fatalf("GetRequest(\"nonexistent\") must return nil for unknown profiles, got %+v", unknown)
 	}
 }
 
@@ -61,8 +61,8 @@ func TestManager_GetProfile_ReturnsNamedConfig(t *testing.T) {
 // active profile fires the same OnChange notification block that Update does.
 // Before the fix the listener is never invoked and the test fails.
 func TestManager_SetActiveProfile_NotifiesListeners(t *testing.T) {
-	pm := newProfileManager(NewLoader())
-	pm.profiles = []Profile{
+	pm := newRequestManager(NewLoader())
+	pm.requests = []Request{
 		{
 			Name: "p1",
 			Config: &Config{
@@ -82,8 +82,8 @@ func TestManager_SetActiveProfile_NotifiesListeners(t *testing.T) {
 	}
 	pm.activeIndex = 0
 
-	mgr := &managerImpl{
-		profileMgr: pm,
+	mgr := &runManager{
+		requestMgr: pm,
 		listeners:  make([]func(*Config), 0),
 	}
 
@@ -96,8 +96,8 @@ func TestManager_SetActiveProfile_NotifiesListeners(t *testing.T) {
 		got = cfg
 	})
 
-	if err := mgr.SetActiveProfile("p2"); err != nil {
-		t.Fatalf("SetActiveProfile: %v", err)
+	if err := mgr.SetActiveRequest("p2"); err != nil {
+		t.Fatalf("SetActiveRequest: %v", err)
 	}
 
 	if calls != 1 {

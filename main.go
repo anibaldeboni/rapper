@@ -40,12 +40,12 @@ func init() {
 }
 
 func main() {
-	configMgr, err := config.NewManager(*configPath)
+	runMgr, err := config.NewRunManager(*configPath)
 	if err != nil {
 		handleExit(fmt.Errorf("could not read config file: %w", err))
 	}
 
-	cfg := configMgr.Get()
+	cfg := runMgr.Get()
 	if cfg == nil {
 		handleExit(errors.New("no active configuration found"))
 		return
@@ -75,7 +75,7 @@ func main() {
 		workerCount,
 	)
 
-	configMgr.OnChange(func(newCfg *config.Config) {
+	runMgr.OnChange(func(newCfg *config.Config) {
 		_ = hg.UpdateConfig(
 			newCfg.Request.Method,
 			newCfg.Request.URLTemplate,
@@ -96,7 +96,7 @@ func main() {
 		handleExit(fmt.Errorf("no CSV files found in %s", styles.Bold(*workingDir)))
 	}
 
-	tui := ui.NewApp(filePaths, csvProcessor, logger, configMgr)
+	tui := ui.NewApp(filePaths, csvProcessor, logger, runMgr)
 	ttyIn, ttyOut, err := tea.OpenTTY()
 	if err != nil {
 		handleExit(fmt.Errorf("could not open terminal tty: %w", err))

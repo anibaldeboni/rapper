@@ -38,8 +38,8 @@ func validateConfigShim(cfg *Config) error {
 	return nil
 }
 
-func (m *managerImpl) GetProfileRaw(name string) (string, error) {
-	profile := m.profileMgr.getByName(name)
+func (m *runManager) GetRequestRaw(name string) (string, error) {
+	profile := m.requestMgr.getByName(name)
 	if profile == nil {
 		return "", fmt.Errorf("profile %q not found", name)
 	}
@@ -50,11 +50,11 @@ func (m *managerImpl) GetProfileRaw(name string) (string, error) {
 	return string(data), nil
 }
 
-func (m *managerImpl) SaveProfileRaw(name string, content string) error {
+func (m *runManager) SaveRequestRaw(name string, content string) error {
 	if content == "" {
 		return fmt.Errorf("save profile %q: %w", name, ErrEmptyContent)
 	}
-	profile := m.profileMgr.getByName(name)
+	profile := m.requestMgr.getByName(name)
 	if profile == nil {
 		return fmt.Errorf("profile %q not found", name)
 	}
@@ -68,11 +68,11 @@ func (m *managerImpl) SaveProfileRaw(name string, content string) error {
 		return fmt.Errorf("write profile %q (%s): %w", name, profile.FilePath, err)
 	}
 
-	if err := m.profileMgr.updateByName(name, cfg); err != nil {
+	if err := m.requestMgr.updateByName(name, cfg); err != nil {
 		return fmt.Errorf("update in-memory config for %q: %w", name, err)
 	}
 
-	if name == m.GetActiveProfile() {
+	if name == m.GetActiveRequest() {
 		m.notify(cfg)
 	}
 

@@ -23,29 +23,29 @@ type ConfigManager interface {
 	Save() error
 
 	// Profile management methods
-	// ListProfiles returns names of all available profiles
-	ListProfiles() []string
+	// ListRequests returns names of all available profiles
+	ListRequests() []string
 
-	// GetActiveProfile returns the name of the active profile
-	GetActiveProfile() string
+	// GetActiveRequest returns the name of the active profile
+	GetActiveRequest() string
 
-	// SetActiveProfile switches to the specified profile
-	SetActiveProfile(name string) error
+	// SetActiveRequest switches to the specified profile
+	SetActiveRequest(name string) error
 
-	// GetProfile returns the configuration of the named profile, or
+	// GetRequest returns the configuration of the named profile, or
 	// nil if no profile with that name exists. Used by the settings
 	// view to preview a non-active profile's config in the form
 	// fields before the user decides to activate it.
-	GetProfile(name string) *config.Config
+	GetRequest(name string) *config.Config
 
-	// GetProfileRaw returns the raw file bytes (UTF-8) of the named
+	// GetRequestRaw returns the raw file bytes (UTF-8) of the named
 	// profile's YAML file. Used by the settings view to display and
 	// edit the YAML directly. Returns a wrapped os.ErrNotExist (or
 	// other read error) when the file is missing or unreadable, and
 	// an error referencing the profile name when the name is unknown.
-	GetProfileRaw(name string) (string, error)
+	GetRequestRaw(name string) (string, error)
 
-	// SaveProfileRaw validates content as new-schema YAML
+	// SaveRequestRaw validates content as new-schema YAML
 	// and writes it to the named profile's FilePath. OnChange fires
 	// exactly once ONLY when the saved profile is the active one (so
 	// workers/gateway re-apply for hot-reload). Non-active saves update
@@ -54,7 +54,7 @@ type ConfigManager interface {
 	// Returns a descriptive error and does not write when content is
 	// empty, the profile name is unknown, or the YAML fails to
 	// parse/validate.
-	SaveProfileRaw(name string, content string) error
+	SaveRequestRaw(name string, content string) error
 }
 
 // ConfigProvider defines a read-only configuration interface.

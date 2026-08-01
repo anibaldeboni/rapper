@@ -119,7 +119,7 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 		views: map[View]viewModel{
 			ViewFiles:    initialFilesView,
 			ViewLogs:     views.NewLogsView(log, fileProcessor),
-			ViewSettings: views.NewSettingsView(configMgr),
+			ViewSettings: views.NewRequestsView(configMgr),
 		},
 		help:     createHelp(),
 		spinner:  createSpinner(),
