@@ -42,32 +42,18 @@ func (m *MockProcessorController) EXPECT() *MockProcessorControllerMockRecorder 
 }
 
 // Do mocks base method.
-func (m *MockProcessorController) Do(ctx context.Context, filePath string) (context.Context, context.CancelFunc) {
+func (m *MockProcessorController) Do(ctx context.Context, filePath string, workers int) (context.Context, context.CancelFunc) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Do", ctx, filePath)
+	ret := m.ctrl.Call(m, "Do", ctx, filePath, workers)
 	ret0, _ := ret[0].(context.Context)
 	ret1, _ := ret[1].(context.CancelFunc)
 	return ret0, ret1
 }
 
 // Do indicates an expected call of Do.
-func (mr *MockProcessorControllerMockRecorder) Do(ctx, filePath any) *gomock.Call {
+func (mr *MockProcessorControllerMockRecorder) Do(ctx, filePath, workers any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockProcessorController)(nil).Do), ctx, filePath)
-}
-
-// GetMaxWorkers mocks base method.
-func (m *MockProcessorController) GetMaxWorkers() int {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMaxWorkers")
-	ret0, _ := ret[0].(int)
-	return ret0
-}
-
-// GetMaxWorkers indicates an expected call of GetMaxWorkers.
-func (mr *MockProcessorControllerMockRecorder) GetMaxWorkers() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMaxWorkers", reflect.TypeOf((*MockProcessorController)(nil).GetMaxWorkers))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockProcessorController)(nil).Do), ctx, filePath, workers)
 }
 
 // GetMetrics mocks base method.
@@ -82,30 +68,4 @@ func (m *MockProcessorController) GetMetrics() ports.ProcessorMetrics {
 func (mr *MockProcessorControllerMockRecorder) GetMetrics() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetrics", reflect.TypeOf((*MockProcessorController)(nil).GetMetrics))
-}
-
-// GetWorkerCount mocks base method.
-func (m *MockProcessorController) GetWorkerCount() int {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetWorkerCount")
-	ret0, _ := ret[0].(int)
-	return ret0
-}
-
-// GetWorkerCount indicates an expected call of GetWorkerCount.
-func (mr *MockProcessorControllerMockRecorder) GetWorkerCount() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWorkerCount", reflect.TypeOf((*MockProcessorController)(nil).GetWorkerCount))
-}
-
-// SetWorkers mocks base method.
-func (m *MockProcessorController) SetWorkers(n int) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetWorkers", n)
-}
-
-// SetWorkers indicates an expected call of SetWorkers.
-func (mr *MockProcessorControllerMockRecorder) SetWorkers(n any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetWorkers", reflect.TypeOf((*MockProcessorController)(nil).SetWorkers), n)
 }

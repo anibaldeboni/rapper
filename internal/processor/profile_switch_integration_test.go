@@ -16,7 +16,7 @@ import (
 // TestProfileSwitch_EndToEnd proves the profile-switch hot-reload wiring:
 //  1. Two YAML profiles in a temp dir with different CSV fields.
 //  2. Manager.OnChange subscribed to BOTH the HTTP gateway (UpdateConfig) and the
-//     CSV processor (UpdateConfig + SetWorkers).
+//     CSV processor (UpdateConfig).
 //  3. SetActiveProfile("profile2") → processor must filter rows using profile2's
 //     CSV fields on the next Do.
 //
@@ -35,7 +35,7 @@ func TestProfileSwitch_EndToEnd(t *testing.T) {
 csv:
   separator: ","
   fields: [col_a]
-workers: 1
+workers: 2
 `)
 	profile2 := []byte(`request:
   method: POST
@@ -46,7 +46,7 @@ workers: 1
 csv:
   separator: ","
   fields: [col_b]
-workers: 1
+workers: 8
 `)
 	if err := os.WriteFile(filepath.Join(dir, "profile1.yml"), profile1, 0o600); err != nil {
 		t.Fatalf("write profile1: %v", err)
@@ -94,7 +94,7 @@ workers: 1
 		t.Fatalf("expected active config on manager init")
 	}
 
-	csvProcessor := NewProcessor(startCfg.CSV, gatewayMock, loggerMock, 1)
+	csvProcessor := NewProcessor(startCfg.CSV, gatewayMock, loggerMock)
 
 	// Wire the same callback main.go uses.
 	mgr.OnChange(func(newCfg *config.Config) {
@@ -105,15 +105,13 @@ workers: 1
 			newCfg.Request.Headers,
 		)
 		csvProcessor.UpdateConfig(newCfg.CSV)
-		if newCfg.Workers > 0 {
-			csvProcessor.SetWorkers(newCfg.Workers)
-		}
 	})
 
 	// Switch to profile2.
 	if err := mgr.SetActiveRequest("profile2"); err != nil {
 		t.Fatalf("SetActiveRequest: %v", err)
 	}
+	activeCfg := mgr.Get()
 
 	// Write a CSV and run it. Both fields are present in the row; the active
 	// profile's field filter decides which one(s) reach the gateway.
@@ -125,11 +123,14 @@ workers: 1
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	newCtx, newCancel := csvProcessor.Do(ctx, csvPath)
+	newCtx, newCancel := csvProcessor.Do(ctx, csvPath, activeCfg.Workers)
 	if newCtx == nil {
 		t.Fatalf("processor.Do returned nil context (csv read failed?)")
 	}
 	defer newCancel()
+	if got := csvProcessor.GetMetrics().ActiveWorkers; got != 8 {
+		t.Fatalf("expected active workers from switched profile to be 8, got %d", got)
+	}
 
 	if !waitFor(2*time.Second, func() bool {
 		capturedMu.Lock()

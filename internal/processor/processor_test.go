@@ -12,6 +12,7 @@ import (
 	mock_processor "github.com/anibaldeboni/rapper/internal/processor/mock"
 	"github.com/anibaldeboni/rapper/internal/web"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -20,13 +21,7 @@ import (
 // expectations — tests own the call-count assertions because Exec/Add/
 // WriteToFile semantics differ per test (some are .Times(n), some
 // MinTimes(1), some AnyTimes()).
-//
-// workers is currently always 1 in the tests; the parameter is
-// retained so future tests can exercise the worker-pool path
-// without changing the helper signature.
-//
-//nolint:unparam
-func newTestProcessor(t *testing.T, csvCfg config.CSVConfig, workers int) (
+func newTestProcessor(t *testing.T, csvCfg config.CSVConfig) (
 	*processorImpl,
 	*mock_processor.MockHttpGateway,
 	*mock_processor.MockRequestLogger,
@@ -35,7 +30,7 @@ func newTestProcessor(t *testing.T, csvCfg config.CSVConfig, workers int) (
 	ctrl := gomock.NewController(t)
 	gatewayMock := mock_processor.NewMockHttpGateway(ctrl)
 	loggerMock := mock_processor.NewMockRequestLogger(ctrl)
-	p := NewProcessor(csvCfg, gatewayMock, loggerMock, workers)
+	p := NewProcessor(csvCfg, gatewayMock, loggerMock)
 	return p, gatewayMock, loggerMock
 }
 
@@ -49,7 +44,7 @@ func TestProcessor_Do(t *testing.T) {
 		defer os.Remove(tempFile.Name())
 
 		csvCfg := config.CSVConfig{Fields: []string{"header1", "header2"}, Separator: ","}
-		p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg, 1)
+		p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
 		gatewayMock.EXPECT().
 			Exec(gomock.Any(), gomock.Any()).
 			Do(func(arg0, arg1 any) {
@@ -58,7 +53,7 @@ func TestProcessor_Do(t *testing.T) {
 		loggerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
 		loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(2)
 
-		p.Do(ctx, tempFile.Name())
+		p.Do(ctx, tempFile.Name(), 1)
 		wg.Wait()
 	})
 
@@ -70,7 +65,7 @@ func TestProcessor_Do(t *testing.T) {
 		defer os.Remove(tempFile.Name())
 
 		csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
-		p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg, 1)
+		p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
 		gatewayMock.EXPECT().
 			Exec(gomock.Any(), map[string]string{"header1": "value1"}).
 			Do(func(arg0, arg1 any) {
@@ -79,7 +74,7 @@ func TestProcessor_Do(t *testing.T) {
 		loggerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
 		loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
 
-		p.Do(context.Background(), tempFile.Name())
+		p.Do(context.Background(), tempFile.Name(), 1)
 		wg.Wait()
 	})
 }
@@ -95,7 +90,7 @@ func TestProcessor_UpdateConfig(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
-	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg, 1)
+	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
 	gatewayMock.EXPECT().
 		Exec(gomock.Any(), map[string]string{"header2": "value2"}).
 		Do(func(arg0, arg1 any) {
@@ -107,7 +102,7 @@ func TestProcessor_UpdateConfig(t *testing.T) {
 	// Swap the field filter before running Do. The next run must honor it.
 	p.UpdateConfig(config.CSVConfig{Fields: []string{"header2"}, Separator: ","})
 
-	p.Do(context.Background(), tempFile.Name())
+	p.Do(context.Background(), tempFile.Name(), 1)
 	wg.Wait()
 }
 
@@ -123,7 +118,7 @@ func TestProcessor_Do_LogsSuccessOnTwoXX(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
-	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg, 1)
+	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
 
 	gatewayMock.EXPECT().
 		Exec(gomock.Any(), gomock.Any()).
@@ -155,7 +150,7 @@ func TestProcessor_Do_LogsSuccessOnTwoXX(t *testing.T) {
 	}).AnyTimes()
 	loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
 
-	p.Do(context.Background(), tempFile.Name())
+	p.Do(context.Background(), tempFile.Name(), 1)
 
 	select {
 	case <-execDone:
@@ -192,7 +187,7 @@ func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
-	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg, 1)
+	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
 
 	gatewayMock.EXPECT().
 		Exec(gomock.Any(), gomock.Any()).
@@ -224,7 +219,7 @@ func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
 	}).AnyTimes()
 	loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
 
-	p.Do(context.Background(), tempFile.Name())
+	p.Do(context.Background(), tempFile.Name(), 1)
 
 	select {
 	case <-execDone:
@@ -248,6 +243,40 @@ func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
 		}
 	}
 	assert.True(t, sawClientError, "worker must call logger.Add with LogTypeClientError for a 4xx response")
+}
+
+func TestProcessor_Do_ResolvesWorkerCountPerRun(t *testing.T) {
+	configuredWorkers := 4
+	if configuredWorkers > maxWorkers {
+		configuredWorkers = maxWorkers
+	}
+
+	tests := []struct {
+		name    string
+		workers int
+		want    int
+	}{
+		{name: "zero falls back to one", workers: 0, want: 1},
+		{name: "negative falls back to one", workers: -3, want: 1},
+		{name: "positive value is retained", workers: 4, want: configuredWorkers},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempFile := createCsvFile(t, "header1\n")
+			defer os.Remove(tempFile.Name())
+
+			csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
+			p, _, loggerMock := newTestProcessor(t, csvCfg)
+			loggerMock.EXPECT().Add(gomock.Any()).AnyTimes()
+
+			ctx, cancel := p.Do(context.Background(), tempFile.Name(), tt.workers)
+			require.NotNil(t, ctx)
+			defer cancel()
+
+			assert.Equal(t, tt.want, p.GetMetrics().ActiveWorkers)
+		})
+	}
 }
 
 func createCsvFile(t *testing.T, csvData string) *os.File {

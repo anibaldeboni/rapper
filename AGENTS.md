@@ -26,9 +26,9 @@ CI uses `gotest.tools/gotestsum` for output formatting; otherwise the same `go t
 
 ## Architecture (layered — do not cross without an interface in the owning package)
 
-- `main.go` — wires: `config.Manager` → `web.HttpGateway` → `processor.Processor` → `ui.AppModel`. Reads `-config`, `-dir`, `-output`, `-workers` flags.
+- `main.go` — wires: `config.Manager` → `web.HttpGateway` → `processor.Processor` → `ui.AppModel`. Reads `-config`, `-dir`, and `-output` flags.
 - `internal/ui` — Bubble Tea Model-Update-View. Files: `app.go` (model), `app_update.go` (Msg handling), `app_view.go` (rendering). Views live in `internal/ui/views/`; keymaps in `internal/ui/keymaps.go` and `internal/ui/kbind/`; components in `internal/ui/components/`. **Note: imports `charm.land/bubbletea/v2` (not v1) — v1 patterns do not apply.**
-- `internal/processor` — CSV → templated HTTP request pipeline. Concurrent worker pool. `MaxWorkers = runtime.NumCPU()` (clamped at runtime via `utils.Clamp`).
+- `internal/processor` — CSV → templated HTTP request pipeline. Concurrent worker pool using the active profile's configured worker count, normalized per run.
 - `internal/web` — builds + executes HTTP requests. Applies `text/template` to URL/body/headers. **No explicit `http.Client` timeout — relies on `context` cancellation.**
 - `internal/config` — config manager + profiles. Hot-reload via `Manager.OnChange(func(*Config))` rewires the gateway live (profile switch in TUI does not require restart).
 - `internal/logs` — in-memory + on-disk logger. File created with `O_WRONLY|O_APPEND|O_CREATE`, perms `0660`. The output filename comes from `-output`.
@@ -68,13 +68,12 @@ Profiles in the config dir become switchable in the TUI via `Ctrl+P`; `config.ym
 - `internal/logs/logs.go` is **currently in flight** per `git status` (`M internal/logs/logs.go`). Don't treat it as baseline; expect a partially-applied refactor.
 - `CLAUDE.md` is staged for deletion (`D CLAUDE.md`); `.github/copilot-instructions.md` is the surviving instruction file for GitHub Copilot and is roughly complementary to this one — keep both aligned.
 - `package.json` is **not** a Node.js project manifest — it only declares `semantic-release` for the release workflow. Do not run `npm` locally; let `release.yml` install it.
-- `MaxWorkers = runtime.NumCPU()`. The flag help text reflects this dynamically; the README's hardcoded "max: 5" is stale.
 - `.specify/`, `openspec/`, `.atl/` are local tooling state (Specify framework, OpenSpec/SDD artifacts, Gentle AI skill-registry cache) — leave them alone unless the user asks.
 - `internal/ui/` uses `charm.land/bubbletea/v2`, not v1. v1 idioms (`tea.KeyMsg.String()`, package layout, etc.) differ; do not paste v1 snippets.
 
 ## Reference
 
-- `README.md` — user-facing setup, TUI shortcuts, build/test recipes (note: the `max: 5` worker line is stale — see `MaxWorkers` above).
+- `README.md` — user-facing setup, TUI shortcuts, and build/test recipes.
 - `.specify/memory/constitution.md` — governing principles. **Takes precedence over local conventions.**
 - `.github/copilot-instructions.md` — supplementary style/architecture notes (GitHub Copilot-facing).
 - `Makefile` — single source of truth for build/test/lint/install targets.

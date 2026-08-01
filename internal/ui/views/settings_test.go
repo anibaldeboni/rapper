@@ -881,17 +881,17 @@ func TestRequestsView_StatusBarReflectsModeAfterUpdate(t *testing.T) {
 }
 
 // TestRequestsView_ViewPackageDoesNotCallProcessor is S7.2. The
-// Settings view must NEVER call processor.SetWorkers (or any
-// ProcessorController method) directly. The hot-reload chain goes
+// Settings view must NEVER call processor methods directly. The
+// hot-reload chain goes
 // through ConfigManager.Update → OnChange, which is wired in
 // main.go. This is enforced by the package boundary: the view
 // depends only on the ConfigManager port. The test is a structural
 // guard that asserts the source files in this package do not
-// import the processor or call SetWorkers. A future regression
+// import the processor package or call processor methods. A future regression
 // that re-introduced a direct call would fail this test.
 func TestRequestsView_ViewPackageDoesNotCallProcessor(t *testing.T) {
 	// Verify by file content: the view package's source must not
-	// import the processor package or call SetWorkers. The compile-
+	// import the processor package or call processor methods. The compile-
 	// time guarantee comes from the port interface; this test
 	// documents the invariant.
 	//

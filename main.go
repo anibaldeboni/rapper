@@ -21,26 +21,24 @@ import (
 )
 
 var (
-	configPath *string
-	workingDir *string
+	reqsPath   *string
+	filesPath  *string
 	outputFile *string
-	workers    *int
 	updateMsg  = make(chan string)
 )
 
 func init() {
 	go updateCheck(updateMsg)
 	cwd, _ := os.Getwd()
-	configPath = flag.String("requests", cwd, "path to directory containing a requests file")
-	workingDir = flag.String("files", cwd, "path to directory containing the CSV files")
+	reqsPath = flag.String("requests", cwd, "path to directory containing a requests file")
+	filesPath = flag.String("files", cwd, "path to directory containing the CSV files")
 	outputFile = flag.String("output", "", "path to output file, including the file name")
-	workers = flag.Int("workers", 1, fmt.Sprintf("number of request workers (max: %d)", processor.MaxWorkers))
 	flag.Usage = usage
 	flag.Parse()
 }
 
 func main() {
-	runMgr, err := config.NewRunManager(*configPath)
+	runMgr, err := config.NewRunManager(*reqsPath)
 	if err != nil {
 		handleExit(fmt.Errorf("could not read config file: %w", err))
 	}
@@ -63,16 +61,10 @@ func main() {
 		handleExit(fmt.Errorf("could not create HTTP gateway: %w", err))
 	}
 
-	workerCount := *workers
-	if cfg.Workers > 0 {
-		workerCount = utils.Clamp(cfg.Workers, 1, processor.MaxWorkers)
-	}
-
 	csvProcessor := processor.NewProcessor(
 		cfg.CSV,
 		hg,
 		logger,
-		workerCount,
 	)
 
 	runMgr.OnChange(func(newCfg *config.Config) {
@@ -83,17 +75,14 @@ func main() {
 			newCfg.Request.Headers,
 		)
 		csvProcessor.UpdateConfig(newCfg.CSV)
-		if newCfg.Workers > 0 {
-			csvProcessor.SetWorkers(newCfg.Workers)
-		}
 	})
 
-	filePaths, err := utils.FindFiles(*workingDir, "*.csv")
+	filePaths, err := utils.FindFiles(*filesPath, "*.csv")
 	if err != nil {
-		handleExit(fmt.Errorf("could not execute file scan in %s: %w", styles.Bold(*workingDir), err))
+		handleExit(fmt.Errorf("could not execute file scan in %s: %w", styles.Bold(*filesPath), err))
 	}
 	if len(filePaths) == 0 {
-		handleExit(fmt.Errorf("no CSV files found in %s", styles.Bold(*workingDir)))
+		handleExit(fmt.Errorf("no CSV files found in %s", styles.Bold(*filesPath)))
 	}
 
 	tui := ui.NewApp(filePaths, csvProcessor, logger, runMgr)

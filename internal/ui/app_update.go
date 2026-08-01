@@ -234,7 +234,8 @@ func (m AppModel) selectFile(filePath string) (tea.Model, tea.Cmd) {
 	}
 
 	// Start processing
-	ctx, cancel := m.processor.Do(context.Background(), filePath)
+	workers := m.configMgr.Get().Workers
+	ctx, cancel := m.processor.Do(context.Background(), filePath, workers)
 	if ctx != nil {
 		m.cancelMu.Lock()
 		m.cancel = cancel

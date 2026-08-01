@@ -13,14 +13,13 @@ import (
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/styles"
-	"github.com/anibaldeboni/rapper/internal/utils"
 )
 
 var (
 	reqCount   atomic.Uint64
 	errCount   atomic.Uint64
 	linesCount atomic.Uint64
-	MaxWorkers = runtime.NumCPU()
+	maxWorkers = runtime.NumCPU()
 )
 
 // Metrics holds real-time processing metrics
@@ -41,7 +40,7 @@ type processorImpl struct {
 	gateway      HttpGateway
 	logger       RequestLogger
 	csvConfig    config.CSVConfig
-	workers      int
+	lastWorkers  int
 	mu           sync.Mutex
 	startTime    time.Time
 	isProcessing bool
@@ -52,13 +51,11 @@ type processorImpl struct {
 // - cfg: The CSV configuration.
 // - hg: The HTTP gateway.
 // - logger: The request logger.
-// - workers: The number of workers to be used.
-func NewProcessor(cfg config.CSVConfig, hg HttpGateway, logger RequestLogger, workers int) *processorImpl {
+func NewProcessor(cfg config.CSVConfig, hg HttpGateway, logger RequestLogger) *processorImpl {
 	return &processorImpl{
 		csvConfig: cfg,
 		gateway:   hg,
 		logger:    logger,
-		workers:   utils.Clamp(workers, 1, MaxWorkers),
 	}
 }
 
@@ -66,9 +63,21 @@ func NewProcessor(cfg config.CSVConfig, hg HttpGateway, logger RequestLogger, wo
 // It creates a channel to receive the output from the mapCSV function and spawns multiple worker goroutines to process the output concurrently.
 // Once all the workers have finished processing, it checks if there were any requests processed and logs a message if there were any errors.
 // Finally, it resets the request, error, and lines counters and cancels the context.
-func (p *processorImpl) Do(ctx context.Context, filePath string) (context.Context, context.CancelFunc) {
+func (p *processorImpl) Do(ctx context.Context, filePath string, workers int) (context.Context, context.CancelFunc) {
+	if workers <= 0 {
+		workers = 1
+	}
+	if workers > maxWorkers {
+		workers = maxWorkers
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
-	rows := p.mapCSV(ctx, filePath)
+
+	p.mu.Lock()
+	p.lastWorkers = workers
+	p.mu.Unlock()
+
+	rows := p.mapCSV(ctx, filePath, workers)
 
 	if rows == nil {
 		cancel()
@@ -82,8 +91,8 @@ func (p *processorImpl) Do(ctx context.Context, filePath string) (context.Contex
 	p.mu.Unlock()
 
 	wg := &sync.WaitGroup{}
-	wg.Add(p.workers)
-	for i := 0; i < p.workers; i++ {
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
 		go p.worker(ctx, wg, rows)
 	}
 
@@ -150,13 +159,12 @@ requests:
 	}
 }
 
-func (p *processorImpl) mapCSV(ctx context.Context, filePath string) <-chan csvLineMap {
-	// Snapshot csvConfig and workers under lock so the channel buffer, separator,
-	// field filter, and processing message all reflect the active configuration
-	// at the time mapCSV was called, even if UpdateConfig races with us later.
+func (p *processorImpl) mapCSV(ctx context.Context, filePath string, workers int) <-chan csvLineMap {
+	// Snapshot csvConfig under lock so the separator and field filter reflect the
+	// active configuration at the time mapCSV was called, even if UpdateConfig
+	// races with us later.
 	p.mu.Lock()
 	csvConfig := p.csvConfig
-	workers := p.workers
 	p.mu.Unlock()
 
 	rows := make(chan csvLineMap, workers)
@@ -232,20 +240,11 @@ func (p *processorImpl) GetMetrics() Metrics {
 		SuccessRequests: successReq,
 		ErrorRequests:   errReq,
 		LinesProcessed:  linesCount.Load(),
-		ActiveWorkers:   p.workers,
+		ActiveWorkers:   p.lastWorkers,
 		RequestsPerSec:  reqPerSec,
 		StartTime:       p.startTime,
 		IsProcessing:    p.isProcessing,
 	}
-}
-
-// SetWorkers dynamically adjusts the number of workers
-// Note: This only affects the next processing run, not current processing
-func (p *processorImpl) SetWorkers(n int) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.workers = utils.Clamp(n, 1, MaxWorkers)
 }
 
 // UpdateConfig atomically replaces the processor's CSV configuration.
@@ -256,19 +255,4 @@ func (p *processorImpl) UpdateConfig(cfg config.CSVConfig) {
 	defer p.mu.Unlock()
 
 	p.csvConfig = cfg
-}
-
-// GetWorkerCount returns the current configured worker count
-func (p *processorImpl) GetWorkerCount() int {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	return p.workers
-}
-
-// GetMaxWorkers returns the maximum number of workers accepted by the
-// processor (processor.MaxWorkers, derived from runtime.NumCPU()). Used by
-// UI surfaces to bound the worker-count slider.
-func (p *processorImpl) GetMaxWorkers() int {
-	return MaxWorkers
 }

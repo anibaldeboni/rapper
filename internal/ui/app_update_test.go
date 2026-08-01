@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
@@ -202,7 +203,7 @@ func newTestApp(t *testing.T, csvPaths ...string) (
 
 	logManagerMock.EXPECT().Get().Return([]logs.LogMessage{}).AnyTimes()
 	logManagerMock.EXPECT().Clear().AnyTimes()
-	configMgrMock.EXPECT().Get().Return(nil).AnyTimes()
+	configMgrMock.EXPECT().Get().Return(&config.Config{Workers: 4}).AnyTimes()
 	configMgrMock.EXPECT().GetActiveRequest().Return("default").AnyTimes()
 	configMgrMock.EXPECT().ListRequests().Return([]string{"default"}).AnyTimes()
 	// The Settings view calls GetRequestRaw during construction to
@@ -213,8 +214,6 @@ func newTestApp(t *testing.T, csvPaths ...string) (
 	configMgrMock.EXPECT().GetRequestRaw(gomock.Any()).
 		Return("", assert.AnError).
 		AnyTimes()
-	processorMock.EXPECT().GetWorkerCount().Return(1).AnyTimes()
-	processorMock.EXPECT().GetMaxWorkers().Return(1).AnyTimes()
 	processorMock.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
 
 	app := NewApp(csvPaths, processorMock, logManagerMock, configMgrMock)
@@ -284,7 +283,7 @@ func TestAppModel_NavSwitchToFiles_EmitsMetricsVisibilityFalse(t *testing.T) {
 // LogsView. The processor.Do mock asserts the call.
 func TestAppModel_Update_ItemSelectedMsg_StartsProcessing(t *testing.T) {
 	app, _, _, procMock := newTestApp(t)
-	procMock.EXPECT().Do(gomock.Any(), "x.csv").Return(contextTODO(), func() {})
+	procMock.EXPECT().Do(gomock.Any(), "x.csv", 4).Return(contextTODO(), func() {})
 
 	updated, _ := app.Update(msgs.ItemSelectedMsg{FilePath: "x.csv"})
 	next, ok := updated.(AppModel)
@@ -388,7 +387,7 @@ func TestAppModel_Update_MetricsTickMsg_Broadcast(t *testing.T) {
 // was never started when the user picked a file from FilesView.
 func TestAppModel_SelectFile_StartsMetricsTick(t *testing.T) {
 	app, _, _, procMock := newTestApp(t)
-	procMock.EXPECT().Do(gomock.Any(), "x.csv").Return(contextTODO(), func() {})
+	procMock.EXPECT().Do(gomock.Any(), "x.csv", 4).Return(contextTODO(), func() {})
 
 	// The selectFile call returns (model, cmd) where cmd is the
 	// batch. We invoke the batch synchronously to extract the

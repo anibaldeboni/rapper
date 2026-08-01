@@ -128,8 +128,6 @@ You may run `rapper` directly in a directory containing a valid `config.yml` and
     	path to directory containing the CSV files (default current working dir)
   -output string
     	path to output file, including the file name
-  -workers int
-    	number of request workers (max: 5) (default 1)
 ```
 
 A little demo of the app execution:

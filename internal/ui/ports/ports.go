@@ -75,22 +75,11 @@ type ConfigProvider interface {
 //
 //go:generate mockgen -destination ../mock/processor_controller_mock.go -package mock_ui github.com/anibaldeboni/rapper/internal/ui/ports ProcessorController
 type ProcessorController interface {
-	// Do starts processing a CSV file
-	Do(ctx context.Context, filePath string) (context.Context, context.CancelFunc)
+	// Do starts processing a CSV file with the requested worker count.
+	Do(ctx context.Context, filePath string, workers int) (context.Context, context.CancelFunc)
 
 	// GetMetrics returns current processing metrics
 	GetMetrics() ProcessorMetrics
-
-	// SetWorkers dynamically adjusts the number of workers
-	SetWorkers(n int)
-
-	// GetWorkerCount returns the current worker count
-	GetWorkerCount() int
-
-	// GetMaxWorkers returns the maximum number of workers the processor
-	// will accept (processor.MaxWorkers, derived from runtime.NumCPU()).
-	// Consumers (e.g. the Settings slider) use this to bound user input.
-	GetMaxWorkers() int
 }
 
 // ProcessorMetrics holds real-time processing metrics.
