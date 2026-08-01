@@ -223,13 +223,13 @@ func (v SettingsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			v.focusPane = paneForm
 			v.editor.Focus()
 
-			return v.layoutEditor(), nil
+			return v.layoutEditor(), v.emitStatusKeymap()
 		case key.Matches(msg, kbind.ExitEdit) && v.editing:
 			v.editing = false
 			v.focusPane = paneList
 			v.editor.Blur()
 
-			return v.layoutEditor(), nil
+			return v.layoutEditor(), v.emitStatusKeymap()
 		}
 
 		if v.editing {

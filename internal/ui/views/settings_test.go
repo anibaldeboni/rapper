@@ -143,6 +143,72 @@ func TestSettingsView_Update_ViewActivatedMsg_EmitsStatusKeymap(t *testing.T) {
 	assert.Equal(t, bindingKeys(v.KeyMap().ShortHelp()), bindingKeys(status.Current.ShortHelp()))
 }
 
+func TestSettingsView_Update_E_EmitsStatusKeymap(t *testing.T) {
+	v, _ := newTestSettingsView(t)
+
+	_, cmd := v.Update(settingsKeyMsg("e"))
+	require.NotNil(t, cmd)
+
+	status, ok := cmd().(msgs.StatusKeymapMsg)
+	require.True(t, ok, "edit command must return msgs.StatusKeymapMsg")
+
+	got := bindingKeys(status.Current.ShortHelp())
+	assert.Contains(t, got, []string{"esc"})
+	assert.Contains(t, got, []string{"ctrl+s"})
+	assert.NotContains(t, got, []string{"e"})
+	assert.NotContains(t, got, []string{"enter"})
+}
+
+func TestSettingsView_Update_Esc_EmitsStatusKeymap(t *testing.T) {
+	v, _ := newTestSettingsView(t)
+	v.editing = true
+	v.focusPane = paneForm
+	v.editor.Focus()
+
+	_, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	require.NotNil(t, cmd)
+
+	status, ok := cmd().(msgs.StatusKeymapMsg)
+	require.True(t, ok, "exit-edit command must return msgs.StatusKeymapMsg")
+
+	got := bindingKeys(status.Current.ShortHelp())
+	assert.Contains(t, got, []string{"up"})
+	assert.Contains(t, got, []string{"down"})
+	assert.Contains(t, got, []string{"e"})
+	assert.Contains(t, got, []string{"enter"})
+	assert.NotContains(t, got, []string{"esc"})
+	assert.NotContains(t, got, []string{"ctrl+s"})
+}
+
+func TestSettingsView_Update_E_WhileEditing_NoOp(t *testing.T) {
+	v, _ := newTestSettingsView(t)
+	v.editing = true
+	v.focusPane = paneForm
+	v.editor.Focus()
+
+	next, cmd := v.Update(settingsKeyMsg("e"))
+	v = next.(SettingsView)
+
+	assert.True(t, v.editing)
+	if cmd != nil {
+		_, ok := cmd().(msgs.StatusKeymapMsg)
+		assert.False(t, ok, "e in edit mode must not emit msgs.StatusKeymapMsg")
+	}
+}
+
+func TestSettingsView_Update_Esc_WhileSelection_NoOp(t *testing.T) {
+	v, _ := newTestSettingsView(t)
+
+	next, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	v = next.(SettingsView)
+
+	assert.False(t, v.editing)
+	if cmd != nil {
+		_, ok := cmd().(msgs.StatusKeymapMsg)
+		assert.False(t, ok, "esc in selection mode must not emit msgs.StatusKeymapMsg")
+	}
+}
+
 // TestSettingsView_InitialState_EditorShowsActiveProfileRaw is S2.1.
 // On construction, the editor must show the raw bytes of the active
 // profile, must NOT be focused, and the selected profile must equal
@@ -936,8 +1002,8 @@ func TestSettingsView_PressE_NonActiveProfile_EntersEdit(t *testing.T) {
 	// with the highlighted profile's raw content.
 	next, cmd := v.Update(settingsKeyMsg("e"))
 	v = next.(SettingsView)
-	assert.Nil(t, cmd,
-		"e on a non-active profile must not return a save cmd")
+	require.NotNil(t, cmd,
+		"e on a non-active profile must return a status keymap cmd")
 	assert.True(t, v.editing,
 		"e on a non-active profile must enter edit mode (gate removed)")
 	assert.True(t, v.editor.Focused(),
