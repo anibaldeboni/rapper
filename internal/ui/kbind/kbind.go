@@ -28,8 +28,8 @@ var (
 		key.WithHelp("esc", "back"),
 	)
 	Quit = key.NewBinding(
-		key.WithKeys("q"),
-		key.WithHelp("q", "quit"),
+		key.WithKeys("ctrl+q"),
+		key.WithHelp("ctrl+q", "quit"),
 	)
 	ViewFiles = key.NewBinding(
 		key.WithKeys("f1", "ctrl+f"),
