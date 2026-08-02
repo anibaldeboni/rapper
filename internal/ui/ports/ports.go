@@ -76,7 +76,7 @@ type ConfigProvider interface {
 //go:generate mockgen -destination ../mock/processor_controller_mock.go -package mock_ui github.com/anibaldeboni/rapper/internal/ui/ports ProcessorController
 type ProcessorController interface {
 	// Do starts processing a CSV file with the requested worker count.
-	Do(ctx context.Context, filePath string, workers int) (context.Context, context.CancelFunc)
+	Do(ctx context.Context, filePath string, workers int) (context.Context, context.CancelFunc, error)
 
 	// GetMetrics returns current processing metrics
 	GetMetrics() ProcessorMetrics

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoader_Load_LegacyYAML_Rejected(t *testing.T) {
@@ -68,5 +70,28 @@ func TestLoader_Load_PartialNewSchema_Rejected(t *testing.T) {
 				t.Fatalf("error must reference the config path, got: %v", err)
 			}
 		})
+	}
+}
+
+func TestLoader_Load_WithoutCSVFields(t *testing.T) {
+	t.Parallel()
+
+	filePath := filepath.Join(t.TempDir(), "profile.yml")
+	content := `request:
+  method: POST
+  url_template: https://example.test/{{.id}}
+csv:
+  separator: ","
+workers: 2
+`
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := NewLoader().Load(filePath)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	if cfg.CSV.Separator != "," {
+		t.Fatalf("CSV separator = %q, want %q", cfg.CSV.Separator, ",")
 	}
 }

@@ -40,7 +40,7 @@ CI uses `gotest.tools/gotestsum` for output formatting; otherwise the same `go t
 - **Hexagonal ports:** define interfaces in the **consuming** package, not the implementing one. Examples: `internal/processor/ports.go` (`HttpGateway`, `RequestLogger`), `internal/ui/ports/ports.go`. Mark with `//go:generate mockgen -destination mock/<name>_mock.go -package mock_<pkg> <iface-path> <IfaceName>`.
 - **Mock output dir:** `internal/<pkg>/mock/` (one per package). Always run `make mocks` after editing an interface, then `make install_deps` so `go mod tidy` sees any new dependencies.
 - **Templates:** URL/body/header values are Go `text/template` strings. Data map = CSV row keys → cell values. Use `{{.field_name}}`.
-- **Configuration schema:** profiles use `request:` (with `method`, `url_template`, optional `body_template`, and `headers`) plus `csv:` (with `fields` and optional `separator`) and `workers`.
+- **Configuration schema:** profiles use `request:` (with `method`, `url_template`, optional `body_template`, and `headers`) plus `csv:` (with optional `separator`) and `workers`. CSV fields are derived from request templates.
 - **Style:** golangci-lint v2 with `copyloopvar`, `misspell`, `nilerr`, `perfsprint`, `prealloc`, `unconvert`, `unparam` enabled (see `.golangci.yml`). Formatters: `gofmt` + `goimports`.
 - **Tests:** colocated in the package they test (no central `tests/` Go code — `tests/example.csv` is a fixture only). Use `testify` and the gomock-generated mocks.
 - **Comments:** Write only relevant comments in interfaces, avoid writting comments in code

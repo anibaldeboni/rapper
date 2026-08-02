@@ -84,14 +84,10 @@ request:
         X-API-Version: v1
 csv:
     separator: ','
-    fields:
-        - id
-        - name
-        - email
 workers: 2
 ```
 
-Have in mind that when a request fails all variables selected in `csv` field will be used to form the error message, so select all variables you need to form the url and payload and any other that is relevant to identify problems when an error occur
+Template fields are derived automatically from the URL, body, and header templates. Before requests are sent, the selected CSV headers are validated and missing fields are reported.
 
 ## Keyboard Shortcuts
 

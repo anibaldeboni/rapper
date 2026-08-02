@@ -109,6 +109,7 @@ func (v LogsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case msgs.ViewActivatedMsg:
+		v = v.refreshLogs()
 		return v, v.emitStatusKeymap()
 
 	case msgs.ViewportSizeMsg:

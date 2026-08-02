@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExec(t *testing.T) {
@@ -66,4 +67,23 @@ func TestExec(t *testing.T) {
 		assert.Error(t, err)
 		assert.Zero(t, res)
 	})
+}
+
+func TestTemplateFields(t *testing.T) {
+	gateway, err := NewHttpGateway(
+		http.MethodPost,
+		"https://example.test/{{.id}}/{{.id}}",
+		`{"name":"{{.name}}"}`,
+		map[string]string{"X-Region": "{{.region}}"},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"id", "name", "region"}, gateway.TemplateFields())
+
+	require.NoError(t, gateway.UpdateConfig(
+		http.MethodPut,
+		"https://example.test/{{.account}}",
+		`{"token":"{{.token}}"}`,
+		map[string]string{"X-Tenant": "{{.tenant}}"},
+	))
+	assert.Equal(t, []string{"account", "token", "tenant"}, gateway.TemplateFields())
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"sync"
 	"text/template"
 )
@@ -14,12 +15,14 @@ import (
 // httpGatewayImpl implements the processor.HttpGateway interface.
 // This is an internal implementation - the interface is defined by the client (processor package).
 type httpGatewayImpl struct {
-	client       *httpClientImpl
-	urlTemplate  *template.Template
-	bodyTemplate *template.Template
-	headers      map[string]string // Flexible headers (Authorization, Cookie, etc)
-	method       string
-	mu           sync.RWMutex // Protects against concurrent access during hot-reload
+	client          *httpClientImpl
+	urlTemplate     *template.Template
+	bodyTemplate    *template.Template
+	headers         map[string]string // Flexible headers (Authorization, Cookie, etc)
+	headerTemplates map[string]*template.Template
+	fields          []string
+	method          string
+	mu              sync.RWMutex // Protects against concurrent access during hot-reload
 }
 
 // NewHttpGateway creates a new HTTP gateway.
@@ -33,13 +36,16 @@ func NewHttpGateway(method, urlTemplate, bodyTemplate string, headers map[string
 	if err != nil {
 		return nil, fmt.Errorf("invalid body template: %w", err)
 	}
+	headerTemplates := compileHeaders(headers)
 
 	return &httpGatewayImpl{
-		method:       method,
-		urlTemplate:  urlTmpl,
-		bodyTemplate: bodyTmpl,
-		headers:      headers,
-		client:       newHttpClient(),
+		method:          method,
+		urlTemplate:     urlTmpl,
+		bodyTemplate:    bodyTmpl,
+		headers:         headers,
+		headerTemplates: headerTemplates,
+		fields:          templateFields(urlTmpl, bodyTmpl, headerTemplates),
+		client:          newHttpClient(),
 	}, nil
 }
 
@@ -79,14 +85,12 @@ func (hg *httpGatewayImpl) Exec(ctx context.Context, variables map[string]string
 	// Render headers (supports templates in header values)
 	headers := make(map[string]string)
 	for key, value := range hg.headers {
-		// Try to render as template (for dynamic headers like Authorization: Bearer {{.token}})
-		rendered, err := renderString(value, variables)
-		if err != nil {
-			// If rendering fails, use literal value
+		tmpl, ok := hg.headerTemplates[key]
+		if !ok {
 			headers[key] = value
-		} else {
-			headers[key] = rendered
+			continue
 		}
+		headers[key] = RenderTemplate(tmpl, variables).String()
 	}
 
 	return hg.req(ctx, uri, body, headers)
@@ -107,14 +111,68 @@ func (hg *httpGatewayImpl) UpdateConfig(method, urlTemplate, bodyTemplate string
 	if err != nil {
 		return fmt.Errorf("invalid body template: %w", err)
 	}
+	headerTemplates := compileHeaders(headers)
 
 	// Update all fields atomically
 	hg.method = method
 	hg.urlTemplate = urlTmpl
 	hg.bodyTemplate = bodyTmpl
 	hg.headers = headers
+	hg.headerTemplates = headerTemplates
+	hg.fields = templateFields(urlTmpl, bodyTmpl, headerTemplates)
 
 	return nil
+}
+
+func (hg *httpGatewayImpl) TemplateFields() []string {
+	hg.mu.RLock()
+	defer hg.mu.RUnlock()
+
+	fields := make([]string, len(hg.fields))
+	copy(fields, hg.fields)
+	return fields
+}
+
+func compileHeaders(headers map[string]string) map[string]*template.Template {
+	compiled := make(map[string]*template.Template, len(headers))
+	for key, value := range headers {
+		tmpl, err := NewTemplate("header-"+key, value)
+		if err == nil {
+			compiled[key] = tmpl
+		}
+	}
+	return compiled
+}
+
+func templateFields(urlTmpl, bodyTmpl *template.Template, headers map[string]*template.Template) []string {
+	fields := collectFields(urlTmpl)
+	seen := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		seen[field] = struct{}{}
+	}
+	for _, field := range collectFields(bodyTmpl) {
+		if _, ok := seen[field]; ok {
+			continue
+		}
+		seen[field] = struct{}{}
+		fields = append(fields, field)
+	}
+
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		for _, field := range collectFields(headers[key]) {
+			if _, ok := seen[field]; ok {
+				continue
+			}
+			seen[field] = struct{}{}
+			fields = append(fields, field)
+		}
+	}
+	return fields
 }
 
 // NewTemplate creates a new template from a string
@@ -129,20 +187,4 @@ func RenderTemplate[T map[string]string](t *template.Template, variables T) *byt
 	_ = t.Execute(buf, variables)
 
 	return buf
-}
-
-// renderString renders a string template with variables
-func renderString(templateStr string, variables map[string]string) (string, error) {
-	tmpl, err := template.New("").Parse(templateStr)
-	if err != nil {
-		return "", err
-	}
-
-	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, variables)
-	if err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
 }

@@ -21,7 +21,7 @@ func TestManager_GetProfile_ReturnsNamedConfig(t *testing.T) {
 			Name: "default",
 			Config: &Config{
 				Request: RequestConfig{Method: "GET", URLTemplate: "https://default.example"},
-				CSV:     CSVConfig{Fields: []string{"a"}},
+				CSV:     CSVConfig{},
 				Workers: 1,
 			},
 		},
@@ -29,7 +29,7 @@ func TestManager_GetProfile_ReturnsNamedConfig(t *testing.T) {
 			Name: "production",
 			Config: &Config{
 				Request: RequestConfig{Method: "POST", URLTemplate: "https://prod.example/api"},
-				CSV:     CSVConfig{Fields: []string{"id", "name"}},
+				CSV:     CSVConfig{},
 				Workers: 4,
 			},
 		},
@@ -67,7 +67,7 @@ func TestManager_SetActiveProfile_NotifiesListeners(t *testing.T) {
 			Name: "p1",
 			Config: &Config{
 				Request: RequestConfig{Method: "POST", URLTemplate: "https://api1.example", BodyTemplate: "{}"},
-				CSV:     CSVConfig{Fields: []string{"a"}},
+				CSV:     CSVConfig{},
 				Workers: 1,
 			},
 		},
@@ -75,7 +75,7 @@ func TestManager_SetActiveProfile_NotifiesListeners(t *testing.T) {
 			Name: "p2",
 			Config: &Config{
 				Request: RequestConfig{Method: "POST", URLTemplate: "https://api2.example", BodyTemplate: "{}"},
-				CSV:     CSVConfig{Fields: []string{"b"}},
+				CSV:     CSVConfig{},
 				Workers: 1,
 			},
 		},

@@ -17,6 +17,9 @@ type HttpGateway interface {
 
 	// UpdateConfig updates the gateway configuration
 	UpdateConfig(method, urlTemplate, bodyTemplate string, headers map[string]string) error
+
+	// TemplateFields returns the unique CSV fields referenced by active templates.
+	TemplateFields() []string
 }
 
 // RequestLogger defines the interface for logging HTTP requests.

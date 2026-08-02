@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/ui/components"
@@ -69,6 +70,43 @@ func TestLogsView_Update_ViewActivatedMsg_EmitsStatusKeymap(t *testing.T) {
 	status, ok := cmd().(msgs.StatusKeymapMsg)
 	require.True(t, ok, "activation command must return msgs.StatusKeymapMsg")
 	assert.Equal(t, bindingKeys(v.KeyMap().ShortHelp()), bindingKeys(status.Current.ShortHelp()))
+}
+
+func TestLogsView_ViewActivatedMsg_RefreshesAndRendersDetailedLog(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	proc := mock_ui.NewMockProcessorController(ctrl)
+	logger := mock_ui.NewMockLogProvider(ctrl)
+	proc.EXPECT().GetMetrics().Return(ports.ProcessorMetrics{}).AnyTimes()
+	logger.EXPECT().Clear().AnyTimes()
+
+	var messages []logs.LogMessage
+	logger.EXPECT().Get().DoAndReturn(func() []logs.LogMessage {
+		return messages
+	}).AnyTimes()
+
+	v := NewLogsView(logger, proc)
+	next, _ := v.Update(msgs.ViewportSizeMsg{Width: 120, Height: 40})
+	v = next.(LogsView)
+	messages = []logs.LogMessage{logs.NewMessage(
+		"Processing failed",
+		logs.WithDetail(`missing csv fields: "user_id"; did you mean "userid"?`),
+	)}
+
+	next, _ = v.Update(msgs.ViewActivatedMsg{})
+	refreshed := next.(LogsView)
+
+	assert.Equal(t, 0, v.list.Len(), "value receiver must leave the original view unchanged")
+	assert.Equal(t, 1, refreshed.list.Len(), "activation must refresh the value returned to AppModel")
+	assert.Contains(t, refreshed.View().Content, "Processing failed")
+
+	next, _ = refreshed.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	expanded := next.(LogsView)
+	content := expanded.View().Content
+	assert.Contains(t, content, "missing csv fields:")
+	assert.Contains(t, content, `"user_id"`)
+	assert.Contains(t, content, "did you")
+	assert.Contains(t, content, `"userid"`)
 }
 
 func TestLogsView_Resize_AllocatesEnoughWidthForMetricsPanel(t *testing.T) {

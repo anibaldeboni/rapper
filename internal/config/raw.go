@@ -29,9 +29,6 @@ func validateConfigShim(cfg *Config) error {
 	if cfg.Request.URLTemplate == "" {
 		return errors.New("request.url_template is required")
 	}
-	if len(cfg.CSV.Fields) == 0 {
-		return errors.New("csv.fields is required")
-	}
 	if cfg.Workers < 0 {
 		return errors.New("workers must be >= 0")
 	}

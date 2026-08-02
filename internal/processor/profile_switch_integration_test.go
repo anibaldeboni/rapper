@@ -14,15 +14,14 @@ import (
 )
 
 // TestProfileSwitch_EndToEnd proves the profile-switch hot-reload wiring:
-//  1. Two YAML profiles in a temp dir with different CSV fields.
+//  1. Two YAML profiles in a temp dir with different request configurations.
 //  2. Manager.OnChange subscribed to BOTH the HTTP gateway (UpdateConfig) and the
 //     CSV processor (UpdateConfig).
-//  3. SetActiveProfile("profile2") → processor must filter rows using profile2's
-//     CSV fields on the next Do.
+//  3. SetActiveProfile("profile2") → processor must use the active CSV
+//     configuration on the next Do.
 //
 // Before the fix this test fails because SetActiveProfile never fires OnChange
-// and the processor is never subscribed. The processor keeps profile1's
-// field filter and emits `{"col_a": "val_a"}` instead of `{"col_b": "val_b"}`.
+// and the processor is never subscribed.
 func TestProfileSwitch_EndToEnd(t *testing.T) {
 	dir := t.TempDir()
 
@@ -34,7 +33,6 @@ func TestProfileSwitch_EndToEnd(t *testing.T) {
     Content-Type: application/json
 csv:
   separator: ","
-  fields: [col_a]
 workers: 2
 `)
 	profile2 := []byte(`request:
@@ -45,7 +43,6 @@ workers: 2
     Content-Type: application/json
 csv:
   separator: ","
-  fields: [col_b]
 workers: 8
 `)
 	if err := os.WriteFile(filepath.Join(dir, "profile1.yml"), profile1, 0o600); err != nil {
@@ -70,6 +67,7 @@ workers: 8
 		UpdateConfig(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil).
 		AnyTimes()
+	gatewayMock.EXPECT().TemplateFields().Return([]string{}).AnyTimes()
 	gatewayMock.EXPECT().
 		Exec(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, data map[string]string) (struct{}, error) {
@@ -113,8 +111,7 @@ workers: 8
 	}
 	activeCfg := mgr.Get()
 
-	// Write a CSV and run it. Both fields are present in the row; the active
-	// profile's field filter decides which one(s) reach the gateway.
+	// Write a CSV and run it. All columns remain available to the gateway.
 	csvPath := filepath.Join(dir, "input.csv")
 	if err := os.WriteFile(csvPath, []byte("col_a,col_b\nval_a,val_b\n"), 0o600); err != nil {
 		t.Fatalf("write csv: %v", err)
@@ -123,7 +120,10 @@ workers: 8
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	newCtx, newCancel := csvProcessor.Do(ctx, csvPath, activeCfg.Workers)
+	newCtx, newCancel, err := csvProcessor.Do(ctx, csvPath, activeCfg.Workers)
+	if err != nil {
+		t.Fatalf("processor.Do: %v", err)
+	}
 	if newCtx == nil {
 		t.Fatalf("processor.Do returned nil context (csv read failed?)")
 	}
@@ -146,8 +146,8 @@ workers: 8
 	if _, ok := got["col_b"]; !ok {
 		t.Fatalf("expected col_b in gateway data map after profile2 switch, got %v", got)
 	}
-	if _, ok := got["col_a"]; ok {
-		t.Fatalf("did not expect col_a in gateway data map after profile2 switch (filter not applied), got %v", got)
+	if _, ok := got["col_a"]; !ok {
+		t.Fatalf("expected col_a in gateway data map after profile2 switch, got %v", got)
 	}
 }
 

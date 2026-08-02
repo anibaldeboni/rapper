@@ -298,7 +298,7 @@ func TestManager_UpdateByName_MutatesOnlyNamed(t *testing.T) {
 	// Build a new *Config for p (different workers, same shape).
 	newCfg := &Config{
 		Request: RequestConfig{Method: "PUT", URLTemplate: "http://p-new"},
-		CSV:     CSVConfig{Fields: []string{"id"}},
+		CSV:     CSVConfig{},
 		Workers: 8,
 	}
 

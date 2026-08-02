@@ -42,12 +42,13 @@ func (m *MockProcessorController) EXPECT() *MockProcessorControllerMockRecorder 
 }
 
 // Do mocks base method.
-func (m *MockProcessorController) Do(ctx context.Context, filePath string, workers int) (context.Context, context.CancelFunc) {
+func (m *MockProcessorController) Do(ctx context.Context, filePath string, workers int) (context.Context, context.CancelFunc, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Do", ctx, filePath, workers)
 	ret0, _ := ret[0].(context.Context)
 	ret1, _ := ret[1].(context.CancelFunc)
-	return ret0, ret1
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // Do indicates an expected call of Do.

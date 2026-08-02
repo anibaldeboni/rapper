@@ -63,7 +63,7 @@ func NewProcessor(cfg config.CSVConfig, hg HttpGateway, logger RequestLogger) *p
 // It creates a channel to receive the output from the mapCSV function and spawns multiple worker goroutines to process the output concurrently.
 // Once all the workers have finished processing, it checks if there were any requests processed and logs a message if there were any errors.
 // Finally, it resets the request, error, and lines counters and cancels the context.
-func (p *processorImpl) Do(ctx context.Context, filePath string, workers int) (context.Context, context.CancelFunc) {
+func (p *processorImpl) Do(ctx context.Context, filePath string, workers int) (context.Context, context.CancelFunc, error) {
 	if workers <= 0 {
 		workers = 1
 	}
@@ -77,11 +77,10 @@ func (p *processorImpl) Do(ctx context.Context, filePath string, workers int) (c
 	p.lastWorkers = workers
 	p.mu.Unlock()
 
-	rows := p.mapCSV(ctx, filePath, workers)
-
-	if rows == nil {
+	rows, err := p.mapCSV(ctx, filePath, workers)
+	if err != nil {
 		cancel()
-		return nil, nil
+		return nil, nil, err
 	}
 
 	// Mark processing as started
@@ -113,7 +112,7 @@ func (p *processorImpl) Do(ctx context.Context, filePath string, workers int) (c
 		cancel()
 	}()
 
-	return ctx, cancel
+	return ctx, cancel, nil
 }
 
 func (p *processorImpl) worker(ctx context.Context, wg *sync.WaitGroup, rows <-chan csvLineMap) {
@@ -159,10 +158,9 @@ requests:
 	}
 }
 
-func (p *processorImpl) mapCSV(ctx context.Context, filePath string, workers int) <-chan csvLineMap {
-	// Snapshot csvConfig under lock so the separator and field filter reflect the
-	// active configuration at the time mapCSV was called, even if UpdateConfig
-	// races with us later.
+func (p *processorImpl) mapCSV(ctx context.Context, filePath string, workers int) (<-chan csvLineMap, error) {
+	// Snapshot csvConfig under lock so the separator reflects the active
+	// configuration at the time mapCSV was called.
 	p.mu.Lock()
 	csvConfig := p.csvConfig
 	p.mu.Unlock()
@@ -171,17 +169,21 @@ func (p *processorImpl) mapCSV(ctx context.Context, filePath string, workers int
 
 	reader, file, err := newCSVReader(filePath, csvSep(csvConfig))
 	if err != nil {
-		p.logger.Add(csvError(err.Error()))
-		return nil
+		return nil, err
 	}
 
 	headers, err := readCSVHeaders(reader)
 	if err != nil {
-		p.logger.Add(csvError(err.Error()))
-		return nil
+		_ = file.Close()
+		return nil, err
 	}
 
-	indexes := buildFilteredFieldIndex(headers, csvConfig.Fields)
+	if err := validateHeaders(headers, p.gateway.TemplateFields()); err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+
+	indexes := buildFilteredFieldIndex(headers, nil)
 
 	p.logger.Add(
 		logs.NewMessage(
@@ -215,7 +217,7 @@ func (p *processorImpl) mapCSV(ctx context.Context, filePath string, workers int
 		}
 	}()
 
-	return rows
+	return rows, nil
 }
 
 // GetMetrics returns current processing metrics
@@ -249,7 +251,7 @@ func (p *processorImpl) GetMetrics() Metrics {
 
 // UpdateConfig atomically replaces the processor's CSV configuration.
 // Called from main.go's OnChange callback when a profile switch is published,
-// so the next Do run uses the new field filter.
+// so the next Do run uses the new CSV configuration.
 func (p *processorImpl) UpdateConfig(cfg config.CSVConfig) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

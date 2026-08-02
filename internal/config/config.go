@@ -2,8 +2,7 @@ package config
 
 // CSVConfig holds CSV-specific configuration
 type CSVConfig struct {
-	Separator string   `yaml:"separator"`
-	Fields    []string `yaml:"fields"`
+	Separator string `yaml:"separator"`
 }
 
 // RequestConfig holds HTTP request configuration

@@ -13,8 +13,4 @@ request:
         X-API-Version: v1
 csv:
     separator: ','
-    fields:
-        - id
-        - name
-        - email
 workers: 2

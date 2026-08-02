@@ -41,15 +41,11 @@ var (
 	)
 	ViewSettings = key.NewBinding(
 		key.WithKeys("f3", "ctrl+t"),
-		key.WithHelp("F3", "settings"),
+		key.WithHelp("F3", "requests"),
 	)
 	Save = key.NewBinding(
 		key.WithKeys("ctrl+s"),
 		key.WithHelp("ctrl+s", "save"),
-	)
-	Profile = key.NewBinding(
-		key.WithKeys("ctrl+p"),
-		key.WithHelp("ctrl+p", "profile"),
 	)
 	CancelOperation = key.NewBinding(
 		key.WithKeys("ctrl+c"),

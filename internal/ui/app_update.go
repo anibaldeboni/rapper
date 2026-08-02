@@ -2,10 +2,14 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/anibaldeboni/rapper/internal/logs"
+	"github.com/anibaldeboni/rapper/internal/processor"
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 )
@@ -235,7 +239,20 @@ func (m AppModel) selectFile(filePath string) (tea.Model, tea.Cmd) {
 
 	// Start processing
 	workers := m.configMgr.Get().Workers
-	ctx, cancel := m.processor.Do(context.Background(), filePath, workers)
+	ctx, cancel, err := m.processor.Do(context.Background(), filePath, workers)
+	if err != nil {
+		m.logger.Add(logs.NewMessage(
+			"Processing failed",
+			logs.WithDetail(err.Error()),
+			logs.WithIcon(styles.IconSkull),
+			logs.AsError(),
+		))
+		var missingFieldsErr *processor.MissingFieldsError
+		if !errors.As(err, &missingFieldsErr) {
+			m.toastMgr.Error("Processing failed: " + err.Error())
+		}
+		return m.activateView(ViewLogs)
+	}
 	if ctx != nil {
 		m.cancelMu.Lock()
 		m.cancel = cancel

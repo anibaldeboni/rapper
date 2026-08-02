@@ -56,6 +56,20 @@ func (mr *MockHttpGatewayMockRecorder) Exec(ctx, data any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exec", reflect.TypeOf((*MockHttpGateway)(nil).Exec), ctx, data)
 }
 
+// TemplateFields mocks base method.
+func (m *MockHttpGateway) TemplateFields() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TemplateFields")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// TemplateFields indicates an expected call of TemplateFields.
+func (mr *MockHttpGatewayMockRecorder) TemplateFields() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TemplateFields", reflect.TypeOf((*MockHttpGateway)(nil).TemplateFields))
+}
+
 // UpdateConfig mocks base method.
 func (m *MockHttpGateway) UpdateConfig(method, urlTemplate, bodyTemplate string, headers map[string]string) error {
 	m.ctrl.T.Helper()

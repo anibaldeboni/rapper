@@ -16,7 +16,6 @@ request:
     X-Client-Version: "2.6.0"
 
 csv:
-  fields: [customer_id, status, notes]
   separator: ","
 
 workers: 4

@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/anibaldeboni/rapper/internal/config"
 	"github.com/anibaldeboni/rapper/internal/logs"
+	"github.com/anibaldeboni/rapper/internal/processor"
 	mock_ui "github.com/anibaldeboni/rapper/internal/ui/mock"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 	"github.com/anibaldeboni/rapper/internal/ui/ports"
@@ -283,7 +284,7 @@ func TestAppModel_NavSwitchToFiles_EmitsMetricsVisibilityFalse(t *testing.T) {
 // LogsView. The processor.Do mock asserts the call.
 func TestAppModel_Update_ItemSelectedMsg_StartsProcessing(t *testing.T) {
 	app, _, _, procMock := newTestApp(t)
-	procMock.EXPECT().Do(gomock.Any(), "x.csv", 4).Return(contextTODO(), func() {})
+	procMock.EXPECT().Do(gomock.Any(), "x.csv", 4).Return(contextTODO(), func() {}, nil)
 
 	updated, _ := app.Update(msgs.ItemSelectedMsg{FilePath: "x.csv"})
 	next, ok := updated.(AppModel)
@@ -295,6 +296,44 @@ func TestAppModel_Update_ItemSelectedMsg_StartsProcessing(t *testing.T) {
 	if app.currentView != ViewLogs {
 		t.Errorf("current should be ViewLogs after ItemSelectedMsg; got %v", app.currentView)
 	}
+}
+
+func TestAppModel_Update_ItemSelectedMsg_ShowsPreflightError(t *testing.T) {
+	app, logMock, _, procMock := newTestApp(t)
+	procMock.EXPECT().Do(gomock.Any(), "x.csv", 4).Return(nil, nil, assert.AnError)
+	logMock.EXPECT().Add(gomock.Any())
+
+	updated, cmd := app.Update(msgs.ItemSelectedMsg{FilePath: "x.csv"})
+	next := updated.(AppModel)
+
+	assert.Equal(t, ViewLogs, next.currentView)
+	assert.NotNil(t, cmd)
+	require.Len(t, next.toastMgr.GetActive(), 1)
+	assert.Contains(t, next.toastMgr.GetActive()[0].Message, assert.AnError.Error())
+}
+
+func TestAppModel_Update_ItemSelectedMsg_ShowsMissingFieldsInLogsWithoutToast(t *testing.T) {
+	app, logMock, _, procMock := newTestApp(t)
+	validationErr := &processor.MissingFieldsError{
+		Missing:     []string{"user_id"},
+		Suggestions: map[string][]string{"user_id": {"userid"}},
+	}
+
+	var messages []logs.LogMessage
+	logMock.EXPECT().Add(gomock.Any()).Do(func(message logs.LogMessage) {
+		messages = append(messages, message)
+	}).Times(1)
+	procMock.EXPECT().Do(gomock.Any(), "x.csv", 4).Return(nil, nil, validationErr)
+
+	updated, cmd := app.Update(msgs.ItemSelectedMsg{FilePath: "x.csv"})
+	next := updated.(AppModel)
+
+	assert.Equal(t, ViewLogs, next.currentView)
+	assert.NotNil(t, cmd, "processing failure should activate the logs view")
+	assert.Empty(t, next.toastMgr.GetActive(), "missing-field validation errors are rendered in logs, not as toasts")
+	assert.Len(t, messages, 1)
+	assert.Equal(t, "Processing failed", messages[0].Text)
+	assert.Equal(t, validationErr.Error(), messages[0].Details)
 }
 
 // TestAppModel_Update_CapturesAllViewReturns — after any Update, the
@@ -387,7 +426,7 @@ func TestAppModel_Update_MetricsTickMsg_Broadcast(t *testing.T) {
 // was never started when the user picked a file from FilesView.
 func TestAppModel_SelectFile_StartsMetricsTick(t *testing.T) {
 	app, _, _, procMock := newTestApp(t)
-	procMock.EXPECT().Do(gomock.Any(), "x.csv", 4).Return(contextTODO(), func() {})
+	procMock.EXPECT().Do(gomock.Any(), "x.csv", 4).Return(contextTODO(), func() {}, nil)
 
 	// The selectFile call returns (model, cmd) where cmd is the
 	// batch. We invoke the batch synchronously to extract the

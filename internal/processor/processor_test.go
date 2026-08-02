@@ -43,8 +43,9 @@ func TestProcessor_Do(t *testing.T) {
 		tempFile := createCsvFile(t, csvData)
 		defer os.Remove(tempFile.Name())
 
-		csvCfg := config.CSVConfig{Fields: []string{"header1", "header2"}, Separator: ","}
+		csvCfg := config.CSVConfig{Separator: ","}
 		p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
+		gatewayMock.EXPECT().TemplateFields().Return([]string{"header1", "header2"})
 		gatewayMock.EXPECT().
 			Exec(gomock.Any(), gomock.Any()).
 			Do(func(arg0, arg1 any) {
@@ -53,30 +54,49 @@ func TestProcessor_Do(t *testing.T) {
 		loggerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
 		loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(2)
 
-		p.Do(ctx, tempFile.Name(), 1)
+		_, _, err := p.Do(ctx, tempFile.Name(), 1)
+		require.NoError(t, err)
 		wg.Wait()
 	})
 
-	t.Run("Should send a request with only selected fields from the csv line", func(t *testing.T) {
+	t.Run("Should send a request with all fields from the csv line", func(t *testing.T) {
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		csvData := "header1,header2\nvalue1,value2\n"
 		tempFile := createCsvFile(t, csvData)
 		defer os.Remove(tempFile.Name())
 
-		csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
+		csvCfg := config.CSVConfig{Separator: ","}
 		p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
+		gatewayMock.EXPECT().TemplateFields().Return([]string{"header1"})
 		gatewayMock.EXPECT().
-			Exec(gomock.Any(), map[string]string{"header1": "value1"}).
+			Exec(gomock.Any(), map[string]string{"header1": "value1", "header2": "value2"}).
 			Do(func(arg0, arg1 any) {
 				wg.Done()
 			}).Times(1)
 		loggerMock.EXPECT().Add(gomock.Any()).MinTimes(1)
 		loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
 
-		p.Do(context.Background(), tempFile.Name(), 1)
+		_, _, err := p.Do(context.Background(), tempFile.Name(), 1)
+		require.NoError(t, err)
 		wg.Wait()
 	})
+}
+
+func TestProcessor_Do_PreflightRejectsMissingFieldsBeforeExec(t *testing.T) {
+	tempFile := createCsvFile(t, "id\n1\n")
+
+	p, gatewayMock, loggerMock := newTestProcessor(t, config.CSVConfig{Separator: ","})
+	gatewayMock.EXPECT().TemplateFields().Return([]string{"id", "name"})
+	gatewayMock.EXPECT().Exec(gomock.Any(), gomock.Any()).Times(0)
+	loggerMock.EXPECT().Add(gomock.Any()).AnyTimes()
+
+	ctx, cancel, err := p.Do(context.Background(), tempFile.Name(), 1)
+	require.Nil(t, ctx)
+	require.Nil(t, cancel)
+	var missing *MissingFieldsError
+	require.ErrorAs(t, err, &missing)
+	assert.Equal(t, []string{"name"}, missing.Missing)
 }
 
 // TestProcessor_UpdateConfig proves that UpdateConfig atomically replaces the
@@ -89,20 +109,22 @@ func TestProcessor_UpdateConfig(t *testing.T) {
 	tempFile := createCsvFile(t, csvData)
 	defer os.Remove(tempFile.Name())
 
-	csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
+	csvCfg := config.CSVConfig{Separator: ","}
 	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
+	gatewayMock.EXPECT().TemplateFields().Return([]string{"header2"})
 	gatewayMock.EXPECT().
-		Exec(gomock.Any(), map[string]string{"header2": "value2"}).
+		Exec(gomock.Any(), map[string]string{"header1": "value1", "header2": "value2"}).
 		Do(func(arg0, arg1 any) {
 			wg.Done()
 		}).Times(1)
 	loggerMock.EXPECT().Add(gomock.Any()).AnyTimes()
 	loggerMock.EXPECT().WriteToFile(gomock.Any()).AnyTimes()
 
-	// Swap the field filter before running Do. The next run must honor it.
-	p.UpdateConfig(config.CSVConfig{Fields: []string{"header2"}, Separator: ","})
+	// Swap the separator before running Do. The next run must honor it.
+	p.UpdateConfig(config.CSVConfig{Separator: ","})
 
-	p.Do(context.Background(), tempFile.Name(), 1)
+	_, _, err := p.Do(context.Background(), tempFile.Name(), 1)
+	require.NoError(t, err)
 	wg.Wait()
 }
 
@@ -117,8 +139,9 @@ func TestProcessor_Do_LogsSuccessOnTwoXX(t *testing.T) {
 	tempFile := createCsvFile(t, csvData)
 	defer os.Remove(tempFile.Name())
 
-	csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
+	csvCfg := config.CSVConfig{Separator: ","}
 	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
+	gatewayMock.EXPECT().TemplateFields().Return([]string{"header1"})
 
 	gatewayMock.EXPECT().
 		Exec(gomock.Any(), gomock.Any()).
@@ -150,7 +173,8 @@ func TestProcessor_Do_LogsSuccessOnTwoXX(t *testing.T) {
 	}).AnyTimes()
 	loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
 
-	p.Do(context.Background(), tempFile.Name(), 1)
+	_, _, err := p.Do(context.Background(), tempFile.Name(), 1)
+	require.NoError(t, err)
 
 	select {
 	case <-execDone:
@@ -186,8 +210,9 @@ func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
 	tempFile := createCsvFile(t, csvData)
 	defer os.Remove(tempFile.Name())
 
-	csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
+	csvCfg := config.CSVConfig{Separator: ","}
 	p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
+	gatewayMock.EXPECT().TemplateFields().Return([]string{"header1"})
 
 	gatewayMock.EXPECT().
 		Exec(gomock.Any(), gomock.Any()).
@@ -219,7 +244,8 @@ func TestProcessor_Do_LogsClientErrorOnFourXX(t *testing.T) {
 	}).AnyTimes()
 	loggerMock.EXPECT().WriteToFile(gomock.Any()).Times(1)
 
-	p.Do(context.Background(), tempFile.Name(), 1)
+	_, _, err := p.Do(context.Background(), tempFile.Name(), 1)
+	require.NoError(t, err)
 
 	select {
 	case <-execDone:
@@ -266,11 +292,13 @@ func TestProcessor_Do_ResolvesWorkerCountPerRun(t *testing.T) {
 			tempFile := createCsvFile(t, "header1\n")
 			defer os.Remove(tempFile.Name())
 
-			csvCfg := config.CSVConfig{Fields: []string{"header1"}, Separator: ","}
-			p, _, loggerMock := newTestProcessor(t, csvCfg)
+			csvCfg := config.CSVConfig{Separator: ","}
+			p, gatewayMock, loggerMock := newTestProcessor(t, csvCfg)
+			gatewayMock.EXPECT().TemplateFields().Return([]string{"header1"})
 			loggerMock.EXPECT().Add(gomock.Any()).AnyTimes()
 
-			ctx, cancel := p.Do(context.Background(), tempFile.Name(), tt.workers)
+			ctx, cancel, err := p.Do(context.Background(), tempFile.Name(), tt.workers)
+			require.NoError(t, err)
 			require.NotNil(t, ctx)
 			defer cancel()
 

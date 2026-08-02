@@ -13,10 +13,5 @@ request:
     Authorization: "Bearer JWT of your application"
     Content-Type: application/json
 csv:
-  fields:
-    - id
-    - street_number
-    - house_number
-    - city
   separator: ','
 workers: 1

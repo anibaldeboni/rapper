@@ -19,7 +19,6 @@ request:
     Cookie: "session_id=abc123; auth_token=xyz789"
 
 csv:
-  fields: [id, name, email, phone, timestamp]
   separator: ","
 
 workers: 8
