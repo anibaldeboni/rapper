@@ -283,7 +283,7 @@ func (v RequestsView) handleSelectionKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		}
 	}
 
-	if key.Matches(msg, kbind.Select) {
+	if key.Matches(msg, kbind.RunBatch) {
 		if opt, ok := v.profileList.SelectedItem().(Option[string]); ok {
 			return v.setActiveRequest(opt.Value)
 		}

@@ -8,8 +8,11 @@ import (
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/anibaldeboni/rapper/internal/csv"
+	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
 )
@@ -27,9 +30,12 @@ func (Option[T]) FilterValue() string { return "" }
 // `map[View]viewModel` and broadcast messages to every view without
 // re-dispatching on the concrete type.
 type FilesView struct {
-	list   list.Model
-	width  int
-	height int
+	list       list.Model
+	width      int
+	height     int
+	separator  rune
+	table      table.Model
+	previewErr string
 }
 
 // Compile-time guard: FilesView must satisfy tea.Model with a value
@@ -46,10 +52,16 @@ var (
 	paginationStyle   = lipgloss.NewStyle().MarginLeft(2)
 )
 
+const (
+	previewMaxRows        = 10
+	previewPaneMarginTop  = 1
+	previewPaneMarginLeft = 1
+)
+
 // NewFilesView creates a new FilesView. The returned value (not a
 // pointer) is what AppModel stores in the views map; callers must
 // capture the value returned by Update to preserve state.
-func NewFilesView(csvFiles []list.Item) FilesView {
+func NewFilesView(csvFiles []list.Item, separator rune) FilesView {
 	l := list.New(csvFiles, fileItemDelegate{}, 60, 5)
 	l.InfiniteScrolling = true
 	l.SetShowStatusBar(false)
@@ -62,7 +74,11 @@ func NewFilesView(csvFiles []list.Item) FilesView {
 	l.Styles.TitleBar = titleStyle.Bold(true)
 	l.Title = "👀 Select a CSV file to process"
 
-	v := FilesView{list: l}
+	v := FilesView{
+		list:      l,
+		separator: separator,
+		table:     newPreviewTable(csv.Preview{}),
+	}
 	v.list.Styles.ActivePaginationDot = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#d3d3d3")).
 		SetString("⦿").
@@ -71,17 +87,50 @@ func NewFilesView(csvFiles []list.Item) FilesView {
 		Foreground(lipgloss.Color("#8d8d8d")).
 		SetString("⦁").
 		Bold(true)
+	v = v.refreshPreview()
 	return v
+}
+
+func previewTableStyles() table.Styles {
+	cell := lipgloss.NewStyle().
+		Align(lipgloss.Left)
+
+	return table.Styles{
+		Header:   styles.TableHeaderStyle,
+		Cell:     cell,
+		Selected: cell,
+	}
+}
+
+func newPreviewTable(preview csv.Preview) table.Model {
+	columns := make([]table.Column, len(preview.Headers))
+	for i, header := range preview.Headers {
+		columns[i] = table.Column{Title: header, Width: 1}
+	}
+
+	rows := make([]table.Row, len(preview.Rows))
+	for i, row := range preview.Rows {
+		rows[i] = table.Row(row)
+	}
+
+	model := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(false),
+		table.WithKeyMap(table.KeyMap{}),
+	)
+	model.SetStyles(previewTableStyles())
+	return model
 }
 
 type filesViewKeyMap struct{}
 
 func (filesViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.Up, kbind.Down, kbind.Select}
+	return []key.Binding{kbind.Up, kbind.Down, kbind.RunBatch}
 }
 
 func (filesViewKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{kbind.Up, kbind.Down, kbind.Select}}
+	return [][]key.Binding{{kbind.Up, kbind.Down, kbind.RunBatch}}
 }
 
 func (FilesView) KeyMap() help.KeyMap {
@@ -98,7 +147,7 @@ func (v FilesView) Init() tea.Cmd { return nil }
 //
 // Recognised messages:
 //   - msgs.ViewportSizeMsg: resize the underlying list.
-//   - tea.KeyPressMsg on kbind.Select: emit msgs.ItemSelectedMsg
+//   - tea.KeyPressMsg on kbind.RunBatch: emit msgs.ItemSelectedMsg
 //     carrying the focused file's path.
 //
 // The return type is (tea.Model, tea.Cmd) to satisfy the tea.Model
@@ -112,32 +161,94 @@ func (v FilesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgs.ViewportSizeMsg:
 		v.width = msg.Width
 		v.height = msg.Height
-		v.list.SetSize((msg.Width/4)*3, msg.Height)
+		v.layout()
 		return v, nil
+	}
 
-	case tea.KeyPressMsg:
-		// Only intercept Select; let other keys fall through to the
-		// list. The list handles Up/Down/PgUp/PgDn etc. on its own.
-		if key.Matches(msg, kbind.Select) {
-			// Capture the value BEFORE the list Update so the
-			// selection is stable (list.Update may move focus).
-			selected, ok := v.list.SelectedItem().(Option[string])
-			if !ok {
-				return v, nil
-			}
-			filePath := selected.Value
-			// Let the list observe the keypress for visual feedback;
-			// the list may produce its own cmd (e.g. a spinner tick)
-			// which we compose with the ItemSelectedMsg.
-			var listCmd tea.Cmd
-			v.list, listCmd = v.list.Update(msg)
-			return v, tea.Batch(listCmd, emitItemSelected(filePath))
+	previousIndex := v.list.Index()
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && key.Matches(keyMsg, kbind.RunBatch) {
+		selected, ok := v.list.SelectedItem().(Option[string])
+		if !ok {
+			return v, nil
 		}
+		filePath := selected.Value
+		var listCmd tea.Cmd
+		v.list, listCmd = v.list.Update(keyMsg)
+		v.refreshOnSelectionChange(previousIndex)
+		return v, tea.Batch(listCmd, emitItemSelected(filePath))
 	}
 
 	var cmd tea.Cmd
 	v.list, cmd = v.list.Update(msg)
+	v.refreshOnSelectionChange(previousIndex)
 	return v, cmd
+}
+
+func (v *FilesView) refreshOnSelectionChange(previousIndex int) {
+	if previousIndex != v.list.Index() {
+		*v = v.refreshPreview()
+	}
+}
+
+func (v FilesView) refreshPreview() FilesView {
+	selected, ok := v.list.SelectedItem().(Option[string])
+	if !ok {
+		v.table = newPreviewTable(csv.Preview{})
+		v.previewErr = ""
+		v.layout()
+		return v
+	}
+
+	preview, err := csv.ReadPreview(selected.Value, v.separator, previewMaxRows)
+	if err != nil {
+		v.table = newPreviewTable(csv.Preview{})
+		v.previewErr = err.Error()
+		v.layout()
+		return v
+	}
+
+	v.table = newPreviewTable(preview)
+	v.previewErr = ""
+	v.layout()
+	return v
+}
+
+func (v FilesView) WithSeparator(separator rune) FilesView {
+	v.separator = separator
+	return v.refreshPreview()
+}
+
+func (v *FilesView) layout() {
+	if v.width == 0 && v.height == 0 {
+		return
+	}
+
+	listWidth := max(v.width/4, 0)
+	tableWidth := v.tableWidth()
+	v.list.SetSize(listWidth, v.height-3)
+	v.table.SetWidth(tableWidth)
+	v.table.SetHeight(max(v.height-3, 0))
+	v.setTableColumnWidths(tableWidth)
+}
+
+func (v FilesView) tableWidth() int {
+	listWidth := max(v.width/4, 0)
+	return max(v.width-listWidth-previewPaneMarginLeft, 0)
+}
+
+func (v *FilesView) setTableColumnWidths(width int) {
+	columns := v.table.Columns()
+	if len(columns) == 0 {
+		return
+	}
+
+	contentWidth := max(width-2*len(columns), len(columns))
+	columnWidth := max(contentWidth/len(columns), 1)
+	for i := range columns {
+		columns[i].Width = columnWidth
+	}
+	columns[len(columns)-1].Width += max(contentWidth-columnWidth*len(columns), 0)
+	v.table.SetColumns(columns)
 }
 
 func (v FilesView) emitStatusKeymap() tea.Cmd {
@@ -157,7 +268,32 @@ func emitItemSelected(filePath string) tea.Cmd {
 // View renders the files view as a tea.View whose Content holds the
 // bubbles list output.
 func (v FilesView) View() tea.View {
-	return tea.NewView(v.list.View())
+	previewContent := v.table.View()
+	if v.previewErr != "" {
+		previewContent = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("205")).
+			MaxWidth(v.tableWidth()).
+			Render("⚠ " + v.previewErr)
+	}
+	previewPane := lipgloss.NewStyle().
+		Width(v.tableWidth()).
+		Height(v.height - 6).
+		MarginTop(previewPaneMarginTop).
+		MarginLeft(previewPaneMarginLeft).
+		Render(lipgloss.JoinVertical(
+			lipgloss.Top,
+			styles.TitleStyle.MarginBottom(1).Render("Preview"),
+			previewContent,
+		))
+	listPane := ""
+	if v.list.Width() > 0 {
+		listPane = lipgloss.NewStyle().
+			Width(v.list.Width()).
+			MaxWidth(v.list.Width()).
+			Height(v.height - 6).
+			Render(v.list.View())
+	}
+	return tea.NewView(lipgloss.JoinHorizontal(lipgloss.Top, listPane, previewPane))
 }
 
 // ListWidth returns the current width of the embedded list. Exposed

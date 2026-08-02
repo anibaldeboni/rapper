@@ -2,6 +2,9 @@ package ui
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/key"
@@ -160,6 +163,22 @@ func TestAppModel_NewApp_InitializesHelpModel(t *testing.T) {
 
 	assert.NotEqual(t, lipgloss.Style{}, app.help.Styles.ShortKey)
 	assert.NotEqual(t, lipgloss.Style{}, app.help.Styles.ShortDesc)
+}
+
+func TestAppModel_ProfileSwitchedMsg_RefreshesCSVPreviewSeparator(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "preview.csv")
+	require.NoError(t, os.WriteFile(path, []byte("id;name\n1;Ada\n"), 0o600))
+	app, _, configMgr, _ := newTestApp(t, path)
+	app.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
+	configMgr.EXPECT().Get().Return(&config.Config{
+		CSV: config.CSVConfig{Separator: ";"},
+	}).AnyTimes()
+
+	updated, _ := app.Update(msgs.ProfileSwitchedMsg{ProfileName: "semicolon"})
+	next := updated.(AppModel)
+	filesView := next.views[ViewFiles].(views.FilesView)
+
+	assert.True(t, strings.Contains(filesView.View().Content, "Ada"))
 }
 
 func TestActivation_RoundTripOrdering(t *testing.T) {

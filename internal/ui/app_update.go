@@ -7,11 +7,13 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/anibaldeboni/rapper/internal/csv"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/processor"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/kbind"
 	"github.com/anibaldeboni/rapper/internal/ui/msgs"
+	"github.com/anibaldeboni/rapper/internal/ui/views"
 )
 
 func tickCmd() tea.Cmd {
@@ -179,6 +181,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case msgs.ProfileSwitchedMsg:
+		if cfg := m.configMgr.Get(); cfg != nil {
+			if filesView, ok := m.views[ViewFiles].(views.FilesView); ok {
+				m.views[ViewFiles] = filesView.WithSeparator(csv.Separator(cfg.CSV))
+			}
+		}
 		m.toastMgr.Success("Switched to profile: " + msg.ProfileName)
 		return m, nil
 

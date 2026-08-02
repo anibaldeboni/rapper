@@ -19,9 +19,13 @@ var (
 		key.WithKeys("left"),
 		key.WithHelp("←", "move left"),
 	)
-	Select = key.NewBinding(
+	RunBatch = key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "run"),
+	)
+	ExpandLogMessage = key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "expand"),
 	)
 	Cancel = key.NewBinding(
 		key.WithKeys("esc"),

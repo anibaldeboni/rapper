@@ -11,6 +11,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/anibaldeboni/rapper/internal/csv"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/styles"
 	"github.com/anibaldeboni/rapper/internal/ui/components"
@@ -109,7 +110,7 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 		items = append(items, mapFileToOption(file))
 	}
 
-	initialFilesView := views.NewFilesView(items)
+	initialFilesView := views.NewFilesView(items, csv.Separator(configMgr.Get().CSV))
 	app := &AppModel{
 		currentView:         ViewFiles,
 		currentStatusKeymap: initialFilesView.KeyMap(),

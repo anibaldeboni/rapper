@@ -67,13 +67,13 @@ func NewLogsView(logger ports.LogProvider, proc ports.ProcessorController) LogsV
 type logsViewKeyMap struct{}
 
 func (logsViewKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.Up, kbind.Down, kbind.Select, kbind.GotoBottom}
+	return []key.Binding{kbind.Up, kbind.Down, kbind.ExpandLogMessage, kbind.GotoBottom}
 }
 
 func (logsViewKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{
 		kbind.Up, kbind.Down, kbind.GotoTop, kbind.GotoBottom,
-		kbind.PageUp, kbind.PageDown, kbind.Select,
+		kbind.PageUp, kbind.PageDown, kbind.ExpandLogMessage,
 	}}
 }
 
@@ -130,7 +130,7 @@ func (v LogsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			key.Matches(msg, kbind.PageUp),
 			key.Matches(msg, kbind.PageDown),
 			key.Matches(msg, kbind.GotoTop),
-			key.Matches(msg, kbind.Select):
+			key.Matches(msg, kbind.ExpandLogMessage):
 			next, kcmd := v.list.Update(msg)
 			v.list = next.(components.DetailedList[logs.LogMessage])
 			return v, kcmd

@@ -19,6 +19,10 @@ var (
 			Foreground(lipgloss.Color("230")).
 			Padding(0, 1).
 			Bold(true)
+	TableHeaderStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#F25D94")).
+				Bold(true).
+				Align(lipgloss.Left)
 	TitleBarStyle       = lipgloss.NewStyle().PaddingBottom(1)
 	ItemStyle           = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
 	SelectedItemStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#d6acff"))

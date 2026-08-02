@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/anibaldeboni/rapper/internal/config"
+	"github.com/anibaldeboni/rapper/internal/csv"
 	"github.com/anibaldeboni/rapper/internal/logs"
 	"github.com/anibaldeboni/rapper/internal/styles"
 )
@@ -167,12 +168,12 @@ func (p *processorImpl) mapCSV(ctx context.Context, filePath string, workers int
 
 	rows := make(chan csvLineMap, workers)
 
-	reader, file, err := newCSVReader(filePath, csvSep(csvConfig))
+	reader, file, err := csv.Open(filePath, csv.Separator(csvConfig))
 	if err != nil {
 		return nil, err
 	}
 
-	headers, err := readCSVHeaders(reader)
+	headers, err := csv.Headers(reader)
 	if err != nil {
 		_ = file.Close()
 		return nil, err

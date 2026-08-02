@@ -245,7 +245,7 @@ func (l DetailedList[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			l.cursor = 0
 		}
 		l.autoScroll = true
-	case key.Matches(keyMsg, kbind.Select):
+	case key.Matches(keyMsg, kbind.RunBatch):
 		if len(l.items) == 0 {
 			return l, nil
 		}
