@@ -332,7 +332,7 @@ func TestAppModel_Update_ItemSelectedMsg_ShowsMissingFieldsInLogsWithoutToast(t 
 	assert.NotNil(t, cmd, "processing failure should activate the logs view")
 	assert.Empty(t, next.toastMgr.GetActive(), "missing-field validation errors are rendered in logs, not as toasts")
 	assert.Len(t, messages, 1)
-	assert.Equal(t, "Processing failed", messages[0].Text)
+	assert.Equal(t, "Batch file processing failed", messages[0].Text)
 	assert.Equal(t, validationErr.Error(), messages[0].Details)
 }
 

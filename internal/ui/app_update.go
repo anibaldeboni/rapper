@@ -242,14 +242,14 @@ func (m AppModel) selectFile(filePath string) (tea.Model, tea.Cmd) {
 	ctx, cancel, err := m.processor.Do(context.Background(), filePath, workers)
 	if err != nil {
 		m.logger.Add(logs.NewMessage(
-			"Processing failed",
+			"Batch file processing failed",
 			logs.WithDetail(err.Error()),
 			logs.WithIcon(styles.IconSkull),
 			logs.AsError(),
 		))
 		var missingFieldsErr *processor.MissingFieldsError
 		if !errors.As(err, &missingFieldsErr) {
-			m.toastMgr.Error("Processing failed: " + err.Error())
+			m.toastMgr.Error("Batch failed")
 		}
 		return m.activateView(ViewLogs)
 	}
