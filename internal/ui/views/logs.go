@@ -186,7 +186,7 @@ func (v LogsView) applyViewportSize(width, height int) LogsView {
 	}
 	left := max(width-right-logsMarginLeft, 0)
 
-	v.list = v.list.SetSize(left, max(height-3, 0))
+	v.list = v.list.SetSize(left, max(height, 0))
 	v.rightCol = right
 	return v
 }

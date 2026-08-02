@@ -238,7 +238,6 @@ func (m AppModel) selectFile(filePath string) (tea.Model, tea.Cmd) {
 	m.cancelMu.RUnlock()
 
 	if hasCancel {
-		// Already processing - show error
 		m.logger.Add(operationError())
 		m.currentView = ViewLogs
 		return m, nil

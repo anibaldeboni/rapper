@@ -348,7 +348,7 @@ func (v RequestsView) View() tea.View {
 		listTitle,
 		listBg.
 			Width(listW).
-			Height(v.height-3).
+			Height(v.height).
 			Render(v.profileList.View()),
 	)
 
@@ -357,7 +357,7 @@ func (v RequestsView) View() tea.View {
 		lipgloss.JoinHorizontal(
 			lipgloss.Left,
 			settingsTitleStyle.Render("⚙️ Settings"),
-			profileBadgeStyle.Render("📋 "+v.selectedRequestName()),
+			profileBadgeStyle.Render("→ "+v.selectedRequestName()),
 		),
 	)
 	editorBlock := lipgloss.JoinVertical(
@@ -370,7 +370,7 @@ func (v RequestsView) View() tea.View {
 		header,
 		formBg.
 			Width(formW).
-			Height(v.height-3).
+			Height(v.height).
 			Render(editorBlock),
 	)
 

@@ -72,7 +72,7 @@ func NewFilesView(csvFiles []list.Item, separator rune) FilesView {
 	l.KeyMap.CursorDown = kbind.Down
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.TitleBar = titleStyle.Bold(true)
-	l.Title = "👀 Select a CSV file to process"
+	l.Title = "🗂️ Select a CSV file to process"
 
 	v := FilesView{
 		list:      l,
@@ -225,9 +225,9 @@ func (v *FilesView) layout() {
 
 	listWidth := max(v.width/4, 0)
 	tableWidth := v.tableWidth()
-	v.list.SetSize(listWidth, v.height-3)
+	v.list.SetSize(listWidth, v.height)
 	v.table.SetWidth(tableWidth)
-	v.table.SetHeight(max(v.height-3, 0))
+	v.table.SetHeight(max(v.height, 0))
 	v.setTableColumnWidths(tableWidth)
 }
 
@@ -282,7 +282,7 @@ func (v FilesView) View() tea.View {
 		MarginLeft(previewPaneMarginLeft).
 		Render(lipgloss.JoinVertical(
 			lipgloss.Top,
-			styles.TitleStyle.MarginBottom(1).Render("Preview"),
+			styles.TitleStyle.MarginBottom(1).Render("📄 Preview"),
 			previewContent,
 		))
 	listPane := ""
