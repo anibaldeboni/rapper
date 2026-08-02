@@ -112,7 +112,7 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 
 	initialFilesView := views.NewFilesView(items, csv.Separator(configMgr.Get().CSV))
 	app := &AppModel{
-		currentView:         ViewFiles,
+		currentView:         ViewRequests,
 		currentStatusKeymap: initialFilesView.KeyMap(),
 		logger:              log,
 		processor:           fileProcessor,
@@ -120,7 +120,7 @@ func NewApp(csvFiles []string, fileProcessor ports.ProcessorController, log port
 		views: map[View]viewModel{
 			ViewFiles:    initialFilesView,
 			ViewLogs:     views.NewLogsView(log, fileProcessor),
-			ViewSettings: views.NewRequestsView(configMgr),
+			ViewRequests: views.NewRequestsView(configMgr),
 		},
 		help:     createHelp(),
 		spinner:  createSpinner(),

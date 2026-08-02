@@ -103,12 +103,12 @@ func TestAppModel_NavSwitchToLogs_EmitsViewActivatedMsg(t *testing.T) {
 
 func TestAppModel_ActivateView_MissingViewKeepsNavigationSafe(t *testing.T) {
 	app, _, _, _ := newTestApp(t)
-	delete(app.views, ViewSettings)
+	delete(app.views, ViewRequests)
 
-	updated, _ := app.activateView(ViewSettings)
+	updated, _ := app.activateView(ViewRequests)
 	next, ok := updated.(AppModel)
 	require.True(t, ok)
-	assert.Equal(t, ViewSettings, next.currentView)
+	assert.Equal(t, ViewRequests, next.currentView)
 }
 
 func TestAppModel_NavReEntryToFiles_ReEmitsViewActivatedMsg(t *testing.T) {

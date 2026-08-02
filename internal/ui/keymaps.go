@@ -9,12 +9,12 @@ import (
 type globalKeyMap struct{}
 
 func (k globalKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{kbind.ViewFiles, kbind.ViewLogs, kbind.ViewSettings, kbind.CancelOperation, kbind.Quit}
+	return []key.Binding{kbind.ViewRequests, kbind.ViewFiles, kbind.ViewLogs, kbind.CancelOperation, kbind.Quit}
 }
 
 func (k globalKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{kbind.ViewFiles, kbind.ViewLogs, kbind.ViewSettings, kbind.CancelOperation, kbind.Quit},
+		{kbind.ViewRequests, kbind.ViewFiles, kbind.ViewLogs, kbind.CancelOperation, kbind.Quit},
 	}
 }
 

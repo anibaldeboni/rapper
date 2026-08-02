@@ -222,7 +222,7 @@ func TestView_HeaderAlwaysOnLineZero(t *testing.T) {
 		// renderers are calibrated for the chosen height.
 		app.Update(tea.WindowSizeMsg{Width: 100, Height: termH})
 
-		for _, viewName := range []View{ViewFiles, ViewLogs, ViewSettings} {
+		for _, viewName := range []View{ViewFiles, ViewLogs, ViewRequests} {
 			app.currentView = viewName
 			view := app.View()
 			// tea.View.Content holds the rendered frame.

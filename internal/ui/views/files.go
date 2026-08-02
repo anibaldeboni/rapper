@@ -72,7 +72,7 @@ func NewFilesView(csvFiles []list.Item, separator rune) FilesView {
 	l.KeyMap.CursorDown = kbind.Down
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.TitleBar = titleStyle.Bold(true)
-	l.Title = "🗂️ Select a CSV file to process"
+	l.Title = "🗂️ Available files"
 
 	v := FilesView{
 		list:      l,

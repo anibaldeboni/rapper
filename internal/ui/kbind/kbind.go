@@ -35,17 +35,17 @@ var (
 		key.WithKeys("ctrl+q"),
 		key.WithHelp("ctrl+q", "quit"),
 	)
+	ViewRequests = key.NewBinding(
+		key.WithKeys("f1", "ctrl+t"),
+		key.WithHelp("F1", "Requests"),
+	)
 	ViewFiles = key.NewBinding(
-		key.WithKeys("f1", "ctrl+f"),
-		key.WithHelp("F1", "files"),
+		key.WithKeys("f2", "ctrl+f"),
+		key.WithHelp("F2", "Files"),
 	)
 	ViewLogs = key.NewBinding(
-		key.WithKeys("f2", "ctrl+l"),
-		key.WithHelp("F2", "logs"),
-	)
-	ViewSettings = key.NewBinding(
-		key.WithKeys("f3", "ctrl+t"),
-		key.WithHelp("F3", "requests"),
+		key.WithKeys("f3", "ctrl+l"),
+		key.WithHelp("F3", "Logs"),
 	)
 	Save = key.NewBinding(
 		key.WithKeys("ctrl+s"),

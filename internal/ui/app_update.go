@@ -61,8 +61,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, kbind.ViewLogs):
 			return m.activateView(ViewLogs)
 
-		case key.Matches(msg, kbind.ViewSettings):
-			return m.activateView(ViewSettings)
+		case key.Matches(msg, kbind.ViewRequests):
+			return m.activateView(ViewRequests)
 
 		case key.Matches(msg, kbind.CancelOperation):
 			if m.cancel != nil {
