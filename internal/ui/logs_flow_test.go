@@ -16,7 +16,7 @@ func TestLogsFlow(t *testing.T) {
 	app, logManagerMock, _, _ := newTestApp(t, "test.csv")
 
 	app.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyF3})
 
 	for i := 0; i < 3; i++ {
 		app.Update(msgs.TickMsg(time.Now()))

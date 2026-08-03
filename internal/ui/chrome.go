@@ -28,8 +28,8 @@ func NewChromeLayout() ChromeLayout {
 	return ChromeLayout{
 		marginRows:      2,
 		marginCols:      4,
-		headerHeight:    3,
-		statusBarHeight: 2,
+		headerHeight:    1,
+		statusBarHeight: 1,
 	}
 }
 

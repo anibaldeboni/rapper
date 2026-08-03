@@ -150,7 +150,7 @@ func TestFilesView_PreviewUsesSharedTitleStyle(t *testing.T) {
 	next, _ := v.Update(msgs.ViewportSizeMsg{Width: 40, Height: 10})
 
 	content := next.(FilesView).View().Content
-	require.Contains(t, content, styles.TitleStyle.Render("Preview"))
+	require.Contains(t, content, styles.TitleStyle.Render("📄 Preview"))
 }
 
 func TestPreviewTableStyles_LeftAlignAndMatchPadding(t *testing.T) {

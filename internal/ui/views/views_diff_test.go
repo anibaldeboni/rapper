@@ -14,15 +14,15 @@ type viewKeyHandlingGolden struct {
 
 func TestViews_UpdateKeyHandlingArms_NoChange(t *testing.T) {
 	golden := map[string]viewKeyHandlingGolden{
-		"files.go": {count: 1, keys: []string{"Select"}},
+		"files.go": {count: 1, keys: []string{"RunBatch"}},
 		"logs.go": {
 			count: 7,
-			keys:  []string{"Down", "GotoBottom", "GotoTop", "PageDown", "PageUp", "Select", "Up"},
+			keys:  []string{"Down", "ExpandLogMessage", "GotoBottom", "GotoTop", "PageDown", "PageUp", "Up"},
 		},
-		"settings.go": {count: 4, keys: []string{"Edit", "ExitEdit", "Save", "Select"}},
+		"requests.go": {count: 4, keys: []string{"Edit", "ExitEdit", "RunBatch", "Save"}},
 	}
 
-	matcher := regexp.MustCompile(`key\.Matches\(msg,\s*kbind\.(\w+)`)
+	matcher := regexp.MustCompile(`key\.Matches\([^,]+,\s*kbind\.(\w+)`)
 	for file, want := range golden {
 		t.Run(file, func(t *testing.T) {
 			source, err := os.ReadFile(file)

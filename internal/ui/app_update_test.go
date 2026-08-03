@@ -92,7 +92,7 @@ func TestAppModel_NavSwitchToLogs_EmitsViewActivatedMsg(t *testing.T) {
 	app, _, _, _ := newTestApp(t)
 	app.views[ViewLogs] = activationTestView{}
 
-	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyF3})
 	next, ok := updated.(AppModel)
 	require.True(t, ok)
 	require.Equal(t, ViewLogs, next.currentView)
@@ -114,11 +114,11 @@ func TestAppModel_ActivateView_MissingViewKeepsNavigationSafe(t *testing.T) {
 func TestAppModel_NavReEntryToFiles_ReEmitsViewActivatedMsg(t *testing.T) {
 	app, _, _, _ := newTestApp(t)
 
-	updated, _ := app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
+	updated, _ := app.Update(tea.KeyPressMsg{Code: tea.KeyF3})
 	next := updated.(AppModel)
 	next.currentStatusKeymap = views.LogsView{}.KeyMap()
 
-	updated, cmd := next.Update(tea.KeyPressMsg{Code: tea.KeyF1})
+	updated, cmd := next.Update(tea.KeyPressMsg{Code: tea.KeyF2})
 	final := updated.(AppModel)
 	require.Equal(t, ViewFiles, final.currentView)
 
@@ -144,7 +144,7 @@ func TestAppModel_Init_PreInitializesStatusKeymap(t *testing.T) {
 
 	status, ok := batch[len(batch)-1]().(msgs.StatusKeymapMsg)
 	require.True(t, ok, "last Init command must yield StatusKeymapMsg")
-	assert.Equal(t, uiBindingKeys(views.FilesView{}.KeyMap().ShortHelp()), uiBindingKeys(status.Current.ShortHelp()))
+	assert.Equal(t, uiBindingKeys(views.RequestsView{}.KeyMap().ShortHelp()), uiBindingKeys(status.Current.ShortHelp()))
 }
 
 func TestAppModel_Update_BackgroundColorMsg_IsNoOp(t *testing.T) {
@@ -188,7 +188,7 @@ func TestActivation_RoundTripOrdering(t *testing.T) {
 	logsView := app.views[ViewLogs].(views.LogsView)
 	app.views[ViewLogs] = orderedLogsView{view: logsView}
 
-	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
+	updated, cmd := app.Update(tea.KeyPressMsg{Code: tea.KeyF3})
 	next := updated.(AppModel)
 	assert.NotContains(t, next.View().Content, "go to bottom")
 
@@ -244,7 +244,7 @@ func newTestApp(t *testing.T, csvPaths ...string) (
 // tea.WindowSizeMsg{120,40}, the AppModel must route
 // msgs.ViewportSizeMsg{Width: 116, Height: 36} (chrome-adjusted) to
 // every view in the views map. We assert the FilesView list's
-// dimensions match the formula (116/4*3=87, 36).
+// dimensions match the formula (116/4=29, 36).
 func TestAppModel_Update_WindowSizeMsg_RoutesToViewMap(t *testing.T) {
 	app, _, _, _ := newTestApp(t)
 
@@ -254,9 +254,9 @@ func TestAppModel_Update_WindowSizeMsg_RoutesToViewMap(t *testing.T) {
 	if !ok {
 		t.Fatalf("ViewFiles should hold views.FilesView; got %T", app.views[ViewFiles])
 	}
-	// (116/4)*3 = 87, height = 36
-	if w := filesView.ListWidth(); w != 87 {
-		t.Errorf("FilesView.ListWidth() = %d; want 87", w)
+	// 116/4 = 29, height = 36
+	if w := filesView.ListWidth(); w != 29 {
+		t.Errorf("FilesView.ListWidth() = %d; want 29", w)
 	}
 	if h := filesView.ListHeight(); h != 36 {
 		t.Errorf("FilesView.ListHeight() = %d; want 36", h)
@@ -269,7 +269,7 @@ func TestAppModel_Update_WindowSizeMsg_RoutesToViewMap(t *testing.T) {
 func TestAppModel_NavSwitchToLogs_EmitsMetricsVisibilityTrue(t *testing.T) {
 	app, _, _, _ := newTestApp(t)
 
-	app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
+	app.Update(tea.KeyPressMsg{Code: tea.KeyF3})
 	logsView, ok := app.views[ViewLogs].(views.LogsView)
 	if !ok {
 		t.Fatalf("ViewLogs should hold views.LogsView; got %T", app.views[ViewLogs])
@@ -285,8 +285,8 @@ func TestAppModel_NavSwitchToLogs_EmitsMetricsVisibilityTrue(t *testing.T) {
 func TestAppModel_NavSwitchToFiles_EmitsMetricsVisibilityFalse(t *testing.T) {
 	app, _, _, _ := newTestApp(t)
 
+	app.Update(tea.KeyPressMsg{Code: tea.KeyF3})
 	app.Update(tea.KeyPressMsg{Code: tea.KeyF2})
-	app.Update(tea.KeyPressMsg{Code: tea.KeyF1})
 
 	logsView, ok := app.views[ViewLogs].(views.LogsView)
 	if !ok {
@@ -328,7 +328,7 @@ func TestAppModel_Update_ItemSelectedMsg_ShowsPreflightError(t *testing.T) {
 	assert.Equal(t, ViewLogs, next.currentView)
 	assert.NotNil(t, cmd)
 	require.Len(t, next.toastMgr.GetActive(), 1)
-	assert.Contains(t, next.toastMgr.GetActive()[0].Message, assert.AnError.Error())
+	assert.Equal(t, "Batch failed", next.toastMgr.GetActive()[0].Message)
 }
 
 func TestAppModel_Update_ItemSelectedMsg_ShowsMissingFieldsInLogsWithoutToast(t *testing.T) {
