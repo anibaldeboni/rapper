@@ -18,7 +18,7 @@ import (
 //  2. Manager.OnChange subscribed to BOTH the HTTP gateway (UpdateConfig) and the
 //     CSV processor (UpdateConfig).
 //  3. SetActiveProfile("profile2") → processor must use the active CSV
-//     configuration on the next Do.
+//     configuration and worker count on the next Do.
 //
 // Before the fix this test fails because SetActiveProfile never fires OnChange
 // and the processor is never subscribed.
@@ -110,6 +110,9 @@ workers: 8
 		t.Fatalf("SetActiveRequest: %v", err)
 	}
 	activeCfg := mgr.Get()
+	if got := activeCfg.Workers; got != 8 {
+		t.Fatalf("expected switched profile to configure 8 workers, got %d", got)
+	}
 
 	// Write a CSV and run it. All columns remain available to the gateway.
 	csvPath := filepath.Join(dir, "input.csv")
@@ -128,8 +131,9 @@ workers: 8
 		t.Fatalf("processor.Do returned nil context (csv read failed?)")
 	}
 	defer newCancel()
-	if got := csvProcessor.GetMetrics().ActiveWorkers; got != 8 {
-		t.Fatalf("expected active workers from switched profile to be 8, got %d", got)
+	expectedWorkers := min(activeCfg.Workers, maxWorkers)
+	if got := csvProcessor.GetMetrics().ActiveWorkers; got != expectedWorkers {
+		t.Fatalf("expected effective workers from switched profile to be %d, got %d", expectedWorkers, got)
 	}
 
 	if !waitFor(2*time.Second, func() bool {
